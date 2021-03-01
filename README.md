@@ -16,7 +16,7 @@ ASX stocks ticker grabber and a basic screener.
     Windows: 
     ```
     python -m venv venv
-    venv\Scripts\activate
+    venv＼Scripts＼activate
     ```
    
 3. Install the required libraries: `pip install -r requirements.txt`
