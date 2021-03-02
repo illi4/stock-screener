@@ -30,70 +30,32 @@ def bulk_add_stocks(stocks_dict):
         Stock.insert_many(stocks_dict).execute()
 
 
-# Finish
-'''
-def add_entry(asset_name, entry_price):
-    # Use to add an entry for the asset. This is used in pattern day trading limits.
-    db.connect()
-    entry = Trade.create(
-        entry_date_us=current_eastern_date(), asset=asset_name, entry_price=entry_price
-    )
-    entry.save()
-    db.close()
+def get_stocks(price_min=None, price_max=None):
+    price_min = 0 if price_min is None else price_min
+    price_max = 10e9 if price_max is None else price_max
 
-
-def update_trade(asset_name, exit_price):
-    # Use to update an entry for the asset. This is used in pattern day trading limits.
-    db.connect()
-    last_trade = (
-        Trade.select().where(Trade.asset == asset_name).order_by(Trade.id.desc()).get()
-    )
-    last_trade.exit_date_us = current_eastern_date()
-    last_trade.exit_price = exit_price
-    last_trade.save()
-    db.close()
-
-
-def number_of_day_trades(start_date):
-    # Returns the number of day trades already executed from the start date
-    if start_date is None:
-        raise Exception("Start date value is missing")
-    db.connect()
-    day_trades = (
-        Trade.select()
-        .where(
-            (Trade.entry_date_us >= start_date)
-            & (Trade.entry_date_us == Trade.exit_date_us)
-        )
-        .count()
-    )
-    db.close()
-    return day_trades
-
-
-def get_most_recent_entry_date(asset_name):
-    # Returns the most recent entry date for an asset
-    db.connect()
     try:
-        last_trade = (
-            Trade.select()
-            .where(
-                (Trade.asset == asset_name)
-                & Trade.exit_date_us.is_null()  # need the entries only (not closed)
+        stocks = (
+            Stock.select()
+                .where(
+                (Stock.price >= price_min)
+                & (Stock.price < price_max)
             )
-            .order_by(Trade.id.desc())
-            .get()
         )
-        result = last_trade.entry_date_us
-    except peewee.DoesNotExist:
-        result = None
-    db.close()
-    return result
 
-
-def is_a_day_trade(asset_name):
-    # Checks if a trade would be considered a daytrade (exit date and entry dates are the same)
-    entry_date = str(get_most_recent_entry_date(asset_name))
-    current_date = str(current_eastern_date())
-    return entry_date == current_date
-'''
+        '''
+        stocks = (
+            Stock.select()
+            .where(
+                (Trade.entry_date_us >= start_date)
+                & (Trade.entry_date_us == Trade.exit_date_us)
+            )
+            .count()
+        )
+        '''
+        if len(stocks) == 0:
+            print('Warning: no stocks in the database')
+    except peewee.OperationalError:
+        print('Error: table not found. Update the stocks list first.')
+        exit(0)
+    return stocks

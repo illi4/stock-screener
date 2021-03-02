@@ -13,8 +13,9 @@ print(completed_dict)
 '''
 
 # This is ok
-from libs.db import bulk_add_stocks, create_stock_table, delete_all_stocks
+from libs.db import bulk_add_stocks, create_stock_table, delete_all_stocks, get_stocks
 
+'''
 create_stock_table()
 delete_all_stocks()
 stocks = [{'code': 'AAA', 'name': 'CBA Commonwealth Bank of Australia', 'price': 11.49},
@@ -22,3 +23,8 @@ stocks = [{'code': 'AAA', 'name': 'CBA Commonwealth Bank of Australia', 'price':
           {'code': 'CSL', 'name': 'CSL CSL Ltd', 'price': 269.74},
           {'code': 'NAB', 'name': 'NAB National Australia Bank Ltd', 'price': 25.26}]
 bulk_add_stocks(stocks)
+'''
+a = get_stocks(price_min=0.01, price_max=1)
+print(len(a))
+#for elem in a:
+#    print(elem.name)

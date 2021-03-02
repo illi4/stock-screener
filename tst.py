@@ -49,6 +49,12 @@ for row in rows:
 print(data)
 '''
 
+from libs.stocktools import get_asx_symbols
+
+print(get_asx_symbols())
+
+exit(0)
+
 # Selenium plus soup
 # Wrap all this in functions
 from selenium import webdriver

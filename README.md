@@ -2,7 +2,7 @@
 
 ASX stocks ticker grabber and a basic screener. 
 
-#### Setting up
+#### Installation
 
 1. Clone the repo: `git clone https://github.com/illi4/asx-screener.git`
 2. Change to this folder, create a python3 venv and activate it. 
@@ -20,3 +20,4 @@ ASX stocks ticker grabber and a basic screener.
     ```
    
 3. Install the required libraries: `pip install -r requirements.txt`
+4. Install ChromeDriver
