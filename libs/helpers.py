@@ -1,4 +1,5 @@
 import argparse
+import arrow
 
 parser = argparse.ArgumentParser()
 
@@ -24,5 +25,11 @@ def define_args():
         exit(0)
 
     return arguments
+
+
+def dates_diff(date_from, date_to=None):
+    date_to = arrow.now() if date_to is None else date_to
+    return (date_to - date_from).days
+
 
 

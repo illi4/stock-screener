@@ -1,6 +1,7 @@
 from peewee import *
 import peewee
 import datetime
+import arrow
 
 db = SqliteDatabase("stocks.db")
 
@@ -42,20 +43,17 @@ def get_stocks(price_min=None, price_max=None):
                 & (Stock.price < price_max)
             )
         )
-
-        '''
-        stocks = (
-            Stock.select()
-            .where(
-                (Trade.entry_date_us >= start_date)
-                & (Trade.entry_date_us == Trade.exit_date_us)
-            )
-            .count()
-        )
-        '''
         if len(stocks) == 0:
             print('Warning: no stocks in the database')
     except peewee.OperationalError:
         print('Error: table not found. Update the stocks list first.')
         exit(0)
+
     return stocks
+
+
+def get_update_date():
+    record = Stock.select().get()
+    record = arrow.get(record.date)
+    record = record.replace(tzinfo='Australia/Sydney')
+    return record

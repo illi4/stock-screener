@@ -3,3 +3,4 @@ pandas
 peewee
 pandas
 selenium
+arrow
