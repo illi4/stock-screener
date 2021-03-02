@@ -2,3 +2,4 @@ yfinance
 pandas
 peewee
 pandas
+selenium
