@@ -3,6 +3,9 @@ from pprint import pprint
 
 from bs4 import BeautifulSoup
 
+from libs.db import bulk_add_stocks, create_stock_table, delete_all_stocks
+
+
 # Have to use selenium hey
 
 
@@ -47,6 +50,7 @@ print(data)
 '''
 
 # Selenium plus soup
+# Wrap all this in functions
 from selenium import webdriver
 options = webdriver.ChromeOptions()
 
@@ -57,6 +61,7 @@ options.add_argument(
 
 driver = webdriver.Chrome(options=options)
 
+print('Working...')
 
 driver.get("https://www.marketindex.com.au/asx-listed-companies")
 content = driver.page_source
@@ -67,10 +72,20 @@ data = []
 table = soup.find('table', attrs={'class':'mi-table mt-6'})
 table_body = table.find('tbody')
 
+print('Getting the elements...')
+
 rows = table_body.find_all('tr')
 for row in rows:
     cols = row.find_all('td')
     cols = [ele.text.strip() for ele in cols]
-    data.append([ele for ele in cols if ele]) # Get rid of empty values
+    data.append(cols)
 
-print(data) # cool
+stocks = [dict(code=elem[2], name=elem[3], price=float(elem[4].replace('$',''))) for elem in data]
+
+create_stock_table()
+delete_all_stocks()
+
+print('Inserting...')
+
+bulk_add_stocks(stocks)
+

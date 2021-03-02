@@ -9,12 +9,26 @@ class BaseModel(Model):
         database = db
 
 
-class stock(BaseModel):
+class Stock(BaseModel):
     code = CharField()
     name = CharField()
-    avgPrice5D = FloatField(null=True)
-    avgVolume5D = FloatField(null=True)
+    price = FloatField(null=True)
     date = DateTimeField(default=datetime.datetime.now)
+
+
+def create_stock_table():
+    Stock.create_table()
+
+
+def delete_all_stocks():
+    query = Stock.delete()
+    query.execute()
+
+
+def bulk_add_stocks(stocks_dict):
+    with db.atomic():
+        Stock.insert_many(stocks_dict).execute()
+
 
 # Finish
 '''
