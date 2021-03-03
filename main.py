@@ -125,11 +125,11 @@ def scan_stocks():
                 volume_daily,
                 ohlc_with_indicators_weekly
         ):
-            print("- (v) meeting shortlisting conditions")
+            print("- [✓] meeting shortlisting conditions")
             volume_MA_5D = last_volume_5D_MA(volume_daily)
             shortlisted_stocks.append((stock.code, stock.name, volume_MA_5D))
         else:
-            print("- (x) not meeting shortlisting conditions")
+            print("- [x] not meeting shortlisting conditions")
 
     # Sort by volume (index 2) descending
     sorted_stocks = sorted(shortlisted_stocks, key=lambda tup: tup[2], reverse=True)
