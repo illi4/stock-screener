@@ -22,6 +22,11 @@ def check_update_date():
         print("Warning: Stocks list updated more than 5 days ago")
 
 
+def last_volume_5D_MA(volume_daily):
+    volume_ma_20 = MA(volume_daily, 20, colname="volume")
+    return volume_ma_20["ma20"].iloc[-1]
+
+
 def met_conditions_bullish(ohlc_with_indicators_daily, volume_daily, ohlc_with_indicators_weekly):
     # Checks if price action meets conditions.
     # Rules: MAs trending up, fast above slow, bullish TD count, volume spike
@@ -50,7 +55,6 @@ def met_conditions_bullish(ohlc_with_indicators_daily, volume_daily, ohlc_with_i
     volume_ma_20 = MA(volume_daily, 20, colname="volume")
     mergedDf = volume_daily.merge(volume_ma_20, left_index=True, right_index=True)
     mergedDf.dropna(inplace=True, how='any')
-    # Greater or equal?
     mergedDf["volume_above_average"] = mergedDf['volume'].ge(mergedDf['ma20'])  # GE is greater or equal
     last_volume_to_ma = mergedDf["volume_above_average"][-5:].tolist()
     recent_volume_spike = True in last_volume_to_ma
@@ -114,20 +118,24 @@ def scan_stocks():
         td_values_weekly = td_indicators(ohlc_weekly)
         ohlc_with_indicators_weekly = pd.concat([ohlc_weekly, td_values_weekly], axis=1)
 
-        # CONTINUE
-        # When meeting, need to add avg volume over the last 5 days to sort
         if met_conditions_bullish(
                 ohlc_with_indicators_daily,
                 volume_daily,
                 ohlc_with_indicators_weekly
         ):
             print("- (v) meeting bullish conditions")
-            exit(0)
-        # Check what's last close to swing low is
-        # close_to_low = last_close_to_local_min(ohlc_with_indicators_daily)
-        # stocks_meeting_condition_bullish.append((stock, close_to_low))
+            volume_MA_5D = last_volume_5D_MA(volume_daily)
+            shortlisted_stocks.append((stock.code, volume_MA_5D))
         else:
             print("- (x) not meeting bullish conditions")
+
+    # Sort by volume descending
+    sorted_stocks = sorted(shortlisted_stocks, key=lambda tup: tup[1], reverse=True)
+    shortlist = [val[0] for val in sorted_stocks]
+
+    print(f"All shortlisted stocks:")
+    for stock in shortlist:
+        print(f"- {stock}")
 
 
 if __name__ == "__main__":
