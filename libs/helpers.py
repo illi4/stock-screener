@@ -40,3 +40,8 @@ def format_number(num):
     # add more suffixes if you need them
     return '%.2f%s' % (num, ['', 'K', 'M', 'G', 'T', 'P'][magnitude])
 
+
+def format_bool(value):
+    # Format boolean as tick or fail
+    formatted_value = "✓" if value else "x"
+    return formatted_value
