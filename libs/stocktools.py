@@ -43,7 +43,7 @@ def get_stock_data(symbol):
     hist = asset.history(period=period, interval=interval).reset_index(drop=False)
     if hist.empty:
         print(f"Ticker {symbol} not found on Yahoo Finance")
-        return None
+        return None, None
     hist.columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'div', 'splits']
     # For compatibility with the TA library
     return hist[['timestamp', 'open', 'high', 'low', 'close']], hist[['timestamp', 'volume']]

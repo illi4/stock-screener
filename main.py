@@ -1,4 +1,4 @@
-from libs.helpers import define_args, dates_diff
+from libs.helpers import define_args, dates_diff, format_number
 from libs.stocktools import get_asx_symbols, get_stock_data, ohlc_daily_to_weekly
 from libs.db import bulk_add_stocks, create_stock_table, delete_all_stocks, get_stocks, get_update_date
 from libs.settings import price_min, price_max
@@ -28,7 +28,7 @@ def last_volume_5D_MA(volume_daily):
 
 
 def met_conditions_bullish(ohlc_with_indicators_daily, volume_daily, ohlc_with_indicators_weekly):
-    # Checks if price action meets conditions.
+    # Checks if price action meets conditions
     # Rules: MAs trending up, fast above slow, bullish TD count, volume spike
     daily_condition_close_higher = (  # closes higher
             ohlc_with_indicators_daily["close"].iloc[-1]
@@ -40,7 +40,7 @@ def met_conditions_bullish(ohlc_with_indicators_daily, volume_daily, ohlc_with_i
     )
     weekly_condition_td = (  # bullish TD count and not exhausted
             ohlc_with_indicators_weekly["td_direction"].iloc[-1] == "green"
-            and 1 < ohlc_with_indicators_weekly["td_setup"].iloc[-1] < 8
+            and 1 <= ohlc_with_indicators_weekly["td_setup"].iloc[-1] < 8
     )
 
     # MA check
@@ -123,19 +123,20 @@ def scan_stocks():
                 volume_daily,
                 ohlc_with_indicators_weekly
         ):
-            print("- (v) meeting bullish conditions")
+            print("- (v) meeting shortlisting conditions")
             volume_MA_5D = last_volume_5D_MA(volume_daily)
             shortlisted_stocks.append((stock.code, volume_MA_5D))
         else:
-            print("- (x) not meeting bullish conditions")
+            print("- (x) not meeting shortlisting conditions")
 
     # Sort by volume descending
     sorted_stocks = sorted(shortlisted_stocks, key=lambda tup: tup[1], reverse=True)
-    shortlist = [val[0] for val in sorted_stocks]
+    shortlist = [(val[0], val[1]) for val in sorted_stocks]
 
-    print(f"All shortlisted stocks:")
+    print()
+    print(f"All shortlisted stocks (sorted by 5-day moving average volume):")
     for stock in shortlist:
-        print(f"- {stock}")
+        print(f"- {stock[0]} ({format_number(stock[1])})")
 
 
 if __name__ == "__main__":

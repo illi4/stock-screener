@@ -32,4 +32,11 @@ def dates_diff(date_from, date_to=None):
     return (date_to - date_from).days
 
 
+def format_number(num):
+    magnitude = 0
+    while abs(num) >= 1000:
+        magnitude += 1
+        num /= 1000.0
+    # add more suffixes if you need them
+    return '%.2f%s' % (num, ['', 'K', 'M', 'G', 'T', 'P'][magnitude])
 
