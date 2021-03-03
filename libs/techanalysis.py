@@ -86,16 +86,17 @@ def ADX(df, length=14):
     return adx_df
 
 
-def MA(df, length):
+def MA(df, length, colname="close"):
     """
     Function to calculate MA (Moving Average)
-    :param df: pandas dataframe which has the 'close' column
+    :param df: pandas dataframe which has the value column
     :param length: MA length (10/20/30)
+    :param colname: column name to use ("close") by default
     :return: pandas dataframe with columns MA10/MA20/... and timestamp
     """
 
     # Calculate the MA values
-    ma_rolling = df["close"].rolling(window=length, min_periods=length).mean()
+    ma_rolling = df[colname].rolling(window=length, min_periods=length).mean()
 
     ma_df = df_from_series(
         data_series=ma_rolling,

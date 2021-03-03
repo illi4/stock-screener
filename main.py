@@ -23,7 +23,8 @@ def check_update_date():
 
 
 def met_conditions_bullish(ohlc_with_indicators_daily, volume_daily, ohlc_with_indicators_weekly):
-    # Checks if price action meets conditions. Rules: MAs trending up, fast above slow, bullish TD count
+    # Checks if price action meets conditions.
+    # Rules: MAs trending up, fast above slow, bullish TD count, volume spike
     daily_condition_close_higher = (  # closes higher
             ohlc_with_indicators_daily["close"].iloc[-1]
             > ohlc_with_indicators_daily["close"].iloc[-2]
@@ -45,6 +46,15 @@ def met_conditions_bullish(ohlc_with_indicators_daily, volume_daily, ohlc_with_i
             ma_30["ma30"].iloc[-1] > ma_50["ma50"].iloc[-1] > ma_200["ma200"].iloc[-1]
     )
 
+    # Volume MA and volume spike over the last 5 days
+    volume_ma_20 = MA(volume_daily, 20, colname="volume")
+    mergedDf = volume_daily.merge(volume_ma_20, left_index=True, right_index=True)
+    mergedDf.dropna(inplace=True, how='any')
+    # Greater or equal?
+    mergedDf["volume_above_average"] = mergedDf['volume'].ge(mergedDf['ma20'])  # GE is greater or equal
+    last_volume_to_ma = mergedDf["volume_above_average"][-5:].tolist()
+    recent_volume_spike = True in last_volume_to_ma
+
     # All MA rising
     ma_rising = (
             (ma_30["ma30"].iloc[-1] > ma_30["ma30"].iloc[-5])
@@ -61,7 +71,7 @@ def met_conditions_bullish(ohlc_with_indicators_daily, volume_daily, ohlc_with_i
     print(
         f"-- TD conditions: {daily_condition_td} daily | {weekly_condition_td} weekly | "
         f"MA above: {ma_consensio} | MA rising: {ma_rising} | Not overextended: {not_overextended} | "
-        f"Closed higher: {daily_condition_close_higher}"
+        f"Closed higher: {daily_condition_close_higher} | Recent volume spike: {recent_volume_spike}"
     )
 
     return (
@@ -71,6 +81,7 @@ def met_conditions_bullish(ohlc_with_indicators_daily, volume_daily, ohlc_with_i
             and ma_rising
             and not_overextended
             and daily_condition_close_higher
+            and recent_volume_spike
     )
 
 
@@ -104,8 +115,7 @@ def scan_stocks():
         ohlc_with_indicators_weekly = pd.concat([ohlc_weekly, td_values_weekly], axis=1)
 
         # CONTINUE
-        # Also need to get avg 5-d volume to sort by volume and to detect if there were spikes in volume over the last X days
-        # TODO: add volume spike check to met_conditions_bullish
+        # When meeting, need to add avg volume over the last 5 days to sort
         if met_conditions_bullish(
                 ohlc_with_indicators_daily,
                 volume_daily,
