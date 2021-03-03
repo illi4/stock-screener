@@ -1,7 +1,7 @@
 from selenium import webdriver
 from bs4 import BeautifulSoup
 import yfinance as yf
-
+from libs.exceptions_lib import exception_handler
 from libs.settings import asx_instruments_url
 
 options = webdriver.ChromeOptions()
@@ -34,7 +34,7 @@ def get_asx_symbols():
     stocks = [dict(code=elem[2], name=elem[3], price=float(elem[4].replace('$', ''))) for elem in data]
     return stocks
 
-
+@exception_handler(handler_type="yfinance")
 def get_stock_data(symbol):
     period = '300d'
     interval = '1d'
@@ -45,5 +45,26 @@ def get_stock_data(symbol):
         print(f"Ticker {symbol} not found on Yahoo Finance")
         return None
     hist.columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'div', 'splits']
-    # for compatibility with the TA library
+    # For compatibility with the TA library
     return hist[['timestamp', 'open', 'high', 'low', 'close']], hist[['timestamp', 'volume']]
+
+def ohlc_daily_to_weekly(df):
+    df['week_number'] = df['timestamp'].dt.isocalendar().week
+    df['year'] = df['timestamp'].dt.year
+    df_weekly = df.groupby(['year', 'week_number']).agg(
+        {'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last'})
+    # rename week to timestamp. even though it is not super correct, it's fine to do that for our purposes
+    df_weekly = df_weekly.reset_index()
+    df_weekly.columns = ['year', 'timestamp', 'open', 'high', 'low', 'close']
+    return df_weekly
+
+
+def ohlc_daily_to_monthly(df):
+    df['month_number'] = df['timestamp'].dt.month
+    df['year'] = df['timestamp'].dt.year
+    df_monthly = df.groupby(['year', 'month_number']).agg(
+        {'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last'})
+    # rename week to timestamp. even though it is not super correct, it's fine to do that for our purposes
+    df_monthly = df_monthly.reset_index()
+    df_monthly.columns = ['year', 'timestamp', 'open', 'high', 'low', 'close']
+    return df_monthly
