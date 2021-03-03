@@ -16,7 +16,7 @@ Please note that the shortlist should only be used to guide your own research an
 1. Clone the repo: `git clone https://github.com/illi4/asx-screener.git`
 2. Change to this folder, create a python3 venv and activate it. 
     
-    Linux: 
+    Linux / Mac: 
     ```
     sudo apt-get install python3-venv
     python3 -m venv venv
@@ -42,4 +42,5 @@ See `libs/settings.py` for settings:
 - Price range for stocks considered on scan
 
 #### Limitations
-- Yahoo Finance is used to get stock OHLC information. The API limit for YFinance is 2000 requests per hour per IP. If you hit the limit, the script will keep retrying until cancelled. 
+- Yahoo Finance is used to get stock OHLC information. The API limit for YFinance is 2000 requests per hour per IP. If you hit the limit, the script will keep retrying until cancelled.
+- Written using Python 3.8 and not tested with other versions. 

@@ -19,7 +19,7 @@ def check_update_date():
     last_update_date = get_update_date()
     diff = dates_diff(last_update_date)
     if diff > 5:
-        print("Warning: Stocks list updated more than 5 days ago")
+        print("Stocks list updated more than 5 days ago, please run the --update first")
 
 
 def last_volume_5D_MA(volume_daily):
