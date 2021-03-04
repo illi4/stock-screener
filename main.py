@@ -107,7 +107,7 @@ def generate_indicators_daily_weekly(ohlc_daily):
     # Generates extra info from daily OHLC
     if len(ohlc_daily) < 8:
         print("Too recent asset, not enough daily data")
-        td_values, ohlc_with_indicators_daily = None, None
+        return None, None
     else:
         td_values = td_indicators(ohlc_daily)
         ohlc_with_indicators_daily = pd.concat([ohlc_daily, td_values], axis=1)
@@ -115,7 +115,7 @@ def generate_indicators_daily_weekly(ohlc_daily):
     ohlc_weekly = ohlc_daily_to_weekly(ohlc_daily)
     if len(ohlc_weekly) < 8:
         print("Too recent asset, not enough weekly data")
-        td_values_weekly, ohlc_with_indicators_weekly = None, None
+        return None, None
     else:
         td_values_weekly = td_indicators(ohlc_weekly)
         ohlc_with_indicators_weekly = pd.concat([ohlc_weekly, td_values_weekly], axis=1)
@@ -160,7 +160,6 @@ def scan_stocks():
         if ohlc_daily is not None:
             ohlc_with_indicators_daily, ohlc_with_indicators_weekly = generate_indicators_daily_weekly(ohlc_daily)
             if ohlc_with_indicators_daily is None or ohlc_with_indicators_weekly is None:
-                print("Too recent asset, not enough daily data")
                 continue
 
             confirmation, _ = met_conditions_bullish(
@@ -182,6 +181,7 @@ def scan_stocks():
     shortlist = [(stock[0], stock[1], stock[2]) for stock in sorted_stocks]
 
     # Get the industries for shortlisted stocks only
+    print("Getting industry data for shortlisted stocks")
     sectors = dict()
     for stock in shortlist:
         sectors[stock[0]] = get_industry(f"{stock[0]}.AX")
