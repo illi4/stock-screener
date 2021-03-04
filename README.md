@@ -29,7 +29,7 @@ Please note that the shortlist should only be used to guide your own research an
     ```
    
 3. Install the required libraries: `pip install -r requirements.txt`
-4. Install ChromeDriver
+4. Install [ChromeDriver](https://sites.google.com/a/chromium.org/chromedriver/home)
 
 #### Usage  
 - Run `main.py --h` to view context help 

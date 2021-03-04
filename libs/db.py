@@ -26,9 +26,13 @@ def delete_all_stocks():
     query.execute()
 
 
-def bulk_add_stocks(stocks_dict):
-    with db.atomic():
-        Stock.insert_many(stocks_dict).execute()
+def bulk_add_stocks(stocks_list_of_dict):
+    list_length = 100
+    # Workaround, see https://github.com/coleifer/peewee/issues/948
+    chunks = [stocks_list_of_dict[x:x+list_length] for x in range(0, len(stocks_list_of_dict), list_length)]
+    for chunk in chunks:
+        with db.atomic():
+            Stock.insert_many(chunk).execute()
 
 
 def get_stocks(price_min=None, price_max=None):

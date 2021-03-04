@@ -4,3 +4,4 @@ peewee
 pandas
 selenium
 arrow
+bs4
