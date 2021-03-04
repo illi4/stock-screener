@@ -1,13 +1,13 @@
 ### ASX screener
 
-ASX stocks ticker grabber and a basic screener. Shortlisting uses the following rules: 
+ASX stocks ticker grabber and a basic screener. Stock shortlisting and industry 'bullishness' estimates use the following rules: 
 - Daily higher candle close
 - Bullish [MRI](https://tonevays.com/indicator) indicator value on daily timeframe
 - Bullish MRI indicator on weekly timeframe (not close to exhaustion)
-- Volume spike in the last 5 days compared to the 20-day moving average
 - Moving averages Consensio ([Guppy MMA](https://www.investopedia.com/terms/g/guppy-multiple-moving-average.asp))
 - Moving averages (30, 50, 200 day) rising 
 - Close for the last week is not more than 100% compared to 4 weeks ago
+- Volume spike in the last 5 days compared to the 20-day moving average (for stocks only, not for industry)
 
 Please note that the shortlist should only be used to guide your own research and should not be interpreted as 'signals'. 
 

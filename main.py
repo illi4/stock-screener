@@ -30,7 +30,8 @@ def last_volume_5D_MA(volume_daily):
 def met_conditions_bullish(ohlc_with_indicators_daily,
                            volume_daily,
                            ohlc_with_indicators_weekly,
-                           consider_volume_spike=True):
+                           consider_volume_spike=True,
+                           output=True):
     # Checks if price action meets conditions
     # Rules: MAs trending up, fast above slow, bullish TD count, volume spike
     daily_condition_close_higher = (  # closes higher
@@ -78,25 +79,28 @@ def met_conditions_bullish(ohlc_with_indicators_daily,
             < 2 * ohlc_with_indicators_weekly["close"].iloc[-4]
     )
 
-    print(
-        f"- MRI: daily [{format_bool(daily_condition_td)}] / weekly [{format_bool(weekly_condition_td)}] | "
-        f"Consensio: [{format_bool(ma_consensio)}] | MA rising: [{format_bool(ma_rising)}] | "
-        f"Overextended: [{format_bool(not not_overextended)}] | "
-        f"Higher close: [{format_bool(daily_condition_close_higher)}] | "
-        f"Volume condition: [{format_bool(volume_condition)}]"
-    )
+    if output:
+        print(
+            f"- MRI: daily [{format_bool(daily_condition_td)}] / weekly [{format_bool(weekly_condition_td)}] | "
+            f"Consensio: [{format_bool(ma_consensio)}] | MA rising: [{format_bool(ma_rising)}] | "
+            f"Not overextended: [{format_bool(not_overextended)}] | "
+            f"Higher close: [{format_bool(daily_condition_close_higher)}] | "
+            f"Volume condition: [{format_bool(volume_condition)}]"
+        )
 
-    #numerical_score = int(daily_condition_td) + int(weekly_condition_td) + int(ma_consensio) + int(ma_rising)  #HERE#
+    confirmation = [
+        daily_condition_td,
+        weekly_condition_td,
+        ma_consensio,
+        ma_rising,
+        not_overextended,
+        daily_condition_close_higher,
+        volume_condition
+    ]
+    numerical_score = round(5*sum(confirmation)/len(confirmation), 1)  # score X (of 5)
+    result = False not in confirmation
 
-    return (
-            daily_condition_td
-            and weekly_condition_td
-            and ma_consensio
-            and ma_rising
-            and not_overextended
-            and daily_condition_close_higher
-            and volume_condition
-    )
+    return result, numerical_score
 
 
 def generate_indicators_daily_weekly(ohlc_daily):
@@ -119,28 +123,28 @@ def generate_indicators_daily_weekly(ohlc_daily):
     return ohlc_with_indicators_daily, ohlc_with_indicators_weekly
 
 
+def get_industry_momentum():
+    print("Calculating industry momentum scores...")
+    industry_momentum, industry_score = dict(), dict()
+    for name, code in industry_mapping.items():
+        ohlc_daily, volume_daily = get_stock_data(f"^A{code}")
+        ohlc_with_indicators_daily, ohlc_with_indicators_weekly = generate_indicators_daily_weekly(ohlc_daily)
+        industry_momentum[code], industry_score[code] = met_conditions_bullish(
+                    ohlc_with_indicators_daily,
+                    volume_daily,
+                    ohlc_with_indicators_weekly,
+                    consider_volume_spike=False,
+                    output=False
+            )
+    return industry_momentum, industry_score
+
+
 def scan_stocks():
     shortlisted_stocks = []
     stocks = get_stocks(price_min=price_min, price_max=price_max)
 
-    # TEST
-    stocks = stocks[:115]
-    # TEST to get industry mapping and momentum
-    industry_momentum = dict()
-    for name, code in industry_mapping.items():
-        ohlc_daily, volume_daily = get_stock_data(f"^A{code}")
-        ohlc_with_indicators_daily, ohlc_with_indicators_weekly = generate_indicators_daily_weekly(ohlc_daily)
-        industry_momentum[code] = met_conditions_bullish(
-                    ohlc_with_indicators_daily,
-                    volume_daily,
-                    ohlc_with_indicators_weekly,
-                    consider_volume_spike=False
-            )
-    print(industry_momentum)  #HERE#
-    exit(0)
-    # TEST TODO: REMOVE
-    # FINISH WITH THIS STUFF
-
+    # Get industry bullishness scores
+    industry_momentum, industry_score = get_industry_momentum()
 
     total_number = len(stocks)
     print(f"Scanning {total_number} stocks priced {price_min} from to {price_max}")
@@ -159,12 +163,14 @@ def scan_stocks():
                 print("Too recent asset, not enough daily data")
                 continue
 
-            if met_conditions_bullish(
+            confirmation, _ = met_conditions_bullish(
                     ohlc_with_indicators_daily,
                     volume_daily,
                     ohlc_with_indicators_weekly,
-                    consider_volume_spike=True
-            ):
+                    consider_volume_spike=True,
+                    output=True
+            )
+            if confirmation:
                 print("- [✓] meeting shortlisting conditions")
                 volume_MA_5D = last_volume_5D_MA(volume_daily)
                 shortlisted_stocks.append((stock.code, stock.name, volume_MA_5D))
@@ -183,7 +189,9 @@ def scan_stocks():
     print()
     print(f"All shortlisted stocks (sorted by 5-day moving average volume):")
     for stock in shortlist:
-        print(f"- {stock[0]} ({stock[1]}) ({sectors[stock[0]]}) [{format_number(stock[2])}]")
+        industry_code = industry_mapping[sectors[stock[0]]]
+        print(f"- {stock[0]} ({stock[1]}) ({sectors[stock[0]]}) [{format_number(stock[2])}] "
+              f"| industry bullishness score {industry_score[industry_code]}/5.0")
 
 
 if __name__ == "__main__":
