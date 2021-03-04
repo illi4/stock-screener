@@ -181,7 +181,7 @@ def scan_stocks():
     shortlist = [(stock[0], stock[1], stock[2]) for stock in sorted_stocks]
 
     # Get the industries for shortlisted stocks only
-    print("Getting industry data for shortlisted stocks")
+    print("Getting industry data for the shortlisted stocks...")
     sectors = dict()
     for stock in shortlist:
         sectors[stock[0]] = get_industry(f"{stock[0]}.AX")
@@ -191,7 +191,7 @@ def scan_stocks():
     for stock in shortlist:
         industry_code = industry_mapping[sectors[stock[0]]]
         print(f"- {stock[0]} ({stock[1]}) ({sectors[stock[0]]}) [{format_number(stock[2])}] "
-              f"| industry bullishness score {industry_score[industry_code]}/5.0")
+              f"| Industry bullishness score {industry_score[industry_code]}/5.0")
 
 
 if __name__ == "__main__":
