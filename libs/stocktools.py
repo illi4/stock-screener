@@ -11,6 +11,19 @@ options.add_argument(
     "--headless"
 )  # headless means that no browser window is opened
 
+industry_mapping = {
+    "Energy": "XEJ",
+    "Basic Materials": "XMJ",
+    "Industrials": "XNJ",
+    "Consumer Cyclical": "XDJ",
+    "Consumer Defensive": "XSJ",
+    "Healthcare": "XHJ",
+    "Financial Services": "XIJ",
+    "Technology": "XFJ",
+    "Communication Services": "XTJ",
+    "Utilities": "XUJ",
+    "Real Estate": "XPJ"
+}
 
 def get_asx_symbols():
     driver = webdriver.Chrome(options=options)
@@ -68,3 +81,15 @@ def ohlc_daily_to_monthly(df):
     df_monthly = df_monthly.reset_index()
     df_monthly.columns = ['year', 'timestamp', 'open', 'high', 'low', 'close']
     return df_monthly
+
+
+@exception_handler(handler_type="yfinance")
+def get_industry(code):
+    asset = yf.Ticker(code)
+    info = asset.info
+    industry = info["sector"]
+    return industry
+
+
+def map_industry_code(industry_name):
+    return industry_mapping[industry_name]

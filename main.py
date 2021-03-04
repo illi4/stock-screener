@@ -1,5 +1,5 @@
 from libs.helpers import define_args, dates_diff, format_number, format_bool
-from libs.stocktools import get_asx_symbols, get_stock_data, ohlc_daily_to_weekly
+from libs.stocktools import get_asx_symbols, get_stock_data, ohlc_daily_to_weekly, get_industry, industry_mapping
 from libs.db import bulk_add_stocks, create_stock_table, delete_all_stocks, get_stocks, get_update_date
 from libs.settings import price_min, price_max
 from libs.techanalysis import td_indicators, MA
@@ -27,7 +27,10 @@ def last_volume_5D_MA(volume_daily):
     return volume_ma_20["ma20"].iloc[-1]
 
 
-def met_conditions_bullish(ohlc_with_indicators_daily, volume_daily, ohlc_with_indicators_weekly):
+def met_conditions_bullish(ohlc_with_indicators_daily,
+                           volume_daily,
+                           ohlc_with_indicators_weekly,
+                           consider_volume_spike=True):
     # Checks if price action meets conditions
     # Rules: MAs trending up, fast above slow, bullish TD count, volume spike
     daily_condition_close_higher = (  # closes higher
@@ -52,12 +55,15 @@ def met_conditions_bullish(ohlc_with_indicators_daily, volume_daily, ohlc_with_i
     )
 
     # Volume MA and volume spike over the last 5 days
-    volume_ma_20 = MA(volume_daily, 20, colname="volume")
-    mergedDf = volume_daily.merge(volume_ma_20, left_index=True, right_index=True)
-    mergedDf.dropna(inplace=True, how='any')
-    mergedDf["volume_above_average"] = mergedDf['volume'].ge(mergedDf['ma20'])  # GE is greater or equal
-    last_volume_to_ma = mergedDf["volume_above_average"][-5:].tolist()
-    recent_volume_spike = True in last_volume_to_ma
+    if consider_volume_spike:
+        volume_ma_20 = MA(volume_daily, 20, colname="volume")
+        mergedDf = volume_daily.merge(volume_ma_20, left_index=True, right_index=True)
+        mergedDf.dropna(inplace=True, how='any')
+        mergedDf["volume_above_average"] = mergedDf['volume'].ge(mergedDf['ma20'])  # GE is greater or equal
+        last_volume_to_ma = mergedDf["volume_above_average"][-5:].tolist()
+        volume_condition = True in last_volume_to_ma
+    else:
+        volume_condition = True
 
     # All MA rising
     ma_rising = (
@@ -77,8 +83,10 @@ def met_conditions_bullish(ohlc_with_indicators_daily, volume_daily, ohlc_with_i
         f"Consensio: [{format_bool(ma_consensio)}] | MA rising: [{format_bool(ma_rising)}] | "
         f"Overextended: [{format_bool(not not_overextended)}] | "
         f"Higher close: [{format_bool(daily_condition_close_higher)}] | "
-        f"Recent volume spike: [{format_bool(recent_volume_spike)}]"
+        f"Volume condition: [{format_bool(volume_condition)}]"
     )
+
+    #numerical_score = int(daily_condition_td) + int(weekly_condition_td) + int(ma_consensio) + int(ma_rising)  #HERE#
 
     return (
             daily_condition_td
@@ -87,13 +95,53 @@ def met_conditions_bullish(ohlc_with_indicators_daily, volume_daily, ohlc_with_i
             and ma_rising
             and not_overextended
             and daily_condition_close_higher
-            and recent_volume_spike
+            and volume_condition
     )
+
+
+def generate_indicators_daily_weekly(ohlc_daily):
+    # Generates extra info from daily OHLC
+    if len(ohlc_daily) < 8:
+        print("Too recent asset, not enough daily data")
+        td_values, ohlc_with_indicators_daily = None, None
+    else:
+        td_values = td_indicators(ohlc_daily)
+        ohlc_with_indicators_daily = pd.concat([ohlc_daily, td_values], axis=1)
+
+    ohlc_weekly = ohlc_daily_to_weekly(ohlc_daily)
+    if len(ohlc_weekly) < 8:
+        print("Too recent asset, not enough weekly data")
+        td_values_weekly, ohlc_with_indicators_weekly = None, None
+    else:
+        td_values_weekly = td_indicators(ohlc_weekly)
+        ohlc_with_indicators_weekly = pd.concat([ohlc_weekly, td_values_weekly], axis=1)
+
+    return ohlc_with_indicators_daily, ohlc_with_indicators_weekly
 
 
 def scan_stocks():
     shortlisted_stocks = []
     stocks = get_stocks(price_min=price_min, price_max=price_max)
+
+    # TEST
+    stocks = stocks[:115]
+    # TEST to get industry mapping and momentum
+    industry_momentum = dict()
+    for name, code in industry_mapping.items():
+        ohlc_daily, volume_daily = get_stock_data(f"^A{code}")
+        ohlc_with_indicators_daily, ohlc_with_indicators_weekly = generate_indicators_daily_weekly(ohlc_daily)
+        industry_momentum[code] = met_conditions_bullish(
+                    ohlc_with_indicators_daily,
+                    volume_daily,
+                    ohlc_with_indicators_weekly,
+                    consider_volume_spike=False
+            )
+    print(industry_momentum)  #HERE#
+    exit(0)
+    # TEST TODO: REMOVE
+    # FINISH WITH THIS STUFF
+
+
     total_number = len(stocks)
     print(f"Scanning {total_number} stocks priced {price_min} from to {price_max}")
 
@@ -105,40 +153,37 @@ def scan_stocks():
             print("No data on the asset")
             continue  # skip if no data
 
-        if len(ohlc_daily) < 8:
-            print("Too recent asset, not enough daily data")
-            continue
+        if ohlc_daily is not None:
+            ohlc_with_indicators_daily, ohlc_with_indicators_weekly = generate_indicators_daily_weekly(ohlc_daily)
+            if ohlc_with_indicators_daily is None or ohlc_with_indicators_weekly is None:
+                print("Too recent asset, not enough daily data")
+                continue
 
-        td_values = td_indicators(ohlc_daily)
-        ohlc_with_indicators_daily = pd.concat([ohlc_daily, td_values], axis=1)
-
-        ohlc_weekly = ohlc_daily_to_weekly(ohlc_daily)
-        if len(ohlc_weekly) < 8:
-            print("Too recent asset, not enough weekly data")
-            continue
-
-        td_values_weekly = td_indicators(ohlc_weekly)
-        ohlc_with_indicators_weekly = pd.concat([ohlc_weekly, td_values_weekly], axis=1)
-
-        if met_conditions_bullish(
-                ohlc_with_indicators_daily,
-                volume_daily,
-                ohlc_with_indicators_weekly
-        ):
-            print("- [✓] meeting shortlisting conditions")
-            volume_MA_5D = last_volume_5D_MA(volume_daily)
-            shortlisted_stocks.append((stock.code, stock.name, volume_MA_5D))
-        else:
-            print("- [x] not meeting shortlisting conditions")
+            if met_conditions_bullish(
+                    ohlc_with_indicators_daily,
+                    volume_daily,
+                    ohlc_with_indicators_weekly,
+                    consider_volume_spike=True
+            ):
+                print("- [✓] meeting shortlisting conditions")
+                volume_MA_5D = last_volume_5D_MA(volume_daily)
+                shortlisted_stocks.append((stock.code, stock.name, volume_MA_5D))
+            else:
+                print("- [x] not meeting shortlisting conditions")
 
     # Sort by volume (index 2) descending
     sorted_stocks = sorted(shortlisted_stocks, key=lambda tup: tup[2], reverse=True)
     shortlist = [(stock[0], stock[1], stock[2]) for stock in sorted_stocks]
 
+    # Get the industries for shortlisted stocks only
+    sectors = dict()
+    for stock in shortlist:
+        sectors[stock[0]] = get_industry(f"{stock[0]}.AX")
+
     print()
     print(f"All shortlisted stocks (sorted by 5-day moving average volume):")
     for stock in shortlist:
-        print(f"- {stock[0]} ({stock[1]}) [{format_number(stock[2])}]")
+        print(f"- {stock[0]} ({stock[1]}) ({sectors[stock[0]]}) [{format_number(stock[2])}]")
 
 
 if __name__ == "__main__":
