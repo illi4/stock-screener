@@ -11,6 +11,8 @@ def define_args():
     parser.add_argument(
         "--scan", action="store_true", help="Scan for potential signals"
     )
+    parser.add_argument(
+        '-num', type=int, required=False, help="Limit the number of scanned stocks")
 
     args = parser.parse_args()
     arguments = vars(args)

@@ -2,7 +2,8 @@ from selenium import webdriver
 from bs4 import BeautifulSoup
 import yfinance as yf
 from libs.exceptions_lib import exception_handler
-from libs.settings import asx_instruments_url
+from libs.settings import asx_instruments_url, tzinfo
+import arrow
 
 options = webdriver.ChromeOptions()
 
@@ -47,6 +48,19 @@ def get_asx_symbols():
     stocks = [dict(code=elem[2], name=elem[3], price=float(elem[4].replace('$', ''))) for elem in data]
     return stocks
 
+
+def ohlc_last_day_workaround(df):
+    # Need to check whether the last day is today and remove if so
+    # Due to YFinance bug - not showing the right data for the current day
+    hist_last_day = df["Date"].iloc[-1]
+    hist_last_day = arrow.get(hist_last_day)
+    hist_last_day = hist_last_day.replace(tzinfo=tzinfo)
+    current_date = arrow.now()
+    if hist_last_day.format('YYYY-MM-DD') == current_date.format('YYYY-MM-DD'):
+        df.drop(df.tail(1).index, inplace=True)
+    return df
+
+
 @exception_handler(handler_type="yfinance")
 def get_stock_data(symbol):
     period = '300d'
@@ -54,10 +68,15 @@ def get_stock_data(symbol):
 
     asset = yf.Ticker(symbol)
     hist = asset.history(period=period, interval=interval).reset_index(drop=False)
+
     if hist.empty:
         print(f"Ticker {symbol} not found on Yahoo Finance")
         return None, None
+
+    hist = ohlc_last_day_workaround(hist)
+
     hist.columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'div', 'splits']
+
     # For compatibility with the TA library
     return hist[['timestamp', 'open', 'high', 'low', 'close']], hist[['timestamp', 'volume']]
 
