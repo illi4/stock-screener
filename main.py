@@ -143,6 +143,11 @@ def scan_stocks():
     shortlisted_stocks = []
     stocks = get_stocks(price_min=price_min, price_max=price_max)
 
+    # Limit per arguments as required
+    if arguments['num'] is not None:
+        print(f"Limiting to the first {arguments['num']} stocks")
+        stocks = stocks[:arguments['num']]
+
     # Get industry bullishness scores
     industry_momentum, industry_score = get_industry_momentum()
 
@@ -180,19 +185,22 @@ def scan_stocks():
     sorted_stocks = sorted(shortlisted_stocks, key=lambda tup: tup[2], reverse=True)
     shortlist = [(stock[0], stock[1], stock[2]) for stock in sorted_stocks]
 
-    # Get the industries for shortlisted stocks only
-    print("Getting industry data for the shortlisted stocks...")
-    sectors = dict()
-    for stock in shortlist:
-        sectors[stock[0]] = get_industry(f"{stock[0]}.AX")
-
     print()
-    print(f"All shortlisted stocks (sorted by 5-day moving average volume):")
-    for stock in shortlist:
-        industry_code = industry_mapping[sectors[stock[0]]]
-        print(f"- {stock[0]} ({stock[1]}) ({sectors[stock[0]]}) [{format_number(stock[2])}] "
-              f"| Industry bullishness score {industry_score[industry_code]}/5.0")
+    if len(shortlist) > 0:
 
+        # Get the industries for shortlisted stocks only
+        print("Getting industry data for the shortlisted stocks...")
+        sectors = dict()
+        for stock in shortlist:
+            sectors[stock[0]] = get_industry(f"{stock[0]}.AX")
+        print(f"All shortlisted stocks (sorted by 5-day moving average volume):")
+        for stock in shortlist:
+            industry_code = industry_mapping[sectors[stock[0]]]
+            print(f"- {stock[0]} ({stock[1]}) ({sectors[stock[0]]}) [{format_number(stock[2])} avg daily vol] "
+                  f"[Industry bullish score {industry_score[industry_code]}/5]")
+
+    else:
+        print(f"No shortlisted stocks")
 
 if __name__ == "__main__":
 
