@@ -43,5 +43,5 @@ def format_number(num):
 
 def format_bool(value):
     # Format boolean as tick or fail
-    formatted_value = "✓" if value else "x"
+    formatted_value = "v" if value else "x"
     return formatted_value
