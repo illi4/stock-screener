@@ -2,14 +2,14 @@
 
 ASX stocks ticker grabber and a basic screener. Beware that the **current day is excluded** from the analysis, even if you run the screener after the market closes. 
 
-Stock shortlisting and industry 'bullishness' estimates use the following rules: 
+Stock shortlisting and industry score estimates incorporate the following conditions: 
 - Daily higher candle close
 - Bullish [MRI](https://tonevays.com/indicator) indicator value on daily timeframe
 - Bullish MRI indicator on weekly timeframe (not close to exhaustion)
 - Moving averages Consensio ([Guppy MMA](https://www.investopedia.com/terms/g/guppy-multiple-moving-average.asp))
 - Moving averages (30, 50, 200 day) rising 
 - Close for the last week is not more than 100% compared to 4 weeks ago
-- Volume spike in the last 5 days compared to the 20-day moving average (for stocks only, not for industry)
+- Volume spike in the last 5 days compared to the 20-day moving average (for stocks only and not for industries)
 
 Please note that the shortlist should only be used to guide your own research and should not be interpreted as 'signals'. 
 
@@ -24,8 +24,8 @@ See `libs/settings.py` for settings:
 - Price range for stocks considered on scan
 
 #### Limitations
-- Yahoo Finance is used to get stock OHLC information. The API limit for YFinance is 2000 requests per hour per IP. If you hit the limit, the script will keep retrying until cancelled.
-- Written using Python 3.8 and not tested with other versions. 
+- Yahoo Finance is used to get stock OHLC information. Theoretically, the API limit for YFinance is 2000 requests per hour per IP. However, I have launched it several times in a row producing more than 2000 requests and was not yet able to hit the limit. If you do, the script will just keep retrying with 1-minute intervals until cancelled.
+- Python 3.6+ is required.
 
 #### Installation
 
