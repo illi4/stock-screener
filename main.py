@@ -170,7 +170,7 @@ def scan_stocks():
                     output=True
             )
             if confirmation:
-                print("- [✓] meeting shortlisting conditions")
+                print("- [v] meeting shortlisting conditions")
                 volume_MA_5D = last_volume_5D_MA(volume_daily)
                 shortlisted_stocks.append((stock.code, stock.name, volume_MA_5D))
             else:
