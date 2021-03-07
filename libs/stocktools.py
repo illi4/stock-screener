@@ -43,9 +43,11 @@ def get_asx_symbols():
         cols = [elem.text.strip() for elem in cols]
         data.append(cols)
 
-    print(f"{len(data)} stocks retreived")
-
     stocks = [dict(code=elem[2], name=elem[3], price=float(elem[4].replace('$', ''))) for elem in data]
+    print(f"{len(data)} stocks retreived "
+          f"({stocks[0]['code']} [{stocks[0]['price']}] - "
+          f"{stocks[-1]['code']} [{stocks[-1]['price']}])")
+
     return stocks
 
 
@@ -74,7 +76,6 @@ def get_stock_data(symbol):
         return None, None
 
     hist = ohlc_last_day_workaround(hist)
-
     hist.columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'div', 'splits']
 
     # For compatibility with the TA library
