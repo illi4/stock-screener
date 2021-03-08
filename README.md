@@ -1,6 +1,6 @@
 ### ASX screener
 
-ASX stocks ticker grabber and a basic screener. Beware that the **current day is excluded** from the analysis, even if you run the screener after the market closes. 
+ASX stocks ticker grabber and a basic screener. Beware that the **current day is excluded** from the analysis, even if you run the screener after the market closes (this is an unfortunate consequence of using Yahoo Finance as a data source). Thus, **the best time to run it is in the morning prior to market open**.
 
 Stock shortlisting and industry score estimates incorporate the following conditions: 
 - Daily higher candle close
