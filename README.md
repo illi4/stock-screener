@@ -30,16 +30,7 @@ See `libs/settings.py` for settings:
 #### Installation
 
 1. Clone the repo: `git clone https://github.com/illi4/asx-screener.git`
-2. Install Python 3 and virtualenv if you do not have it installed yet. 
-
-    Mac: 
-    ```
-    brew install python3
-    pip3 install virtualenv
-    ```
-   
-   Windows: download and install from the [official website](https://www.python.org/downloads/). 
-
+2. Install Python 3 and virtualenv if you do not have it installed yet. The easiest way is to download and install from the [official website](https://www.python.org/downloads/). Instructions to install virtualenv are published on the [python packaging website](https://packaging.python.org/guides/installing-using-pip-and-virtual-environments/). 
 3. Change to the cloned folder, create a python3 venv and activate it. 
     
     Linux / Mac: 
