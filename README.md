@@ -8,7 +8,7 @@ Stock shortlisting and industry score estimates incorporate the following condit
 - Bullish MRI indicator on weekly timeframe (not close to exhaustion)
 - Moving averages Consensio ([Guppy MMA](https://www.investopedia.com/terms/g/guppy-multiple-moving-average.asp))
 - Moving averages (30, 50, 200 day) rising 
-- Close for the last week is not more than 100% compared to 4 weeks ago
+- Close for the last week is not more than 200% compared to 4 weeks ago
 - Volume spike in the last 5 days compared to the 20-day moving average (for stocks only and not for industries)
 
 Please note that the shortlist should only be used to guide your own research and should not be interpreted as 'signals'. 
@@ -22,6 +22,7 @@ Please note that the shortlist should only be used to guide your own research an
 See `libs/settings.py` for settings: 
 - URL for grabbing the listed codes and the price
 - Price range for stocks considered on scan
+- Overextended threshold
 
 #### Limitations
 - Yahoo Finance is used to get stock OHLC information. Theoretically, the API limit for YFinance is 2000 requests per hour per IP. However, I have launched it several times in a row producing more than 2000 requests and was not yet able to hit the limit. If you do, the script will just keep retrying with 1-minute intervals until cancelled.
