@@ -1,7 +1,7 @@
 from libs.helpers import define_args, dates_diff, format_number, format_bool
 from libs.stocktools import get_asx_symbols, get_stock_data, ohlc_daily_to_weekly, get_industry, industry_mapping
 from libs.db import bulk_add_stocks, create_stock_table, delete_all_stocks, get_stocks, get_update_date
-from libs.settings import price_min, price_max
+from libs.settings import price_min, price_max, overextended_threshold_percent
 from libs.techanalysis import td_indicators, MA
 import pandas as pd
 
@@ -73,10 +73,10 @@ def met_conditions_bullish(ohlc_with_indicators_daily,
             and (ma_200["ma200"].iloc[-1] > ma_200["ma200"].iloc[-5])
     )
 
-    # Close for the last week is not more than 100% from the 4 weeks ago
+    # Close for the last week is not more than X% from the 4 weeks ago
     not_overextended = (
             ohlc_with_indicators_weekly["close"].iloc[-1]
-            < 2 * ohlc_with_indicators_weekly["close"].iloc[-4]
+            < (1 + overextended_threshold_percent/100) * ohlc_with_indicators_weekly["close"].iloc[-4]
     )
 
     if output:
