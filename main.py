@@ -48,11 +48,16 @@ def met_conditions_bullish(ohlc_with_indicators_daily,
     )
 
     # MA check
-    ma_30 = MA(ohlc_with_indicators_daily, 30)
+    # ma_30 = MA(ohlc_with_indicators_daily, 30) # removing this as in practive that's not necessary
     ma_50 = MA(ohlc_with_indicators_daily, 50)
     ma_200 = MA(ohlc_with_indicators_daily, 200)
+    '''
     ma_consensio = (
             ma_30["ma30"].iloc[-1] > ma_50["ma50"].iloc[-1] > ma_200["ma200"].iloc[-1]
+    )
+    '''
+    ma_consensio = (
+            ma_50["ma50"].iloc[-1] > ma_200["ma200"].iloc[-1]
     )
 
     # Volume MA and volume spike over the last 5 days
@@ -67,9 +72,15 @@ def met_conditions_bullish(ohlc_with_indicators_daily,
         volume_condition = True
 
     # All MA rising
+    '''
     ma_rising = (
             (ma_30["ma30"].iloc[-1] > ma_30["ma30"].iloc[-5])
             and (ma_50["ma50"].iloc[-1] > ma_50["ma50"].iloc[-5])
+            and (ma_200["ma200"].iloc[-1] > ma_200["ma200"].iloc[-5])
+    )
+    '''
+    ma_rising = (
+            (ma_50["ma50"].iloc[-1] > ma_50["ma50"].iloc[-5])
             and (ma_200["ma200"].iloc[-1] > ma_200["ma200"].iloc[-5])
     )
 
