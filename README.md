@@ -11,7 +11,7 @@ Stock shortlisting and industry score estimates incorporate the following condit
 - Close for the last week is not more than 200% compared to 4 weeks ago
 - Volume spike in the last 5 days compared to the 20-day moving average (for stocks only and not for industries)
 
-Please note that the shortlist should only be used to guide your own research and should not be interpreted as 'signals'. 
+The MA200 is ignored if the stock is too new. Please note that the shortlist should only be used to guide your own research and should not be interpreted as 'signals'. 
 
 #### Usage  
 - Run `main.py --h` to view context help 

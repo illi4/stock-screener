@@ -4,6 +4,7 @@ from libs.db import bulk_add_stocks, create_stock_table, delete_all_stocks, get_
 from libs.settings import price_min, price_max, overextended_threshold_percent
 from libs.techanalysis import td_indicators, MA
 import pandas as pd
+import numpy as np
 
 
 def update_stocks():
@@ -49,9 +50,17 @@ def met_conditions_bullish(ohlc_with_indicators_daily,
     # Used to have MA30, but it is not super helpful
     ma_50 = MA(ohlc_with_indicators_daily, 50)
     ma_200 = MA(ohlc_with_indicators_daily, 200)
-    ma_consensio = (
-            ma_50["ma50"].iloc[-1] > ma_200["ma200"].iloc[-1]
-    )
+
+    # MA 200 may be None for too new stocks
+    ma_200_nan = np.isnan(ma_200["ma200"].iloc[-1])
+
+    if not ma_200_nan:
+        ma_consensio = (
+                ma_50["ma50"].iloc[-1] > ma_200["ma200"].iloc[-1]
+        )
+    else:
+        ma_consensio = True
+        print('-- note: MA200 is NaN, the stock is too new')
 
     # Volume MA and volume spike over the last 5 days
     if consider_volume_spike:
@@ -66,10 +75,15 @@ def met_conditions_bullish(ohlc_with_indicators_daily,
 
     # All MA rising
     # Used to have MA30 too, but it is not super helpful
-    ma_rising = (
-            (ma_50["ma50"].iloc[-1] >= ma_50["ma50"].iloc[-5])
-            and (ma_200["ma200"].iloc[-1] >= ma_200["ma200"].iloc[-5])
-    )
+    if not ma_200_nan:
+        ma_rising = (
+                (ma_50["ma50"].iloc[-1] >= ma_50["ma50"].iloc[-5])
+                and (ma_200["ma200"].iloc[-1] >= ma_200["ma200"].iloc[-5])
+        )
+    else:
+        ma_rising = (
+                (ma_50["ma50"].iloc[-1] >= ma_50["ma50"].iloc[-5])
+        )
 
     # Close for the last week is not more than X% from the 4 weeks ago
     not_overextended = (
