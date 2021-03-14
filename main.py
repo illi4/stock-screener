@@ -38,24 +38,17 @@ def met_conditions_bullish(ohlc_with_indicators_daily,
             ohlc_with_indicators_daily["close"].iloc[-1]
             > ohlc_with_indicators_daily["close"].iloc[-2]
     )
-    daily_condition_td = (  # bullish TD count and more than 1st candle
+    daily_condition_td = (  # bullish TD count
             ohlc_with_indicators_daily["td_direction"].iloc[-1] == "green"
-            and ohlc_with_indicators_daily["td_setup"].iloc[-1] > 1
     )
-    weekly_condition_td = (  # bullish TD count and not exhausted
+    weekly_condition_td = (  # bullish TD count
             ohlc_with_indicators_weekly["td_direction"].iloc[-1] == "green"
-            and 1 <= ohlc_with_indicators_weekly["td_setup"].iloc[-1] < 8
     )
 
     # MA check
-    # ma_30 = MA(ohlc_with_indicators_daily, 30) # removing this as in practive that's not necessary
+    # Used to have MA30, but it is not super helpful
     ma_50 = MA(ohlc_with_indicators_daily, 50)
     ma_200 = MA(ohlc_with_indicators_daily, 200)
-    '''
-    ma_consensio = (
-            ma_30["ma30"].iloc[-1] > ma_50["ma50"].iloc[-1] > ma_200["ma200"].iloc[-1]
-    )
-    '''
     ma_consensio = (
             ma_50["ma50"].iloc[-1] > ma_200["ma200"].iloc[-1]
     )
@@ -72,16 +65,10 @@ def met_conditions_bullish(ohlc_with_indicators_daily,
         volume_condition = True
 
     # All MA rising
-    '''
+    # Used to have MA30 too, but it is not super helpful
     ma_rising = (
-            (ma_30["ma30"].iloc[-1] > ma_30["ma30"].iloc[-5])
-            and (ma_50["ma50"].iloc[-1] > ma_50["ma50"].iloc[-5])
-            and (ma_200["ma200"].iloc[-1] > ma_200["ma200"].iloc[-5])
-    )
-    '''
-    ma_rising = (
-            (ma_50["ma50"].iloc[-1] > ma_50["ma50"].iloc[-5])
-            and (ma_200["ma200"].iloc[-1] > ma_200["ma200"].iloc[-5])
+            (ma_50["ma50"].iloc[-1] >= ma_50["ma50"].iloc[-5])
+            and (ma_200["ma200"].iloc[-1] >= ma_200["ma200"].iloc[-5])
     )
 
     # Close for the last week is not more than X% from the 4 weeks ago
