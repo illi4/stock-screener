@@ -62,14 +62,13 @@ def met_conditions_bullish(ohlc_with_indicators_daily,
         ma_consensio = True
         print('-- note: MA200 is NaN, the stock is too new')
 
-    # Volume MA and volume spike over the last 5 days
+    # Volume MA and volume spike over the considered day
     if consider_volume_spike:
         volume_ma_20 = MA(volume_daily, 20, colname="volume")
         mergedDf = volume_daily.merge(volume_ma_20, left_index=True, right_index=True)
         mergedDf.dropna(inplace=True, how='any')
         mergedDf["volume_above_average"] = mergedDf['volume'].ge(mergedDf['ma20'])  # GE is greater or equal
-        last_volume_to_ma = mergedDf["volume_above_average"][-5:].tolist()
-        volume_condition = True in last_volume_to_ma
+        volume_condition = bool(mergedDf["volume_above_average"].iloc[-1])
     else:
         volume_condition = True
 
@@ -91,13 +90,21 @@ def met_conditions_bullish(ohlc_with_indicators_daily,
             < (1 + overextended_threshold_percent/100) * ohlc_with_indicators_weekly["close"].iloc[-4]
     )
 
+    # Most recent close should be above the bodies of 10 candles prior
+    ohlc_with_indicators_daily['candle_body_upper'] = ohlc_with_indicators_daily[['open', 'close']].max(axis=1)
+    close_most_recent = float(ohlc_with_indicators_daily['close'].iloc[-1])
+    ohlc_with_indicators_daily["lower_than_recent"] = ohlc_with_indicators_daily['candle_body_upper'].lt(close_most_recent) # LT is lower than
+    # Do not include the most recent itself in the calculation. Take 10 previous before that.
+    previous_n_lower_than_recent = ohlc_with_indicators_daily["lower_than_recent"][-11:-1].tolist()
+    upper_condition = not (False in previous_n_lower_than_recent)
+
     if output:
         print(
             f"- MRI: daily [{format_bool(daily_condition_td)}] / weekly [{format_bool(weekly_condition_td)}] | "
             f"Consensio: [{format_bool(ma_consensio)}] | MA rising: [{format_bool(ma_rising)}] | "
             f"Not overextended: [{format_bool(not_overextended)}] | "
             f"Higher close: [{format_bool(daily_condition_close_higher)}] | "
-            f"Volume condition: [{format_bool(volume_condition)}]"
+            f"Volume condition: [{format_bool(volume_condition)}] | Upper condition: [{format_bool(upper_condition)}]"
         )
 
     confirmation = [
@@ -107,7 +114,8 @@ def met_conditions_bullish(ohlc_with_indicators_daily,
         ma_rising,
         not_overextended,
         daily_condition_close_higher,
-        volume_condition
+        volume_condition,
+        upper_condition
     ]
     numerical_score = round(5*sum(confirmation)/len(confirmation), 1)  # score X (of 5)
     result = False not in confirmation
