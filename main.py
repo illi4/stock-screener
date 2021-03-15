@@ -225,9 +225,15 @@ def scan_stocks():
 
         print(f"All shortlisted stocks (sorted by 5-day moving average volume):")
         for stock in shortlist:
-            industry_code = industry_mapping[sectors[stock[0]]]
-            print(f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} vol | "
-                  f"{sectors[stock[0]]} score {industry_score[industry_code]}/5")
+
+            # May not find a sector for a stock
+            if sectors[stock[0]] == '-':
+                print(f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} vol | "
+                  f"Sector score unavailable")
+            else:
+                industry_code = industry_mapping[sectors[stock[0]]]
+                print(f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} vol | "
+                      f"{sectors[stock[0]]} score {industry_score[industry_code]}/5")
 
     else:
         print(f"No shortlisted stocks")
