@@ -1,5 +1,12 @@
 from libs.helpers import define_args, dates_diff, format_number, format_bool
-from libs.stocktools import get_asx_symbols, get_stock_data, ohlc_daily_to_weekly, get_industry, industry_mapping
+from libs.stocktools import (
+    get_asx_symbols,
+    get_stock_data,
+    ohlc_daily_to_weekly,
+    get_industry,
+    industry_mapping,
+    get_industry_from_web_batch
+)
 from libs.db import bulk_add_stocks, create_stock_table, delete_all_stocks, get_stocks, get_update_date
 from libs.settings import price_min, price_max, overextended_threshold_percent
 from libs.techanalysis import td_indicators, MA
@@ -81,19 +88,20 @@ def met_conditions_bullish(ohlc_with_indicators_daily,
         )
     else:
         ma_rising = (
-                (ma_50["ma50"].iloc[-1] >= ma_50["ma50"].iloc[-5])
+            (ma_50["ma50"].iloc[-1] >= ma_50["ma50"].iloc[-5])
         )
 
     # Close for the last week is not more than X% from the 4 weeks ago
     not_overextended = (
             ohlc_with_indicators_weekly["close"].iloc[-1]
-            < (1 + overextended_threshold_percent/100) * ohlc_with_indicators_weekly["close"].iloc[-4]
+            < (1 + overextended_threshold_percent / 100) * ohlc_with_indicators_weekly["close"].iloc[-4]
     )
 
     # Most recent close should be above the bodies of 10 candles prior
     ohlc_with_indicators_daily['candle_body_upper'] = ohlc_with_indicators_daily[['open', 'close']].max(axis=1)
     close_most_recent = float(ohlc_with_indicators_daily['close'].iloc[-1])
-    ohlc_with_indicators_daily["lower_than_recent"] = ohlc_with_indicators_daily['candle_body_upper'].lt(close_most_recent) # LT is lower than
+    ohlc_with_indicators_daily["lower_than_recent"] = ohlc_with_indicators_daily['candle_body_upper'].lt(
+        close_most_recent)  # LT is lower than
     # Do not include the most recent itself in the calculation. Take 10 previous before that.
     previous_n_lower_than_recent = ohlc_with_indicators_daily["lower_than_recent"][-11:-1].tolist()
     upper_condition = not (False in previous_n_lower_than_recent)
@@ -117,7 +125,7 @@ def met_conditions_bullish(ohlc_with_indicators_daily,
         volume_condition,
         upper_condition
     ]
-    numerical_score = round(5*sum(confirmation)/len(confirmation), 1)  # score X (of 5)
+    numerical_score = round(5 * sum(confirmation) / len(confirmation), 1)  # score X (of 5)
     result = False not in confirmation
 
     return result, numerical_score
@@ -150,12 +158,12 @@ def get_industry_momentum():
         ohlc_daily, volume_daily = get_stock_data(f"^A{code}")
         ohlc_with_indicators_daily, ohlc_with_indicators_weekly = generate_indicators_daily_weekly(ohlc_daily)
         industry_momentum[code], industry_score[code] = met_conditions_bullish(
-                    ohlc_with_indicators_daily,
-                    volume_daily,
-                    ohlc_with_indicators_weekly,
-                    consider_volume_spike=False,
-                    output=False
-            )
+            ohlc_with_indicators_daily,
+            volume_daily,
+            ohlc_with_indicators_weekly,
+            consider_volume_spike=False,
+            output=False
+        )
     return industry_momentum, industry_score
 
 
@@ -188,11 +196,11 @@ def scan_stocks():
                 continue
 
             confirmation, _ = met_conditions_bullish(
-                    ohlc_with_indicators_daily,
-                    volume_daily,
-                    ohlc_with_indicators_weekly,
-                    consider_volume_spike=True,
-                    output=True
+                ohlc_with_indicators_daily,
+                volume_daily,
+                ohlc_with_indicators_weekly,
+                consider_volume_spike=True,
+                output=True
             )
             if confirmation:
                 print("- [v] meeting shortlisting conditions")
@@ -208,11 +216,13 @@ def scan_stocks():
     print()
     if len(shortlist) > 0:
 
-        # Get the industries for shortlisted stocks only
-        print(f"Getting industry data for {len(shortlist)} shortlisted stocks...")
-        sectors = dict()
-        for stock in shortlist:
-            sectors[stock[0]] = get_industry(f"{stock[0]}.AX")
+        # Get the sectors for shortlisted stocks only
+        print(f"Getting industry data for {len(shortlist)} shortlisted stocks, hold on...")
+
+        # Get stock codes to collect industries
+        stock_codes = [stock[0] for stock in shortlist]
+        sectors = get_industry_from_web_batch(stock_codes)
+
         print(f"All shortlisted stocks (sorted by 5-day moving average volume):")
         for stock in shortlist:
             industry_code = industry_mapping[sectors[stock[0]]]
@@ -221,6 +231,7 @@ def scan_stocks():
 
     else:
         print(f"No shortlisted stocks")
+
 
 if __name__ == "__main__":
 
