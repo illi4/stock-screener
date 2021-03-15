@@ -3,12 +3,12 @@
 ASX stocks ticker grabber and a basic screener. Beware that the **current day is excluded** from the analysis, even if you run the screener after the market closes (this is an unfortunate consequence of using Yahoo Finance as a data source). Thus, **the best time to run it is in the morning prior to market open**. The shortlist acts as a guide for entering breakout trades which have high probability of success.
 
 Stock shortlisting and industry score estimates incorporate the following conditions: 
-- Daily higher candle close
+- Daily higher candle close above bodies of the previous 10 daily candles
 - Bullish [MRI](https://tonevays.com/indicator) indicator value on the daily timeframe
 - Bullish MRI indicator on the weekly timeframe  
 - Moving averages (50, 200 day) Consensio ([Guppy MMA](https://www.investopedia.com/terms/g/guppy-multiple-moving-average.asp))
 - Moving averages (50, 200 day) rising 
-- Close for the last week is not more than 200% compared to 4 weeks ago
+- Close for the last week is not exceeding 200% when compared to 4 weeks ago
 - Volume spike in the last 5 days compared to the 20-day moving average (for stocks only and not for industries)
 
 The MA200 is ignored if the stock is too new. Please note that the shortlist should only be used to guide your own research and should not be interpreted as 'signals'. 
