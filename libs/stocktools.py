@@ -2,7 +2,7 @@ from selenium import webdriver
 from bs4 import BeautifulSoup
 import yfinance as yf
 from libs.exceptions_lib import exception_handler
-from libs.settings import asx_instruments_url, tzinfo
+from libs.settings import asx_instruments_url, tzinfo, asx_stock_url
 import arrow
 
 options = webdriver.ChromeOptions()
@@ -105,10 +105,46 @@ def ohlc_daily_to_monthly(df):
 
 @exception_handler(handler_type="yfinance")
 def get_industry(code):
+    # Getting sector for a stock using YFinance
     asset = yf.Ticker(code)
     info = asset.info
     industry = info["sector"]
     return industry
+
+
+def get_industry_from_web(code, driver):
+    # To be used in batch by get_industry_from_web_batch
+    driver.get(f"{asx_stock_url}/{code}")
+    content = driver.page_source
+
+    soup = BeautifulSoup(content, 'html.parser')
+    data = []
+
+    h_key = soup.find("h3", string="Key Information")
+    if h_key is None:
+        return None
+
+    table = h_key.find_next('table', attrs={'class': 'mi-table'})
+    table_body = table.find('tbody')
+
+    rows = table_body.find_all('tr')
+    for row in rows:
+        cols = row.find_all('td')
+        cols = [elem.text.strip() for elem in cols]
+        data.append(cols)
+
+    data = {item[0]: item[1] for item in data}
+    return data['Sector']
+
+
+def get_industry_from_web_batch(codes):
+    # To be used instead of YFinance as this is almost twice faster
+    response = dict()
+    driver = webdriver.Chrome(options=options)
+    for code in codes:
+        response[code] = get_industry_from_web(code, driver)
+    driver.close()
+    return response
 
 
 def map_industry_code(industry_name):
