@@ -209,7 +209,7 @@ def scan_stocks():
     if len(shortlist) > 0:
 
         # Get the industries for shortlisted stocks only
-        print("Getting industry data for the shortlisted stocks...")
+        print(f"Getting industry data for {len(shortlist)} shortlisted stocks...")
         sectors = dict()
         for stock in shortlist:
             sectors[stock[0]] = get_industry(f"{stock[0]}.AX")
