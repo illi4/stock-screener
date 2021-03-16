@@ -23,7 +23,7 @@ The MA200 is ignored if the stock is too new. Please note that the shortlist sho
 #### Settings 
 See `libs/settings.py` for settings: 
 - URL for grabbing the listed codes and the price
-- Price range for stocks considered on scan (default is $0.01 to $3)
+- Price range for stocks considered on scan (default is $0.01 to $2.5)
 - Minimum volume threshold ($500k)  
 - Overextended threshold 
 
