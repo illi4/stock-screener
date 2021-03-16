@@ -47,3 +47,16 @@ def format_bool(value):
     # Format boolean as tick or fail
     formatted_value = "v" if value else "x"
     return formatted_value
+
+
+def get_test_stocks():
+    # Use for testing / bugfixes
+    # In main.py, use: stocks = get_test_stocks()
+
+    class Stk:
+        code, name = None, None
+
+    test_stock = Stk()
+    test_stock.code = 'TTA'
+    test_stock.name = 'TTA'
+    return [test_stock]
