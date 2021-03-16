@@ -2,6 +2,8 @@
 
 ASX stocks ticker grabber and a basic screener. Beware that the **current day is excluded** from the analysis, even if you run the screener after the market closes (this is an unfortunate consequence of using Yahoo Finance as a data source). Thus, **the best time to run it is in the morning prior to market open**. The shortlist acts as a guide for entering breakout trades which have high probability of success.
 
+**Note that the YFinance data may be unreliable at times and it is crucial to double check the shortlist on the actual charts prior to any actions.**
+
 Stock shortlisting and industry score estimates incorporate the following conditions: 
 - Daily higher candle close above bodies of the previous 10 daily candles
 - Bullish [MRI](https://tonevays.com/indicator) indicator value on the daily timeframe
