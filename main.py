@@ -103,6 +103,9 @@ def met_conditions_bullish(ohlc_with_indicators_daily,
             < (1 + overextended_threshold_percent / 100) * ohlc_with_indicators_weekly["close"].iloc[-4]
     )
 
+    # Last candle should actually be green (close above open)
+    last_candle_is_green = ohlc_with_indicators_daily['close'].iloc[-1] > ohlc_with_indicators_daily['open'].iloc[-1]
+
     # Most recent close should be above the bodies of 10 candles prior
     ohlc_with_indicators_daily['candle_body_upper'] = ohlc_with_indicators_daily[['open', 'close']].max(axis=1)
     close_most_recent = float(ohlc_with_indicators_daily['close'].iloc[-1])
@@ -116,9 +119,10 @@ def met_conditions_bullish(ohlc_with_indicators_daily,
         print(
             f"- MRI: daily [{format_bool(daily_condition_td)}] / weekly [{format_bool(weekly_condition_td)}] | "
             f"Consensio: [{format_bool(ma_consensio)}] | MA rising: [{format_bool(ma_rising)}] | "
-            f"Not overextended: [{format_bool(not_overextended)}] | "
-            f"Higher close: [{format_bool(daily_condition_close_higher)}] | "
-            f"Volume condition: [{format_bool(volume_condition)}] | Upper condition: [{format_bool(upper_condition)}]"
+            f"Not overextended: [{format_bool(not_overextended)}] \n"
+            f"- Higher close: [{format_bool(daily_condition_close_higher)}] | "
+            f"Volume condition: [{format_bool(volume_condition)}] | Upper condition: [{format_bool(upper_condition)}] | "
+            f"Last candle is green: [{format_bool(last_candle_is_green)}]"
         )
 
     confirmation = [
@@ -129,7 +133,8 @@ def met_conditions_bullish(ohlc_with_indicators_daily,
         not_overextended,
         daily_condition_close_higher,
         volume_condition,
-        upper_condition
+        upper_condition,
+        last_candle_is_green
     ]
     numerical_score = round(5 * sum(confirmation) / len(confirmation), 1)  # score X (of 5)
     result = False not in confirmation
@@ -173,9 +178,21 @@ def get_industry_momentum():
     return industry_momentum, industry_score
 
 
+def get_test_stocks():
+
+    class Stk:
+        code, name = None, None
+
+    test_stock = Stk()
+    test_stock.code = 'TTA'
+    test_stock.name = 'TTA'
+    return [test_stock]
+
+
 def scan_stocks():
     shortlisted_stocks = []
-    stocks = get_stocks(price_min=price_min, price_max=price_max)
+    #stocks = get_stocks(price_min=price_min, price_max=price_max)
+    stocks = get_test_stocks()
 
     # Limit per arguments as required
     if arguments['num'] is not None:
