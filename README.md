@@ -23,8 +23,9 @@ The MA200 is ignored if the stock is too new. Please note that the shortlist sho
 #### Settings 
 See `libs/settings.py` for settings: 
 - URL for grabbing the listed codes and the price
-- Price range for stocks considered on scan
-- Overextended threshold
+- Price range for stocks considered on scan (default is $0.01 to $5)
+- Minimum volume threshold ($500k)  
+- Overextended threshold 
 
 #### Limitations
 - Yahoo Finance is used to get stock OHLC information. Theoretically, the API limit for YFinance is 2000 requests per hour per IP. However, I have launched it several times in a row producing more than 2000 requests and was not yet able to hit the limit. If you do, the script will just keep retrying with 1-minute intervals until cancelled.
