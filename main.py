@@ -54,19 +54,27 @@ def met_conditions_bullish(ohlc_with_indicators_daily,
 
     # MA check
     # Used to have MA30, but it is not super helpful
+    ma_10 = MA(ohlc_with_indicators_daily, 10)
     ma_50 = MA(ohlc_with_indicators_daily, 50)
     ma_200 = MA(ohlc_with_indicators_daily, 200)
 
-    # MA 200 may be None for too new stocks
+    # MA 200 or even 50 may be None for too new stocks
     ma_200_nan = np.isnan(ma_200["ma200"].iloc[-1])
+    ma_50_nan = np.isnan(ma_50["ma50"].iloc[-1])
 
     if not ma_200_nan:
         ma_consensio = (
-                ma_50["ma50"].iloc[-1] > ma_200["ma200"].iloc[-1]
+                (ma_50["ma50"].iloc[-1] > ma_200["ma200"].iloc[-1])
+                and (ma_10["ma10"].iloc[-1] > ma_50["ma50"].iloc[-1])
         )
     else:
         ma_consensio = True
         print('-- note: MA200 is NaN, the stock is too new')
+
+    # However, skip if there is no MA50 available to check
+    if ma_50_nan:
+        ma_consensio = True
+        print('-- excluding as MA50 is NaN')
 
     # Volume MA and volume spike over the considered day
     if consider_volume_spike:
@@ -78,8 +86,7 @@ def met_conditions_bullish(ohlc_with_indicators_daily,
     else:
         volume_condition = True
 
-    # All MA rising
-    # Used to have MA30 too, but it is not super helpful
+    # All MA except for MA10 are rising
     if not ma_200_nan:
         ma_rising = (
                 (ma_50["ma50"].iloc[-1] >= ma_50["ma50"].iloc[-5])
