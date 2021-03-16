@@ -3,12 +3,11 @@ from libs.stocktools import (
     get_asx_symbols,
     get_stock_data,
     ohlc_daily_to_weekly,
-    get_industry,
     industry_mapping,
     get_industry_from_web_batch
 )
 from libs.db import bulk_add_stocks, create_stock_table, delete_all_stocks, get_stocks, get_update_date
-from libs.settings import price_min, price_max, overextended_threshold_percent
+from libs.settings import price_min, price_max, overextended_threshold_percent, minimum_volume_level
 from libs.techanalysis import td_indicators, MA
 import pandas as pd
 import numpy as np
@@ -205,7 +204,15 @@ def scan_stocks():
             if confirmation:
                 print("- [v] meeting shortlisting conditions")
                 volume_MA_5D = last_volume_5D_MA(volume_daily)
-                shortlisted_stocks.append((stock.code, stock.name, volume_MA_5D))
+
+                if volume_MA_5D > minimum_volume_level:
+                    print(f"- [v] meeting minimum volume level conditions "
+                          f"({format_number(volume_MA_5D)} > {format_number(minimum_volume_level)})")
+                    shortlisted_stocks.append((stock.code, stock.name, volume_MA_5D))
+                else:
+                    print(f"- [x] not meeting minimum volume level conditions "
+                          f"({format_number(volume_MA_5D)} < {format_number(minimum_volume_level)})")
+
             else:
                 print("- [x] not meeting shortlisting conditions")
 
