@@ -39,7 +39,7 @@ def df_from_series(data_series, timestamp_series, columns):
     """
     df = pd.DataFrame(data_series)
     df.columns = columns
-    #df["timestamp"] = timestamp_series # doesn't work
+    # df["timestamp"] = timestamp_series # doesn't work
     return df
 
 
@@ -375,14 +375,10 @@ def td_indicators(df):
 
             ## TD Setup (sequential)
             if direction_down and not bearish_flip:
-                setup_down += (
-                    1
-                )  # having it like this fixes the bug with TD1 appearing several times in a row
+                setup_down += 1  # having it like this fixes the bug with TD1 appearing several times in a row
 
             if direction_up and not bullish_flip:
-                setup_up += (
-                    1
-                )  # having it like this fixes the bug with TD1 appearing several times in a row
+                setup_up += 1  # having it like this fixes the bug with TD1 appearing several times in a row
 
             # Move extreme change calc: 1 -> 2 count it in, not just on flip
             if direction_up and setup_up == 1:

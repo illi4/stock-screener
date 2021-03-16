@@ -39,9 +39,12 @@ def exception_handler(handler_type):
     """
 
     # Identify the retry/exception parameters
-    sleep_timer, retry_times, retry_exceptions, terminal_exceptions = define_exception_handler_params(
-        handler_type
-    )
+    (
+        sleep_timer,
+        retry_times,
+        retry_exceptions,
+        terminal_exceptions,
+    ) = define_exception_handler_params(handler_type)
 
     # Run the retries decorator and return the result
     def decorator(func):

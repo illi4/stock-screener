@@ -6,13 +6,16 @@ parser = argparse.ArgumentParser()
 
 def define_args():
     parser.add_argument(
-        "--update", action="store_true", help="Update the assets list. Do this before scanning."
+        "--update",
+        action="store_true",
+        help="Update the assets list. Do this before scanning.",
     )
     parser.add_argument(
         "--scan", action="store_true", help="Scan for potential signals"
     )
     parser.add_argument(
-        '-num', type=int, required=False, help="Limit the number of scanned stocks")
+        "-num", type=int, required=False, help="Limit the number of scanned stocks"
+    )
 
     args = parser.parse_args()
     arguments = vars(args)
@@ -40,7 +43,7 @@ def format_number(num):
         magnitude += 1
         num /= 1000.0
     # add more suffixes if you need them
-    return '%.2f%s' % (num, ['', 'K', 'M', 'G', 'T', 'P'][magnitude])
+    return "%.2f%s" % (num, ["", "K", "M", "G", "T", "P"][magnitude])
 
 
 def format_bool(value):
@@ -57,6 +60,6 @@ def get_test_stocks():
         code, name = None, None
 
     test_stock = Stk()
-    test_stock.code = 'TTA'
-    test_stock.name = 'TTA'
+    test_stock.code = "TTA"
+    test_stock.name = "TTA"
     return [test_stock]

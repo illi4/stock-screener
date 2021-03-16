@@ -5,9 +5,15 @@ from libs.stocktools import (
     get_stock_data,
     ohlc_daily_to_weekly,
     industry_mapping,
-    get_industry_from_web_batch
+    get_industry_from_web_batch,
 )
-from libs.db import bulk_add_stocks, create_stock_table, delete_all_stocks, get_stocks, get_update_date
+from libs.db import (
+    bulk_add_stocks,
+    create_stock_table,
+    delete_all_stocks,
+    get_stocks,
+    get_update_date,
+)
 from libs.settings import price_min, price_max, minimum_volume_level
 from libs.techanalysis import td_indicators, MA
 import pandas as pd
@@ -60,13 +66,16 @@ def get_industry_momentum():
     industry_momentum, industry_score = dict(), dict()
     for name, code in industry_mapping.items():
         ohlc_daily, volume_daily = get_stock_data(f"^A{code}")
-        ohlc_with_indicators_daily, ohlc_with_indicators_weekly = generate_indicators_daily_weekly(ohlc_daily)
+        (
+            ohlc_with_indicators_daily,
+            ohlc_with_indicators_weekly,
+        ) = generate_indicators_daily_weekly(ohlc_daily)
         industry_momentum[code], industry_score[code] = met_conditions_bullish(
             ohlc_with_indicators_daily,
             volume_daily,
             ohlc_with_indicators_weekly,
             consider_volume_spike=False,
-            output=False
+            output=False,
         )
     return industry_momentum, industry_score
 
@@ -83,13 +92,17 @@ def report_on_shortlist(shortlist, industry_score):
     for stock in shortlist:
 
         # May not find a sector for a stock
-        if sectors[stock[0]] == '-':
-            print(f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} vol | "
-                  f"Sector score unavailable")
+        if sectors[stock[0]] == "-":
+            print(
+                f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} vol | "
+                f"Sector score unavailable"
+            )
         else:
             industry_code = industry_mapping[sectors[stock[0]]]
-            print(f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} vol | "
-                  f"{sectors[stock[0]]} score {industry_score[industry_code]}/5")
+            print(
+                f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} vol | "
+                f"{sectors[stock[0]]} score {industry_score[industry_code]}/5"
+            )
 
 
 def scan_stocks():
@@ -97,9 +110,9 @@ def scan_stocks():
     stocks = get_stocks(price_min=price_min, price_max=price_max)
 
     # Limit per arguments as required
-    if arguments['num'] is not None:
+    if arguments["num"] is not None:
         print(f"Limiting to the first {arguments['num']} stocks")
-        stocks = stocks[:arguments['num']]
+        stocks = stocks[: arguments["num"]]
 
     # Get industry bullishness scores
     industry_momentum, industry_score = get_industry_momentum()
@@ -115,7 +128,10 @@ def scan_stocks():
             print("No data on the asset")
             continue  # skip this asset if there is no data
 
-        ohlc_with_indicators_daily, ohlc_with_indicators_weekly = generate_indicators_daily_weekly(ohlc_daily)
+        (
+            ohlc_with_indicators_daily,
+            ohlc_with_indicators_weekly,
+        ) = generate_indicators_daily_weekly(ohlc_daily)
         if ohlc_with_indicators_daily is None or ohlc_with_indicators_weekly is None:
             continue
 
@@ -124,19 +140,23 @@ def scan_stocks():
             volume_daily,
             ohlc_with_indicators_weekly,
             consider_volume_spike=True,
-            output=True
+            output=True,
         )
         if confirmation:
             print("- [v] meeting shortlisting conditions")
             volume_MA_5D = last_volume_5D_MA(volume_daily)
 
             if volume_MA_5D > minimum_volume_level:
-                print(f"- [v] meeting minimum volume level conditions "
-                      f"({format_number(volume_MA_5D)} > {format_number(minimum_volume_level)})")
+                print(
+                    f"- [v] meeting minimum volume level conditions "
+                    f"({format_number(volume_MA_5D)} > {format_number(minimum_volume_level)})"
+                )
                 shortlisted_stocks.append((stock.code, stock.name, volume_MA_5D))
             else:
-                print(f"- [x] not meeting minimum volume level conditions "
-                      f"({format_number(volume_MA_5D)} < {format_number(minimum_volume_level)})")
+                print(
+                    f"- [x] not meeting minimum volume level conditions "
+                    f"({format_number(volume_MA_5D)} < {format_number(minimum_volume_level)})"
+                )
 
         else:
             print("- [x] not meeting shortlisting conditions")
