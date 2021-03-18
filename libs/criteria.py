@@ -28,19 +28,19 @@ def met_conditions_bullish(
     # Used to have MA30, but it is not super helpful
     ma_10 = MA(ohlc_with_indicators_daily, 10)
     ma_50 = MA(ohlc_with_indicators_daily, 50)
-    ma_200 = MA(ohlc_with_indicators_daily, 200)
+    ma_150 = MA(ohlc_with_indicators_daily, 150)
 
-    # MA 200 or even 50 may be None for too new stocks
-    ma_200_nan = np.isnan(ma_200["ma200"].iloc[-1])
+    # MA150 or even 50 may be None for too new stocks
+    ma_150_nan = np.isnan(ma_150["ma150"].iloc[-1])
     ma_50_nan = np.isnan(ma_50["ma50"].iloc[-1])
 
-    if not ma_200_nan:
-        ma_consensio = (ma_50["ma50"].iloc[-1] > ma_200["ma200"].iloc[-1]) and (
+    if not ma_150_nan:
+        ma_consensio = (ma_50["ma50"].iloc[-1] > ma_150["ma150"].iloc[-1]) and (
             ma_10["ma10"].iloc[-1] > ma_50["ma50"].iloc[-1]
         )
     else:
         ma_consensio = True
-        print("-- note: MA200 is NaN, the stock is too new")
+        print("-- note: MA150 is NaN, the stock is too new")
 
     # However, skip if there is no MA50 available to check
     if ma_50_nan:
@@ -60,9 +60,9 @@ def met_conditions_bullish(
         volume_condition = True
 
     # All MA except for MA10 are rising
-    if not ma_200_nan:
+    if not ma_150_nan:
         ma_rising = (ma_50["ma50"].iloc[-1] >= ma_50["ma50"].iloc[-5]) and (
-            ma_200["ma200"].iloc[-1] >= ma_200["ma200"].iloc[-5]
+            ma_150["ma150"].iloc[-1] >= ma_150["ma150"].iloc[-5]
         )
     else:
         ma_rising = ma_50["ma50"].iloc[-1] >= ma_50["ma50"].iloc[-5]

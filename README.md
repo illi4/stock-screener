@@ -8,12 +8,12 @@ Stock shortlisting and industry score estimates incorporate the following condit
 - Daily higher candle closes above bodies of the previous 10 daily candles and is green
 - Bullish [MRI](https://tonevays.com/indicator) indicator value on the daily timeframe
 - Bullish MRI indicator on the weekly timeframe  
-- Moving averages (50, 200 day) Consensio ([Guppy MMA](https://www.investopedia.com/terms/g/guppy-multiple-moving-average.asp))
-- Moving averages (50, 200 day) rising 
+- Moving averages (50, 150 day) Consensio ([Guppy MMA](https://www.investopedia.com/terms/g/guppy-multiple-moving-average.asp))
+- Moving averages (50, 150 day) rising 
 - Close for the last week is not exceeding 200% when compared to 4 weeks ago
 - Volume spike in the last day compared to the 20-day moving average  
 
-The MA200 is ignored if the stock is too new. Please note that the shortlist should only be used to guide your own research and should not be interpreted as 'signals'. 
+The MA150 is ignored if the stock is too new. Please note that the shortlist should only be used to guide your own research and should not be interpreted as 'signals'. 
 
 #### Usage  
 - Run `main.py --h` to view context help 
