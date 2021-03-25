@@ -14,6 +14,9 @@ def define_args():
         "--scan", action="store_true", help="Scan for potential signals"
     )
     parser.add_argument(
+        "-exchange", type=str, required=True, help="Exchange (asx/nasdaq)", choices=['asx', 'nasdaq']
+    )
+    parser.add_argument(
         "-num", type=int, required=False, help="Limit the number of scanned stocks"
     )
 
@@ -24,6 +27,7 @@ def define_args():
         arguments["update"] = False
     if not arguments["scan"]:
         arguments["scan"] = False
+    arguments["exchange"] = arguments["exchange"].upper()
 
     if True not in arguments.values():
         print("No arguments specified. Run main.py --h to show help.")

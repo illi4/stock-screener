@@ -15,6 +15,8 @@ class Stock(BaseModel):
     code = CharField()
     name = CharField()
     price = FloatField(null=True)
+    volume = FloatField(null=True)
+    exchange = CharField()
     date = DateTimeField(default=datetime.datetime.now)
 
 
@@ -56,8 +58,12 @@ def get_stocks(price_min=None, price_max=None):
     return stocks
 
 
-def get_update_date():
-    record = Stock.select().get()
+def get_update_date(exchange):
+    record = Stock.select().where(Stock.exchange == exchange).get()
+    #date_rec = Stock.select().where(
+    #    Stock.exchange == exchange
+    #)
+    #record = date_rec.get()
     record = arrow.get(record.date)
     record = record.replace(tzinfo="Australia/Sydney")
     return record

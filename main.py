@@ -2,6 +2,7 @@ from libs.helpers import define_args, dates_diff, format_number, get_test_stocks
 from libs.criteria import met_conditions_bullish
 from libs.stocktools import (
     get_asx_symbols,
+    get_nasdaq_symbols,
     get_stock_data,
     ohlc_daily_to_weekly,
     industry_mapping,
@@ -24,7 +25,12 @@ import itertools
 
 
 def update_stocks():
-    stocks = get_asx_symbols()
+    if arguments["exchange"] == 'ASX':
+        stocks = get_asx_symbols()
+    elif arguments["exchange"] == 'NASDAQ':
+        stocks = get_nasdaq_symbols()
+        exit(0)  # WIP
+
     create_stock_table()
     delete_all_stocks()
     print("Writing to the database")
@@ -33,7 +39,8 @@ def update_stocks():
 
 
 def check_update_date():
-    last_update_date = get_update_date()
+    exchange = arguments["exchange"]
+    last_update_date = get_update_date(exchange)
     diff = dates_diff(last_update_date)
     if diff > 5:
         print("Stocks list updated more than 5 days ago, please run the --update first")
@@ -203,7 +210,7 @@ if __name__ == "__main__":
 
     arguments = define_args()
     if arguments["update"]:
-        print("Updating the ASX stocks list...")
+        print("Updating the stocks list...")
         update_stocks()
 
     if arguments["scan"]:

@@ -2,8 +2,9 @@ from selenium import webdriver
 from bs4 import BeautifulSoup
 import yfinance as yf
 from libs.exceptions_lib import exception_handler
-from libs.settings import asx_instruments_url, tzinfo, asx_stock_url
+from libs.settings import asx_instruments_url, tzinfo, asx_stock_url, nasdaq_instruments_url
 import arrow
+import string
 
 options = webdriver.ChromeOptions()
 
@@ -27,6 +28,34 @@ industry_mapping = {
 }
 
 
+def get_nasdaq_symbols():
+    driver = webdriver.Chrome(options=options)
+    all_letters = string.ascii_lowercase
+    for letter in all_letters[:2]: # to test
+        url = f"{nasdaq_instruments_url}/{letter}.htm"
+        print(f"Processing {url}")
+        driver.get(url)
+        content = driver.page_source
+
+        soup = BeautifulSoup(content, "html.parser")
+        data = []
+        table = soup.find("table", attrs={"class": "quotes"})
+        table_body = table.find("tbody")
+
+        rows = table_body.find_all("tr")
+        for row in rows:
+            cols = row.find_all("td")
+            cols = [elem.text.strip() for elem in cols]
+            data.append(cols)
+
+        print(data)  # cool.
+        # would include records like:
+        # ['AACG', 'Ata Creativity Global', '4.140', '3.790', '3.950', '169,591', '-0.140', '', '3.42', '']
+        # Continue here
+
+    driver.close()
+
+
 def get_asx_symbols():
     driver = webdriver.Chrome(options=options)
     driver.get(asx_instruments_url)
@@ -45,7 +74,7 @@ def get_asx_symbols():
         data.append(cols)
 
     stocks = [
-        dict(code=elem[2], name=elem[3], price=float(elem[4].replace("$", "")))
+        dict(code=elem[2], name=elem[3], price=float(elem[4].replace("$", "")), exchange="ASX")
         for elem in data
     ]
     print(
