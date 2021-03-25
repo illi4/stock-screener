@@ -25,27 +25,18 @@ def met_conditions_bullish(
     )
 
     # MA check
-    # Used to have MA30, but it is not super helpful
-    ma_10 = MA(ohlc_with_indicators_daily, 10)
-    ma_50 = MA(ohlc_with_indicators_daily, 50)
-    ma_150 = MA(ohlc_with_indicators_daily, 150)
+    ma10 = MA(ohlc_with_indicators_daily, 10)
+    ma20 = MA(ohlc_with_indicators_daily, 20)
+    ma30 = MA(ohlc_with_indicators_daily, 30)
 
-    # MA150 or even 50 may be None for too new stocks
-    ma_150_nan = np.isnan(ma_150["ma150"].iloc[-1])
-    ma_50_nan = np.isnan(ma_50["ma50"].iloc[-1])
+    # MA30 may be None for too new stocks
+    ma30_nan = np.isnan(ma30["ma30"].iloc[-1])
 
-    if not ma_150_nan:
-        ma_consensio = (ma_50["ma50"].iloc[-1] > ma_150["ma150"].iloc[-1]) and (
-            ma_10["ma10"].iloc[-1] > ma_50["ma50"].iloc[-1]
-        )
+    if not ma30_nan:
+        ma_consensio = ma10["ma10"].iloc[-1] > ma20["ma20"].iloc[-1] > ma30["ma30"].iloc[-1]
     else:
-        ma_consensio = True
-        print("-- note: MA150 is NaN, the stock is too new")
-
-    # However, skip if there is no MA50 available to check
-    if ma_50_nan:
-        ma_consensio = True
-        print("-- excluding as MA50 is NaN")
+        ma_consensio = False
+        print("-- note: MA30 is NaN, the stock is too new")
 
     # Volume MA and volume spike over the considered day
     if consider_volume_spike:
@@ -59,13 +50,12 @@ def met_conditions_bullish(
     else:
         volume_condition = True
 
-    # All MA except for MA10 are rising
-    if not ma_150_nan:
-        ma_rising = (ma_50["ma50"].iloc[-1] >= ma_50["ma50"].iloc[-5]) and (
-            ma_150["ma150"].iloc[-1] >= ma_150["ma150"].iloc[-5]
-        )
-    else:
-        ma_rising = ma_50["ma50"].iloc[-1] >= ma_50["ma50"].iloc[-5]
+    # All MAs are rising
+    ma_rising = (ma10["ma10"].iloc[-1] >= ma10["ma10"].iloc[-3]) and (
+        ma20["ma20"].iloc[-1] >= ma20["ma20"].iloc[-3]
+    ) and (
+        ma30["ma30"].iloc[-1] >= ma30["ma30"].iloc[-3]
+    )
 
     # Close for the last week is not more than X% from the 4 weeks ago
     not_overextended = (
