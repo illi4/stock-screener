@@ -121,7 +121,7 @@ def scan_stock_group(stocks, set_counter):
     shortlisted_stocks = []
     for i, stock in enumerate(stocks):
         print(
-            f"{stock.code} [{stock.name}] ({i + 1}/{len(stocks)}) [thread {set_counter+1}]"
+            f"{stock.code} [{stock.name}] ({i + 1}/{len(stocks)}) [thread {set_counter + 1}]"
         )
         ohlc_daily, volume_daily = get_stock_data(f"{stock.code}.AX")
 
@@ -170,7 +170,10 @@ def scan_stock_group(stocks, set_counter):
 
 
 def scan_stocks():
-    stocks = get_stocks(price_min=price_min, price_max=price_max)
+    stocks = get_stocks(exchange=arguments["exchange"],
+                        price_min=price_min, price_max=price_max,
+                        min_volume=minimum_volume_level
+                        )
 
     # Limit per arguments as required
     if arguments["num"] is not None:
