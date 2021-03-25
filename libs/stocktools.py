@@ -31,7 +31,9 @@ industry_mapping = {
 def get_nasdaq_symbols():
     driver = webdriver.Chrome(options=options)
     all_letters = string.ascii_lowercase
-    for letter in all_letters[:2]: # to test
+    stocks = []
+
+    for letter in all_letters:
         url = f"{nasdaq_instruments_url}/{letter}.htm"
         print(f"Processing {url}")
         driver.get(url)
@@ -48,12 +50,17 @@ def get_nasdaq_symbols():
             cols = [elem.text.strip() for elem in cols]
             data.append(cols)
 
-        print(data)  # cool.
-        # would include records like:
-        # ['AACG', 'Ata Creativity Global', '4.140', '3.790', '3.950', '169,591', '-0.140', '', '3.42', '']
-        # Continue here
-
+        for elem in data:
+            # first one is an empty string
+            if len(elem) > 0:
+                stocks.append(
+                    dict(code=elem[0], name=elem[1], price=float(elem[4].replace(",", "")),
+                         volume=float(elem[5].replace(",", "")),
+                         exchange="NASDAQ")
+                )
     driver.close()
+
+    return stocks
 
 
 def get_asx_symbols():

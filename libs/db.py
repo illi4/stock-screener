@@ -24,8 +24,10 @@ def create_stock_table():
     Stock.create_table()
 
 
-def delete_all_stocks():
-    query = Stock.delete()
+def delete_all_stocks(exchange):
+    query = Stock.delete().where(
+            Stock.exchange == exchange
+        )
     query.execute()
 
 

@@ -25,14 +25,15 @@ import itertools
 
 
 def update_stocks():
-    if arguments["exchange"] == 'ASX':
+    exchange = arguments["exchange"]
+    if exchange == 'ASX':
         stocks = get_asx_symbols()
-    elif arguments["exchange"] == 'NASDAQ':
+    elif exchange == 'NASDAQ':
         stocks = get_nasdaq_symbols()
-        exit(0)  # WIP
 
     create_stock_table()
-    delete_all_stocks()
+    print(f"Deleting the existing stocks for {exchange}")
+    delete_all_stocks(exchange)
     print("Writing to the database")
     bulk_add_stocks(stocks)
     print("Update finished")
