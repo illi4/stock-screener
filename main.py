@@ -18,6 +18,9 @@ from libs.settings import price_min, price_max, minimum_volume_level
 from libs.techanalysis import td_indicators, MA
 import pandas as pd
 from time import time
+import concurrent.futures
+import numpy as np
+import itertools
 
 
 def update_stocks():
@@ -106,23 +109,12 @@ def report_on_shortlist(shortlist, industry_score):
             )
 
 
-def scan_stocks():
+def scan_stock_group(stocks, set_counter):
     shortlisted_stocks = []
-    stocks = get_stocks(price_min=price_min, price_max=price_max)
-
-    # Limit per arguments as required
-    if arguments["num"] is not None:
-        print(f"Limiting to the first {arguments['num']} stocks")
-        stocks = stocks[: arguments["num"]]
-
-    # Get industry bullishness scores
-    industry_momentum, industry_score = get_industry_momentum()
-
-    total_number = len(stocks)
-    print(f"Scanning {total_number} stocks priced {price_min} from to {price_max}")
-
     for i, stock in enumerate(stocks):
-        print(f"{stock.code} [{stock.name}] ({i + 1}/{len(stocks)})")
+        print(
+            f"{stock.code} [{stock.name}] ({i + 1}/{len(stocks)}) [thread {set_counter+1}]"
+        )
         ohlc_daily, volume_daily = get_stock_data(f"{stock.code}.AX")
 
         if ohlc_daily is None:
@@ -142,29 +134,60 @@ def scan_stocks():
             ohlc_with_indicators_weekly,
             consider_volume_spike=True,
             output=True,
+            stock_name=stock.name,
         )
         if confirmation:
-            print("- [v] meeting shortlisting conditions")
+            print(f"{stock.name} [v] meeting shortlisting conditions")
             volume_MA_5D = last_volume_5D_MA(volume_daily)
 
             if volume_MA_5D > minimum_volume_level:
                 print(
-                    f"- [v] meeting minimum volume level conditions "
+                    f"{stock.name} [v] meeting minimum volume level conditions "
                     f"({format_number(volume_MA_5D)} > {format_number(minimum_volume_level)})"
                 )
                 shortlisted_stocks.append((stock.code, stock.name, volume_MA_5D))
             else:
                 print(
-                    f"- [x] not meeting minimum volume level conditions "
+                    f"{stock.name} [x] not meeting minimum volume level conditions "
                     f"({format_number(volume_MA_5D)} < {format_number(minimum_volume_level)})"
                 )
 
         else:
-            print("- [x] not meeting shortlisting conditions")
+            print(f"{stock.name} [x] not meeting shortlisting conditions")
 
     # Sort by volume (index 2) descending
     sorted_stocks = sorted(shortlisted_stocks, key=lambda tup: tup[2], reverse=True)
     shortlist = [(stock[0], stock[1], stock[2]) for stock in sorted_stocks]
+    return shortlist
+
+
+def scan_stocks():
+    stocks = get_stocks(price_min=price_min, price_max=price_max)
+
+    # Limit per arguments as required
+    if arguments["num"] is not None:
+        print(f"Limiting to the first {arguments['num']} stocks")
+        stocks = stocks[: arguments["num"]]
+
+    # Get industry bullishness scores
+    industry_momentum, industry_score = get_industry_momentum()
+
+    total_number = len(stocks)
+    print(f"Scanning {total_number} stocks priced {price_min} from to {price_max}")
+
+    # Split stocks on 5 parts for threading
+    # It is MUCH faster with threading
+    # KeyboardInterrupt does not work very well. Did not find a solution just yet which is ok.
+    stocks_sets = np.array_split(stocks, 5)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        futures = [
+            executor.submit(scan_stock_group, stocks_set, set_counter)
+            for set_counter, stocks_set in enumerate(stocks_sets)
+        ]
+        shortlisted_stock_collections = [f.result() for f in futures]
+
+    # Join list of lists into a single list
+    shortlist = list(itertools.chain.from_iterable(shortlisted_stock_collections))
 
     print()
     if len(shortlist) > 0:

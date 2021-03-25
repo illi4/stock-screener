@@ -10,6 +10,7 @@ def met_conditions_bullish(
     ohlc_with_indicators_weekly,
     consider_volume_spike=True,
     output=True,
+    stock_name=''
 ):
     # Checks if price action meets conditions
     # Rules: MAs trending up, fast above slow, bullish TD count, volume spike
@@ -90,10 +91,10 @@ def met_conditions_bullish(
 
     if output:
         print(
-            f"- MRI: daily [{format_bool(daily_condition_td)}] / weekly [{format_bool(weekly_condition_td)}] | "
+            f"- {stock_name} MRI: D [{format_bool(daily_condition_td)}] / W [{format_bool(weekly_condition_td)}] | "
             f"Consensio: [{format_bool(ma_consensio)}] | MA rising: [{format_bool(ma_rising)}] | "
             f"Not overextended: [{format_bool(not_overextended)}] \n"
-            f"- Higher close: [{format_bool(daily_condition_close_higher)}] | "
+            f"- {stock_name} Higher close: [{format_bool(daily_condition_close_higher)}] | "
             f"Volume condition: [{format_bool(volume_condition)}] | Upper condition: [{format_bool(upper_condition)}] | "
             f"Last candle is green: [{format_bool(last_candle_is_green)}]"
         )
