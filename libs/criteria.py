@@ -33,7 +33,9 @@ def met_conditions_bullish(
     ma30_nan = np.isnan(ma30["ma30"].iloc[-1])
 
     if not ma30_nan:
-        ma_consensio = ma10["ma10"].iloc[-1] > ma20["ma20"].iloc[-1] > ma30["ma30"].iloc[-1]
+        ma_consensio = (
+            ma10["ma10"].iloc[-1] > ma20["ma20"].iloc[-1] > ma30["ma30"].iloc[-1]
+        )
     else:
         ma_consensio = False
         print("-- note: MA30 is NaN, the stock is too new")
@@ -51,10 +53,10 @@ def met_conditions_bullish(
         volume_condition = True
 
     # All MAs are rising
-    ma_rising = (ma10["ma10"].iloc[-1] >= ma10["ma10"].iloc[-3]) and (
-        ma20["ma20"].iloc[-1] >= ma20["ma20"].iloc[-3]
-    ) and (
-        ma30["ma30"].iloc[-1] >= ma30["ma30"].iloc[-3]
+    ma_rising = (
+        (ma10["ma10"].iloc[-1] >= ma10["ma10"].iloc[-3])
+        and (ma20["ma20"].iloc[-1] >= ma20["ma20"].iloc[-3])
+        and (ma30["ma30"].iloc[-1] >= ma30["ma30"].iloc[-3])
     )
 
     # Close for the last week is not more than X% from the 4 weeks ago

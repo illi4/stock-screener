@@ -17,6 +17,7 @@ from libs.db import (
 from libs.settings import price_min, price_max, minimum_volume_level
 from libs.techanalysis import td_indicators, MA
 import pandas as pd
+from time import time
 
 
 def update_stocks():
@@ -175,6 +176,8 @@ def scan_stocks():
 
 if __name__ == "__main__":
 
+    start_time = time()
+
     arguments = define_args()
     if arguments["update"]:
         print("Updating the ASX stocks list...")
@@ -183,3 +186,8 @@ if __name__ == "__main__":
     if arguments["scan"]:
         check_update_date()
         scan_stocks()
+
+    print()
+    end_time = time()
+    minutes_passed = (end_time - start_time) // 60
+    print(f"{minutes_passed} minutes passed")
