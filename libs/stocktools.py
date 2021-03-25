@@ -28,13 +28,22 @@ industry_mapping = {
 }
 
 
-def get_nasdaq_symbols():
+def get_exchange_symbols(exchange):
+    all_letters = list(string.ascii_lowercase)
+
+    if exchange == 'NASDAQ':
+        exchange_url = nasdaq_instruments_url
+    elif exchange == 'ASX':
+        exchange_url = asx_instruments_url
+        # ASX also has some numerical values
+        for extra_symbol in ['1', '2', '3', '4', '5', '8', '9']:
+            all_letters.append(extra_symbol)
+
     driver = webdriver.Chrome(options=options)
-    all_letters = string.ascii_lowercase
     stocks = []
 
     for letter in all_letters:
-        url = f"{nasdaq_instruments_url}/{letter}.htm"
+        url = f"{exchange_url}/{letter}.htm"
         print(f"Processing {url}")
         driver.get(url)
         content = driver.page_source
@@ -56,13 +65,21 @@ def get_nasdaq_symbols():
                 stocks.append(
                     dict(code=elem[0], name=elem[1], price=float(elem[4].replace(",", "")),
                          volume=float(elem[5].replace(",", "")),
-                         exchange="NASDAQ")
+                         exchange=exchange)
                 )
     driver.close()
-
     return stocks
 
 
+def get_nasdaq_symbols():
+    stocks = get_exchange_symbols("NASDAQ")
+    return stocks
+
+def get_asx_symbols():
+    stocks = get_exchange_symbols("ASX")
+    return stocks
+
+'''
 def get_asx_symbols():
     driver = webdriver.Chrome(options=options)
     driver.get(asx_instruments_url)
@@ -91,7 +108,7 @@ def get_asx_symbols():
     )
 
     return stocks
-
+'''
 
 def ohlc_last_day_workaround(df):
     # Need to check whether the last day is today and remove if so
