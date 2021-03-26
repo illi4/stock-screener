@@ -92,30 +92,33 @@ def get_industry_momentum():
     return industry_momentum, industry_score
 
 
-def report_on_shortlist(shortlist, industry_score):
-    # Get the sectors for shortlisted stocks only
-    print(f"Getting industry data for {len(shortlist)} shortlisted stocks, hold on...")
+def report_on_shortlist(shortlist, industry_score, report_on_industry):
+    if report_on_industry:
+        # Get the sectors for shortlisted stocks only
+        print(f"Getting industry data for {len(shortlist)} shortlisted stocks, hold on...")
+        # Get stock codes to collect industries
+        stock_codes = [stock[0] for stock in shortlist]
+        sectors = get_industry_from_web_batch(stock_codes)
 
-    # Get stock codes to collect industries
-    stock_codes = [stock[0] for stock in shortlist]
-    sectors = get_industry_from_web_batch(stock_codes)
+        print(f"All shortlisted stocks (sorted by 5-day moving average volume):")
+        for stock in shortlist:
 
-    print(f"All shortlisted stocks (sorted by 5-day moving average volume):")
-    for stock in shortlist:
-
-        # May not find a sector for a stock
-        if sectors[stock[0]] == "-":
-            print(
-                f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} vol | "
-                f"Sector score unavailable"
-            )
-        else:
-            industry_code = industry_mapping[sectors[stock[0]]]
-            print(
-                f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} vol | "
-                f"{sectors[stock[0]]} score {industry_score[industry_code]}/5"
-            )
-
+            # May not find a sector for a stock
+            if sectors[stock[0]] == "-":
+                print(
+                    f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} vol | "
+                    f"Sector score unavailable"
+                )
+            else:
+                industry_code = industry_mapping[sectors[stock[0]]]
+                print(
+                    f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} vol | "
+                    f"{sectors[stock[0]]} score {industry_score[industry_code]}/5"
+                )
+    else:
+        print(f"All shortlisted stocks (sorted by 5-day moving average volume):")
+        for stock in shortlist:
+            print(f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} vol")
 
 def scan_stock_group(stocks, set_counter):
     if arguments["exchange"] == 'ASX':
@@ -185,8 +188,13 @@ def scan_stocks():
         print(f"Limiting to the first {arguments['num']} stocks")
         stocks = stocks[: arguments["num"]]
 
-    # Get industry bullishness scores
-    industry_momentum, industry_score = get_industry_momentum()
+    # Get industry bullishness scores, for ASX at the moment
+    if arguments["exchange"] == "ASX":
+        industry_momentum, industry_score = get_industry_momentum()
+        report_on_industry = True
+    else:
+        industry_momentum, industry_score = None, None
+        report_on_industry = False
 
     total_number = len(stocks)
     print(f"Scanning {total_number} stocks priced {price_min} from to {price_max} "
@@ -208,7 +216,7 @@ def scan_stocks():
 
     print()
     if len(shortlist) > 0:
-        report_on_shortlist(shortlist, industry_score)
+        report_on_shortlist(shortlist, industry_score, report_on_industry)
 
     else:
         print(f"No shortlisted stocks")
