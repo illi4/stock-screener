@@ -178,9 +178,14 @@ def ohlc_daily_to_monthly(df):
 
 
 @exception_handler(handler_type="yfinance")
-def get_industry(code):
+def get_industry(code, exchange):
+    # Suffix definition
+    if exchange == 'ASX':
+        stock_suffix = ".AX"
+    else:
+        stock_suffix = ""
     # Getting sector for a stock using YFinance
-    asset = yf.Ticker(code)
+    asset = yf.Ticker(f"{code}{stock_suffix}")
     info = asset.info
     industry = info["sector"]
     return industry
@@ -188,6 +193,7 @@ def get_industry(code):
 
 def get_industry_from_web(code, driver):
     # To be used in batch by get_industry_from_web_batch
+    # Works for asx only
     driver.get(f"{asx_stock_url}/{code}")
     content = driver.page_source
 
@@ -213,6 +219,7 @@ def get_industry_from_web(code, driver):
 
 def get_industry_from_web_batch(codes):
     # To be used instead of YFinance as this is almost twice faster
+    # Works for asx only
     response = dict()
     driver = webdriver.Chrome(options=options)
     for code in codes:
