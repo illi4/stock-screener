@@ -1,6 +1,6 @@
 import traceback
 import time
-
+from urllib.error import HTTPError
 
 class Error(Exception):
     """Base class for other custom exceptions"""
@@ -23,7 +23,7 @@ def define_exception_handler_params(handler_type):
     if handler_type == "yfinance":
         sleep_timer = 60
         retry_times = 60
-        retry_exceptions = ()
+        retry_exceptions = (HTTPError)
         terminal_exceptions = ()
     else:
         print(f"Incompatible handler_type: {handler_type}")
