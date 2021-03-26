@@ -69,7 +69,7 @@ def get_exchange_symbols(exchange):
     stocks = []
 
     for letter in all_letters:
-        url = f"{exchange_url}/{letter}.htm"
+        url = f"{exchange_url}/{letter.upper()}.htm"
         print(f"Processing {url}")
         driver.get(url)
         content = driver.page_source
