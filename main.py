@@ -18,7 +18,7 @@ from libs.db import (
 from libs.settings import price_min, price_max, minimum_volume_level
 from libs.techanalysis import td_indicators, MA
 import pandas as pd
-from time import time
+from time import time, sleep
 import concurrent.futures
 import numpy as np
 import itertools
@@ -43,9 +43,10 @@ def check_update_date():
     exchange = arguments["exchange"]
     last_update_date = get_update_date(exchange)
     diff = dates_diff(last_update_date)
-    if diff > 5:
-        print("Stocks list updated more than 5 days ago, please run the --update first")
-        exit(0)
+    if diff > 1:
+        print("Warning: Stocks list was not updated today, the volume filter could work incorrectly. "
+              "Please consider running the --update first")
+        sleep(3)
 
 
 def last_volume_5D_MA(volume_daily):
