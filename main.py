@@ -184,7 +184,8 @@ def scan_stocks():
     industry_momentum, industry_score = get_industry_momentum()
 
     total_number = len(stocks)
-    print(f"Scanning {total_number} stocks priced {price_min} from to {price_max}")
+    print(f"Scanning {total_number} stocks priced {price_min} from to {price_max} "
+          f"and with volume of at least {format_number(minimum_volume_level)}\n")
 
     # Split stocks on 5 parts for threading
     # It is MUCH faster with threading
