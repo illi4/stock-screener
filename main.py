@@ -190,10 +190,7 @@ def scan_stock_group(stocks, set_counter):
         else:
             print(f"\n{stock.name} [x] not meeting shortlisting conditions")
 
-    # Sort by volume (index 2) descending
-    sorted_stocks = sorted(shortlisted_stocks, key=lambda tup: tup[2], reverse=True)
-    shortlist = [(stock[0], stock[1], stock[2]) for stock in sorted_stocks]
-    return shortlist
+    return shortlisted_stocks
 
 
 def scan_stocks():
@@ -232,6 +229,10 @@ def scan_stocks():
 
     # Join list of lists into a single list
     shortlist = list(itertools.chain.from_iterable(shortlisted_stock_collections))
+
+    # Short the stocks by volume desc
+    sorted_stocks = sorted(shortlist, key=lambda tup: tup[2], reverse=True)
+    shortlist = [(stock[0], stock[1], stock[2]) for stock in sorted_stocks]
 
     print()
     if len(shortlist) > 0:
