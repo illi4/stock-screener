@@ -118,12 +118,17 @@ def report_on_shortlist(shortlist, industry_score):
 
 
 def scan_stock_group(stocks, set_counter):
+    if arguments["exchange"] == 'ASX':
+        stock_suffix = ".AX"
+    else:
+        stock_suffix = ""
+
     shortlisted_stocks = []
     for i, stock in enumerate(stocks):
         print(
             f"{stock.code} [{stock.name}] ({i + 1}/{len(stocks)}) [thread {set_counter + 1}]"
         )
-        ohlc_daily, volume_daily = get_stock_data(f"{stock.code}.AX")
+        ohlc_daily, volume_daily = get_stock_data(f"{stock.code}{stock_suffix}")
 
         if ohlc_daily is None:
             print("No data on the asset")
