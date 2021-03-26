@@ -2,7 +2,12 @@ from selenium import webdriver
 from bs4 import BeautifulSoup
 import yfinance as yf
 from libs.exceptions_lib import exception_handler
-from libs.settings import asx_instruments_url, tzinfo, asx_stock_url, nasdaq_instruments_url
+from libs.settings import (
+    asx_instruments_url,
+    tzinfo,
+    asx_stock_url,
+    nasdaq_instruments_url,
+)
 import arrow
 import string
 
@@ -43,20 +48,21 @@ industry_mapping_nasdaq = {
 
 
 def get_industry_mapping(exchange):
-    if exchange == 'NASDAQ':
+    if exchange == "NASDAQ":
         return industry_mapping_nasdaq
-    elif exchange == 'ASX':
+    elif exchange == "ASX":
         return industry_mapping_asx
+
 
 def get_exchange_symbols(exchange):
     all_letters = list(string.ascii_lowercase)
 
-    if exchange == 'NASDAQ':
+    if exchange == "NASDAQ":
         exchange_url = nasdaq_instruments_url
-    elif exchange == 'ASX':
+    elif exchange == "ASX":
         exchange_url = asx_instruments_url
         # ASX also has some numerical values
-        for extra_symbol in ['1', '2', '3', '4', '5', '8', '9']:
+        for extra_symbol in ["1", "2", "3", "4", "5", "8", "9"]:
             all_letters.append(extra_symbol)
 
     driver = webdriver.Chrome(options=options)
@@ -83,9 +89,13 @@ def get_exchange_symbols(exchange):
             # first one is an empty string
             if len(elem) > 0:
                 stocks.append(
-                    dict(code=elem[0], name=elem[1], price=float(elem[4].replace(",", "")),
-                         volume=float(elem[5].replace(",", "")),
-                         exchange=exchange)
+                    dict(
+                        code=elem[0],
+                        name=elem[1],
+                        price=float(elem[4].replace(",", "")),
+                        volume=float(elem[5].replace(",", "")),
+                        exchange=exchange,
+                    )
                 )
     driver.close()
     return stocks
@@ -95,11 +105,13 @@ def get_nasdaq_symbols():
     stocks = get_exchange_symbols("NASDAQ")
     return stocks
 
+
 def get_asx_symbols():
     stocks = get_exchange_symbols("ASX")
     return stocks
 
-'''
+
+"""
 def get_asx_symbols():
     driver = webdriver.Chrome(options=options)
     driver.get(asx_instruments_url)
@@ -128,7 +140,8 @@ def get_asx_symbols():
     )
 
     return stocks
-'''
+"""
+
 
 def ohlc_last_day_workaround(df):
     # Need to check whether the last day is today and remove if so
@@ -200,7 +213,7 @@ def ohlc_daily_to_monthly(df):
 @exception_handler(handler_type="yfinance")
 def get_industry(code, exchange):
     # Suffix definition
-    if exchange == 'ASX':
+    if exchange == "ASX":
         stock_suffix = ".AX"
     else:
         stock_suffix = ""

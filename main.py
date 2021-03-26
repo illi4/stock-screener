@@ -6,7 +6,7 @@ from libs.stocktools import (
     get_stock_data,
     ohlc_daily_to_weekly,
     get_industry_mapping,
-    get_industry
+    get_industry,
 )
 from libs.db import (
     bulk_add_stocks,
@@ -26,9 +26,9 @@ import itertools
 
 def update_stocks():
     exchange = arguments["exchange"]
-    if exchange == 'ASX':
+    if exchange == "ASX":
         stocks = get_asx_symbols()
-    elif exchange == 'NASDAQ':
+    elif exchange == "NASDAQ":
         stocks = get_nasdaq_symbols()
 
     create_stock_table()
@@ -44,8 +44,10 @@ def check_update_date():
     last_update_date = get_update_date(exchange)
     diff = dates_diff(last_update_date)
     if diff > 1:
-        print("Warning: Stocks list was not updated today, the volume filter could work incorrectly. "
-              "Please consider running the --update first")
+        print(
+            "Warning: Stocks list was not updated today, the volume filter could work incorrectly. "
+            "Please consider running the --update first..."
+        )
         sleep(3)
 
 
@@ -79,7 +81,7 @@ def get_industry_momentum():
     industry_momentum, industry_score = dict(), dict()
     industry_mapping = get_industry_mapping(arguments["exchange"])
 
-    if arguments["exchange"] == 'ASX':
+    if arguments["exchange"] == "ASX":
         stock_prefix = "^A"
     else:
         stock_prefix = ""
@@ -103,12 +105,16 @@ def get_industry_momentum():
 def report_on_shortlist(shortlist, industry_score, report_on_industry):
     if report_on_industry:
         # Get the sectors for shortlisted stocks only
-        print(f"Getting industry data for {len(shortlist)} shortlisted stocks, hold on...")
+        print(
+            f"Getting industry data for {len(shortlist)} shortlisted stocks, hold on..."
+        )
         # Get stock codes to collect industries
         stock_codes = [stock[0] for stock in shortlist]
         sectors = dict()
         for stock_code in stock_codes:
-            sectors[stock_code] = get_industry(stock_code, exchange=arguments["exchange"])
+            sectors[stock_code] = get_industry(
+                stock_code, exchange=arguments["exchange"]
+            )
 
         industry_mapping = get_industry_mapping(arguments["exchange"])
 
@@ -132,8 +138,9 @@ def report_on_shortlist(shortlist, industry_score, report_on_industry):
         for stock in shortlist:
             print(f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} vol")
 
+
 def scan_stock_group(stocks, set_counter):
-    if arguments["exchange"] == 'ASX':
+    if arguments["exchange"] == "ASX":
         stock_suffix = ".AX"
     else:
         stock_suffix = ""
@@ -190,10 +197,12 @@ def scan_stock_group(stocks, set_counter):
 
 
 def scan_stocks():
-    stocks = get_stocks(exchange=arguments["exchange"],
-                        price_min=price_min, price_max=price_max,
-                        min_volume=minimum_volume_level
-                        )
+    stocks = get_stocks(
+        exchange=arguments["exchange"],
+        price_min=price_min,
+        price_max=price_max,
+        min_volume=minimum_volume_level,
+    )
 
     # Limit per arguments as required
     if arguments["num"] is not None:
@@ -205,8 +214,10 @@ def scan_stocks():
     industry_momentum, industry_score = get_industry_momentum()
 
     total_number = len(stocks)
-    print(f"Scanning {total_number} stocks priced {price_min} from to {price_max} "
-          f"and with volume of at least {format_number(minimum_volume_level)}\n")
+    print(
+        f"Scanning {total_number} stocks priced {price_min} from to {price_max} "
+        f"and with volume of at least {format_number(minimum_volume_level)}\n"
+    )
 
     # Split stocks on 5 parts for threading
     # It is MUCH faster with threading
