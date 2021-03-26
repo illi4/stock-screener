@@ -78,8 +78,13 @@ def get_industry_momentum():
     industry_momentum, industry_score = dict(), dict()
     industry_mapping = get_industry_mapping(arguments["exchange"])
 
+    if arguments["exchange"] == 'ASX':
+        stock_prefix = "^A"
+    else:
+        stock_prefix = ""
+
     for name, code in industry_mapping.items():
-        ohlc_daily, volume_daily = get_stock_data(f"^A{code}")
+        ohlc_daily, volume_daily = get_stock_data(f"{stock_prefix}{code}")
         (
             ohlc_with_indicators_daily,
             ohlc_with_indicators_weekly,
@@ -194,13 +199,9 @@ def scan_stocks():
         print(f"Limiting to the first {arguments['num']} stocks")
         stocks = stocks[: arguments["num"]]
 
-    # Get industry bullishness scores, for ASX at the moment
-    if arguments["exchange"] == "ASX":
-        industry_momentum, industry_score = get_industry_momentum()
-        report_on_industry = True
-    else:
-        industry_momentum, industry_score = None, None
-        report_on_industry = False
+    # Get industry bullishness scores
+    report_on_industry = True
+    industry_momentum, industry_score = get_industry_momentum()
 
     total_number = len(stocks)
     print(f"Scanning {total_number} stocks priced {price_min} from to {price_max} "

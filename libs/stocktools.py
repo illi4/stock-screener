@@ -27,10 +27,24 @@ industry_mapping_asx = {
     "Real Estate": "XPJ",
 }
 
+industry_mapping_nasdaq = {
+    "Energy": "XLE",
+    "Basic Materials": "XLB",
+    "Industrials": "XLI",
+    "Consumer Cyclical": "XLY",
+    "Consumer Defensive": "XLP",
+    "Healthcare": "XLV",
+    "Financial Services": "XLF",
+    "Technology": "XLK",
+    "Communication Services": "XTL",
+    "Utilities": "XLU",
+    "Real Estate": "IYR",
+}
+
 
 def get_industry_mapping(exchange):
     if exchange == 'NASDAQ':
-        pass
+        return industry_mapping_nasdaq
     elif exchange == 'ASX':
         return industry_mapping_asx
 
