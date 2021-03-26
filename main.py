@@ -2,10 +2,11 @@ from libs.helpers import define_args, dates_diff, format_number, get_test_stocks
 from libs.criteria import met_conditions_bullish
 from libs.stocktools import (
     get_asx_symbols,
+    get_nasdaq_symbols,
     get_stock_data,
     ohlc_daily_to_weekly,
-    industry_mapping,
-    get_industry_from_web_batch,
+    get_industry_mapping,
+    get_industry,
 )
 from libs.db import (
     bulk_add_stocks,
@@ -17,27 +18,37 @@ from libs.db import (
 from libs.settings import price_min, price_max, minimum_volume_level
 from libs.techanalysis import td_indicators, MA
 import pandas as pd
-from time import time
+from time import time, sleep
 import concurrent.futures
 import numpy as np
 import itertools
 
 
 def update_stocks():
-    stocks = get_asx_symbols()
+    exchange = arguments["exchange"]
+    if exchange == "ASX":
+        stocks = get_asx_symbols()
+    elif exchange == "NASDAQ":
+        stocks = get_nasdaq_symbols()
+
     create_stock_table()
-    delete_all_stocks()
-    print("Writing to the database")
+    print(f"Deleting the existing stocks for {exchange}")
+    delete_all_stocks(exchange)
+    print(f"Writing info on {len(stocks)} stocks to the database")
     bulk_add_stocks(stocks)
     print("Update finished")
 
 
 def check_update_date():
-    last_update_date = get_update_date()
+    exchange = arguments["exchange"]
+    last_update_date = get_update_date(exchange)
     diff = dates_diff(last_update_date)
-    if diff > 5:
-        print("Stocks list updated more than 5 days ago, please run the --update first")
-        exit(0)
+    if diff > 1:
+        print(
+            "Warning: Stocks list was not updated today, the volume filter could work incorrectly. "
+            "Please consider running the --update first..."
+        )
+        sleep(3)
 
 
 def last_volume_5D_MA(volume_daily):
@@ -68,8 +79,15 @@ def generate_indicators_daily_weekly(ohlc_daily):
 def get_industry_momentum():
     print("Calculating industry momentum scores...")
     industry_momentum, industry_score = dict(), dict()
+    industry_mapping = get_industry_mapping(arguments["exchange"])
+
+    if arguments["exchange"] == "ASX":
+        stock_prefix = "^A"
+    else:
+        stock_prefix = ""
+
     for name, code in industry_mapping.items():
-        ohlc_daily, volume_daily = get_stock_data(f"^A{code}")
+        ohlc_daily, volume_daily = get_stock_data(f"{stock_prefix}{code}")
         (
             ohlc_with_indicators_daily,
             ohlc_with_indicators_weekly,
@@ -84,38 +102,55 @@ def get_industry_momentum():
     return industry_momentum, industry_score
 
 
-def report_on_shortlist(shortlist, industry_score):
-    # Get the sectors for shortlisted stocks only
-    print(f"Getting industry data for {len(shortlist)} shortlisted stocks, hold on...")
-
-    # Get stock codes to collect industries
-    stock_codes = [stock[0] for stock in shortlist]
-    sectors = get_industry_from_web_batch(stock_codes)
-
-    print(f"All shortlisted stocks (sorted by 5-day moving average volume):")
-    for stock in shortlist:
-
-        # May not find a sector for a stock
-        if sectors[stock[0]] == "-":
-            print(
-                f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} vol | "
-                f"Sector score unavailable"
+def report_on_shortlist(shortlist, industry_score, report_on_industry):
+    if report_on_industry:
+        # Get the sectors for shortlisted stocks only
+        print(
+            f"Getting industry data for {len(shortlist)} shortlisted stocks, hold on..."
+        )
+        # Get stock codes to collect industries
+        stock_codes = [stock[0] for stock in shortlist]
+        sectors = dict()
+        for stock_code in stock_codes:
+            sectors[stock_code] = get_industry(
+                stock_code, exchange=arguments["exchange"]
             )
-        else:
-            industry_code = industry_mapping[sectors[stock[0]]]
-            print(
-                f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} vol | "
-                f"{sectors[stock[0]]} score {industry_score[industry_code]}/5"
-            )
+
+        industry_mapping = get_industry_mapping(arguments["exchange"])
+
+        print(f"All shortlisted stocks (sorted by 5-day moving average volume):")
+        for stock in shortlist:
+
+            # May not find a sector for a stock
+            if sectors[stock[0]] == "-":
+                print(
+                    f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} vol | "
+                    f"Sector score unavailable"
+                )
+            else:
+                industry_code = industry_mapping[sectors[stock[0]]]
+                print(
+                    f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} vol | "
+                    f"{sectors[stock[0]]} score {industry_score[industry_code]}/5"
+                )
+    else:
+        print(f"All shortlisted stocks (sorted by 5-day moving average volume):")
+        for stock in shortlist:
+            print(f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} vol")
 
 
 def scan_stock_group(stocks, set_counter):
+    if arguments["exchange"] == "ASX":
+        stock_suffix = ".AX"
+    else:
+        stock_suffix = ""
+
     shortlisted_stocks = []
     for i, stock in enumerate(stocks):
         print(
-            f"{stock.code} [{stock.name}] ({i + 1}/{len(stocks)}) [thread {set_counter+1}]"
+            f"\n{stock.code} [{stock.name}] ({i + 1}/{len(stocks)}) [thread {set_counter + 1}]"
         )
-        ohlc_daily, volume_daily = get_stock_data(f"{stock.code}.AX")
+        ohlc_daily, volume_daily = get_stock_data(f"{stock.code}{stock_suffix}")
 
         if ohlc_daily is None:
             print("No data on the asset")
@@ -142,18 +177,18 @@ def scan_stock_group(stocks, set_counter):
 
             if volume_MA_5D > minimum_volume_level:
                 print(
-                    f"{stock.name} [v] meeting minimum volume level conditions "
+                    f"\n{stock.name} [v] meeting minimum volume level conditions "
                     f"({format_number(volume_MA_5D)} > {format_number(minimum_volume_level)})"
                 )
                 shortlisted_stocks.append((stock.code, stock.name, volume_MA_5D))
             else:
                 print(
-                    f"{stock.name} [x] not meeting minimum volume level conditions "
+                    f"\n{stock.name} [x] not meeting minimum volume level conditions "
                     f"({format_number(volume_MA_5D)} < {format_number(minimum_volume_level)})"
                 )
 
         else:
-            print(f"{stock.name} [x] not meeting shortlisting conditions")
+            print(f"\n{stock.name} [x] not meeting shortlisting conditions")
 
     # Sort by volume (index 2) descending
     sorted_stocks = sorted(shortlisted_stocks, key=lambda tup: tup[2], reverse=True)
@@ -162,7 +197,12 @@ def scan_stock_group(stocks, set_counter):
 
 
 def scan_stocks():
-    stocks = get_stocks(price_min=price_min, price_max=price_max)
+    stocks = get_stocks(
+        exchange=arguments["exchange"],
+        price_min=price_min,
+        price_max=price_max,
+        min_volume=minimum_volume_level,
+    )
 
     # Limit per arguments as required
     if arguments["num"] is not None:
@@ -170,10 +210,14 @@ def scan_stocks():
         stocks = stocks[: arguments["num"]]
 
     # Get industry bullishness scores
+    report_on_industry = True
     industry_momentum, industry_score = get_industry_momentum()
 
     total_number = len(stocks)
-    print(f"Scanning {total_number} stocks priced {price_min} from to {price_max}")
+    print(
+        f"Scanning {total_number} stocks priced {price_min} from to {price_max} "
+        f"and with volume of at least {format_number(minimum_volume_level)}\n"
+    )
 
     # Split stocks on 5 parts for threading
     # It is MUCH faster with threading
@@ -191,7 +235,7 @@ def scan_stocks():
 
     print()
     if len(shortlist) > 0:
-        report_on_shortlist(shortlist, industry_score)
+        report_on_shortlist(shortlist, industry_score, report_on_industry)
 
     else:
         print(f"No shortlisted stocks")
@@ -203,7 +247,7 @@ if __name__ == "__main__":
 
     arguments = define_args()
     if arguments["update"]:
-        print("Updating the ASX stocks list...")
+        print("Updating the stocks list...")
         update_stocks()
 
     if arguments["scan"]:

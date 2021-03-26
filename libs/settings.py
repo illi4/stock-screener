@@ -1,4 +1,5 @@
-asx_instruments_url = "https://www.marketindex.com.au/asx-listed-companies"
+asx_instruments_url = "http://eoddata.com/stocklist/ASX"
+nasdaq_instruments_url = "http://eoddata.com/stocklist/NASDAQ"
 asx_stock_url = "https://www.marketindex.com.au/asx"
 price_min = 0.01
 price_max = 100

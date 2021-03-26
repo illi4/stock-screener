@@ -2,8 +2,17 @@ from selenium import webdriver
 from bs4 import BeautifulSoup
 import yfinance as yf
 from libs.exceptions_lib import exception_handler
-from libs.settings import asx_instruments_url, tzinfo, asx_stock_url
+from libs.settings import (
+    asx_instruments_url,
+    tzinfo,
+    asx_stock_url,
+    nasdaq_instruments_url,
+)
 import arrow
+import string
+import concurrent.futures
+import numpy as np
+import itertools
 
 options = webdriver.ChromeOptions()
 
@@ -12,7 +21,7 @@ options.add_experimental_option(
 )  # removes the USB warning on Windows
 options.add_argument("--headless")  # headless means that no browser window is opened
 
-industry_mapping = {
+industry_mapping_asx = {
     "Energy": "XEJ",
     "Basic Materials": "XMJ",
     "Industrials": "XNJ",
@@ -26,34 +35,99 @@ industry_mapping = {
     "Real Estate": "XPJ",
 }
 
+industry_mapping_nasdaq = {
+    "Energy": "XLE",
+    "Basic Materials": "XLB",
+    "Industrials": "XLI",
+    "Consumer Cyclical": "XLY",
+    "Consumer Defensive": "XLP",
+    "Healthcare": "XLV",
+    "Financial Services": "XLF",
+    "Technology": "XLK",
+    "Communication Services": "XTL",
+    "Utilities": "XLU",
+    "Real Estate": "IYR",
+}
+
+
+def get_industry_mapping(exchange):
+    if exchange == "NASDAQ":
+        return industry_mapping_nasdaq
+    elif exchange == "ASX":
+        return industry_mapping_asx
+
+
+def get_stocks_per_letter(letters, exchange, exchange_url):
+    driver = webdriver.Chrome(options=options)
+    stocks = []
+
+    for letter in letters:
+        url = f"{exchange_url}/{letter.upper()}.htm"
+        print(f"Processing {url}")
+        driver.get(url)
+        content = driver.page_source
+
+        soup = BeautifulSoup(content, "html.parser")
+        data = []
+        table = soup.find("table", attrs={"class": "quotes"})
+        table_body = table.find("tbody")
+
+        rows = table_body.find_all("tr")
+        for row in rows:
+            cols = row.find_all("td")
+            cols = [elem.text.strip() for elem in cols]
+            data.append(cols)
+
+        for elem in data:
+            # first one is an empty string
+            if len(elem) > 0:
+                stocks.append(
+                    dict(
+                        code=elem[0],
+                        name=elem[1],
+                        price=float(elem[4].replace(",", "")),
+                        volume=float(elem[5].replace(",", "")),
+                        exchange=exchange,
+                    )
+                )
+
+    driver.close()
+    return stocks
+
+
+def get_exchange_symbols(exchange):
+    all_letters = list(string.ascii_lowercase)
+
+    if exchange == "NASDAQ":
+        exchange_url = nasdaq_instruments_url
+    elif exchange == "ASX":
+        exchange_url = asx_instruments_url
+        # ASX also has some numerical values
+        for extra_symbol in ["1", "2", "3", "4", "5", "8", "9"]:
+            all_letters.append(extra_symbol)
+
+    # Threading
+    letters_groups = np.array_split(all_letters, 5)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        futures = [
+            executor.submit(get_stocks_per_letter, letter_set, exchange, exchange_url)
+            for set_counter, letter_set in enumerate(letters_groups)
+        ]
+        stocks_info = [f.result() for f in futures]
+
+    # Join list of lists into a single list
+    stocks = list(itertools.chain.from_iterable(stocks_info))
+
+    return stocks
+
+
+def get_nasdaq_symbols():
+    stocks = get_exchange_symbols("NASDAQ")
+    return stocks
+
 
 def get_asx_symbols():
-    driver = webdriver.Chrome(options=options)
-    driver.get(asx_instruments_url)
-    content = driver.page_source
-    driver.close()
-
-    soup = BeautifulSoup(content, "html.parser")
-    data = []
-    table = soup.find("table", attrs={"class": "mi-table mt-6"})
-    table_body = table.find("tbody")
-
-    rows = table_body.find_all("tr")
-    for row in rows:
-        cols = row.find_all("td")
-        cols = [elem.text.strip() for elem in cols]
-        data.append(cols)
-
-    stocks = [
-        dict(code=elem[2], name=elem[3], price=float(elem[4].replace("$", "")))
-        for elem in data
-    ]
-    print(
-        f"{len(data)} stocks retreived "
-        f"({stocks[0]['code']} [{stocks[0]['price']}] - "
-        f"{stocks[-1]['code']} [{stocks[-1]['price']}])"
-    )
-
+    stocks = get_exchange_symbols("ASX")
     return stocks
 
 
@@ -125,9 +199,14 @@ def ohlc_daily_to_monthly(df):
 
 
 @exception_handler(handler_type="yfinance")
-def get_industry(code):
+def get_industry(code, exchange):
+    # Suffix definition
+    if exchange == "ASX":
+        stock_suffix = ".AX"
+    else:
+        stock_suffix = ""
     # Getting sector for a stock using YFinance
-    asset = yf.Ticker(code)
+    asset = yf.Ticker(f"{code}{stock_suffix}")
     info = asset.info
     industry = info["sector"]
     return industry
@@ -135,6 +214,7 @@ def get_industry(code):
 
 def get_industry_from_web(code, driver):
     # To be used in batch by get_industry_from_web_batch
+    # Works for asx only
     driver.get(f"{asx_stock_url}/{code}")
     content = driver.page_source
 
@@ -160,6 +240,7 @@ def get_industry_from_web(code, driver):
 
 def get_industry_from_web_batch(codes):
     # To be used instead of YFinance as this is almost twice faster
+    # Works for asx only
     response = dict()
     driver = webdriver.Chrome(options=options)
     for code in codes:
@@ -169,4 +250,4 @@ def get_industry_from_web_batch(codes):
 
 
 def map_industry_code(industry_name):
-    return industry_mapping[industry_name]
+    return industry_mapping_asx[industry_name]
