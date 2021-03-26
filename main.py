@@ -111,13 +111,15 @@ def report_on_shortlist(shortlist, industry_score, report_on_industry):
         # Get stock codes to collect industries
         stock_codes = [stock[0] for stock in shortlist]
         sectors = dict()
-        for stock_code in stock_codes:
+        for idx, stock_code in enumerate(stock_codes):
+            print(f"- {stock_code} ({idx+1}/{len(stock_codes)})")
             sectors[stock_code] = get_industry(
                 stock_code, exchange=arguments["exchange"]
             )
 
         industry_mapping = get_industry_mapping(arguments["exchange"])
 
+        print()
         print(f"All shortlisted stocks (sorted by 5-day moving average volume):")
         for stock in shortlist:
 
