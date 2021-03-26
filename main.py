@@ -119,6 +119,7 @@ def report_on_shortlist(shortlist, industry_score, report_on_industry):
 
         industry_mapping = get_industry_mapping(arguments["exchange"])
 
+        print()
         print(f"All shortlisted stocks (sorted by 5-day moving average volume):")
         for stock in shortlist:
 
