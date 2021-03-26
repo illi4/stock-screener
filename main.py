@@ -129,7 +129,7 @@ def scan_stock_group(stocks, set_counter):
     shortlisted_stocks = []
     for i, stock in enumerate(stocks):
         print(
-            f"{stock.code} [{stock.name}] ({i + 1}/{len(stocks)}) [thread {set_counter + 1}]"
+            f"\n{stock.code} [{stock.name}] ({i + 1}/{len(stocks)}) [thread {set_counter + 1}]"
         )
         ohlc_daily, volume_daily = get_stock_data(f"{stock.code}{stock_suffix}")
 
@@ -158,18 +158,18 @@ def scan_stock_group(stocks, set_counter):
 
             if volume_MA_5D > minimum_volume_level:
                 print(
-                    f"{stock.name} [v] meeting minimum volume level conditions "
+                    f"\n{stock.name} [v] meeting minimum volume level conditions "
                     f"({format_number(volume_MA_5D)} > {format_number(minimum_volume_level)})"
                 )
                 shortlisted_stocks.append((stock.code, stock.name, volume_MA_5D))
             else:
                 print(
-                    f"{stock.name} [x] not meeting minimum volume level conditions "
+                    f"\n{stock.name} [x] not meeting minimum volume level conditions "
                     f"({format_number(volume_MA_5D)} < {format_number(minimum_volume_level)})"
                 )
 
         else:
-            print(f"{stock.name} [x] not meeting shortlisting conditions")
+            print(f"\n{stock.name} [x] not meeting shortlisting conditions")
 
     # Sort by volume (index 2) descending
     sorted_stocks = sorted(shortlisted_stocks, key=lambda tup: tup[2], reverse=True)
