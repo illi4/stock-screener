@@ -7,14 +7,5 @@ sys.path.append(
 
 from libs.stocktools import get_stock_data
 
-all_letters = list(string.ascii_lowercase)
-
-
-for extras in [1, 2, 5]:
-    all_letters.append(extras)
-
-
-print(all_letters)
-
-#ohlc_daily, volume_daily = get_stock_data("TSLA")
-#print(ohlc_daily)
+ohlc_daily, volume_daily = get_stock_data("XLE")
+print(ohlc_daily)

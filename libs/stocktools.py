@@ -13,7 +13,7 @@ options.add_experimental_option(
 )  # removes the USB warning on Windows
 options.add_argument("--headless")  # headless means that no browser window is opened
 
-industry_mapping = {
+industry_mapping_asx = {
     "Energy": "XEJ",
     "Basic Materials": "XMJ",
     "Industrials": "XNJ",
@@ -27,6 +27,12 @@ industry_mapping = {
     "Real Estate": "XPJ",
 }
 
+
+def get_industry_mapping(exchange):
+    if exchange == 'NASDAQ':
+        pass
+    elif exchange == 'ASX':
+        return industry_mapping_asx
 
 def get_exchange_symbols(exchange):
     all_letters = list(string.ascii_lowercase)
@@ -229,4 +235,4 @@ def get_industry_from_web_batch(codes):
 
 
 def map_industry_code(industry_name):
-    return industry_mapping[industry_name]
+    return industry_mapping_asx[industry_name]

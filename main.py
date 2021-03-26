@@ -5,8 +5,7 @@ from libs.stocktools import (
     get_nasdaq_symbols,
     get_stock_data,
     ohlc_daily_to_weekly,
-    industry_mapping,
-    get_industry_from_web_batch,
+    get_industry_mapping,
     get_industry
 )
 from libs.db import (
@@ -77,6 +76,8 @@ def generate_indicators_daily_weekly(ohlc_daily):
 def get_industry_momentum():
     print("Calculating industry momentum scores...")
     industry_momentum, industry_score = dict(), dict()
+    industry_mapping = get_industry_mapping(arguments["exchange"])
+
     for name, code in industry_mapping.items():
         ohlc_daily, volume_daily = get_stock_data(f"^A{code}")
         (
@@ -99,10 +100,11 @@ def report_on_shortlist(shortlist, industry_score, report_on_industry):
         print(f"Getting industry data for {len(shortlist)} shortlisted stocks, hold on...")
         # Get stock codes to collect industries
         stock_codes = [stock[0] for stock in shortlist]
-        #sectors = get_industry_from_web_batch(stock_codes)
         sectors = dict()
         for stock_code in stock_codes:
             sectors[stock_code] = get_industry(stock_code, exchange=arguments["exchange"])
+
+        industry_mapping = get_industry_mapping(arguments["exchange"])
 
         print(f"All shortlisted stocks (sorted by 5-day moving average volume):")
         for stock in shortlist:
