@@ -34,7 +34,7 @@ def update_stocks():
     create_stock_table()
     print(f"Deleting the existing stocks for {exchange}")
     delete_all_stocks(exchange)
-    print("Writing to the database")
+    print(f"Writing info on {len(stocks)} stocks to the database")
     bulk_add_stocks(stocks)
     print("Update finished")
 

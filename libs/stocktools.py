@@ -10,6 +10,9 @@ from libs.settings import (
 )
 import arrow
 import string
+import concurrent.futures
+import numpy as np
+import itertools
 
 options = webdriver.ChromeOptions()
 
@@ -54,21 +57,11 @@ def get_industry_mapping(exchange):
         return industry_mapping_asx
 
 
-def get_exchange_symbols(exchange):
-    all_letters = list(string.ascii_lowercase)
-
-    if exchange == "NASDAQ":
-        exchange_url = nasdaq_instruments_url
-    elif exchange == "ASX":
-        exchange_url = asx_instruments_url
-        # ASX also has some numerical values
-        for extra_symbol in ["1", "2", "3", "4", "5", "8", "9"]:
-            all_letters.append(extra_symbol)
-
+def get_stocks_per_letter(letters, exchange, exchange_url):
     driver = webdriver.Chrome(options=options)
     stocks = []
 
-    for letter in all_letters:
+    for letter in letters:
         url = f"{exchange_url}/{letter.upper()}.htm"
         print(f"Processing {url}")
         driver.get(url)
@@ -97,7 +90,34 @@ def get_exchange_symbols(exchange):
                         exchange=exchange,
                     )
                 )
+
     driver.close()
+    return stocks
+
+
+def get_exchange_symbols(exchange):
+    all_letters = list(string.ascii_lowercase)
+
+    if exchange == "NASDAQ":
+        exchange_url = nasdaq_instruments_url
+    elif exchange == "ASX":
+        exchange_url = asx_instruments_url
+        # ASX also has some numerical values
+        for extra_symbol in ["1", "2", "3", "4", "5", "8", "9"]:
+            all_letters.append(extra_symbol)
+
+    # Threading
+    letters_groups = np.array_split(all_letters, 5)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        futures = [
+            executor.submit(get_stocks_per_letter, letter_set, exchange, exchange_url)
+            for set_counter, letter_set in enumerate(letters_groups)
+        ]
+        stocks_info = [f.result() for f in futures]
+
+    # Join list of lists into a single list
+    stocks = list(itertools.chain.from_iterable(stocks_info))
+
     return stocks
 
 
