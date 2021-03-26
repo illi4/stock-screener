@@ -111,7 +111,8 @@ def report_on_shortlist(shortlist, industry_score, report_on_industry):
         # Get stock codes to collect industries
         stock_codes = [stock[0] for stock in shortlist]
         sectors = dict()
-        for stock_code in stock_codes:
+        for idx, stock_code in enumerate(stock_codes):
+            print(f"- {stock_code} ({idx}/{len(stock_codes)})")
             sectors[stock_code] = get_industry(
                 stock_code, exchange=arguments["exchange"]
             )
