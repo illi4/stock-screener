@@ -111,38 +111,6 @@ def get_asx_symbols():
     return stocks
 
 
-"""
-def get_asx_symbols():
-    driver = webdriver.Chrome(options=options)
-    driver.get(asx_instruments_url)
-    content = driver.page_source
-    driver.close()
-
-    soup = BeautifulSoup(content, "html.parser")
-    data = []
-    table = soup.find("table", attrs={"class": "mi-table mt-6"})
-    table_body = table.find("tbody")
-
-    rows = table_body.find_all("tr")
-    for row in rows:
-        cols = row.find_all("td")
-        cols = [elem.text.strip() for elem in cols]
-        data.append(cols)
-
-    stocks = [
-        dict(code=elem[2], name=elem[3], price=float(elem[4].replace("$", "")), exchange="ASX")
-        for elem in data
-    ]
-    print(
-        f"{len(data)} stocks retreived "
-        f"({stocks[0]['code']} [{stocks[0]['price']}] - "
-        f"{stocks[-1]['code']} [{stocks[-1]['price']}])"
-    )
-
-    return stocks
-"""
-
-
 def ohlc_last_day_workaround(df):
     # Need to check whether the last day is today and remove if so
     # Due to YFinance bug - not showing the right data for the current day
