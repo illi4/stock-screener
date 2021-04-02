@@ -20,6 +20,7 @@ Please note that the shortlist should only be used to guide your own research an
 - Run `main.py --h` to view context help 
 - To update the stocks list, run `main.py --update -exchange=asx` (for asx). Recommended to run this daily prior to scanning.
 - To scan and shortlist, run `main.py --scan -exchange=asx` (for asx).
+- Run `monitor.py` daily to check whether the exit condition was hit for active entries.
 
 #### Settings 
 See `libs/settings.py` for settings: 
