@@ -208,13 +208,18 @@ def get_industry(code, exchange):
 
     # Getting sector for a stock using YFinance
     asset = yf.Ticker(f"{code}{stock_suffix}")
-    info = asset.info
 
-    # May not always be present in the data
-    if "sector" in info.keys():
-        industry = info["sector"]
-    else:
+    try:
+        info = asset.info
+        # May not always be present in the data
+        if "sector" in info.keys():
+            industry = info["sector"]
+        else:
+            industry = "-"
+    except ValueError:
+        print(f"Cannot get data for {code}{stock_suffix}")
         industry = "-"
+
     return industry
 
 
