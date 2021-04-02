@@ -25,10 +25,15 @@ def met_conditions_bullish(
         ohlc_with_indicators_weekly["td_direction"].iloc[-1] == "green"
     )
 
-    # MA check
+    # MA daily
     ma10 = MA(ohlc_with_indicators_daily, 10)
     ma20 = MA(ohlc_with_indicators_daily, 20)
     ma30 = MA(ohlc_with_indicators_daily, 30)
+
+    # MA weekly
+    ma10_weekly = MA(ohlc_with_indicators_weekly, 10)
+    ma20_weekly = MA(ohlc_with_indicators_weekly, 20)
+    ma30_weekly = MA(ohlc_with_indicators_weekly, 30)
 
     # MA30 may be None for too new stocks
     ma30_nan = np.isnan(ma30["ma30"].iloc[-1])
@@ -40,6 +45,23 @@ def met_conditions_bullish(
     else:
         ma_consensio = False
         print("-- note: MA30 is NaN, the stock is too new")
+
+    # Closes on weekly and ma weekly
+    ma30_weekly_nan = np.isnan(ma30_weekly["ma30"].iloc[-1])
+    if not ma30_weekly_nan:
+        weekly_conditions = []
+        for pit in [1, 2]:
+            for ma_checked in [
+                ma10_weekly["ma10"],
+                ma20_weekly["ma20"],
+                ma30_weekly["ma30"]
+            ]:
+                condition = ohlc_with_indicators_weekly["close"].iloc[-pit] > ma_checked.iloc[-pit]
+                weekly_conditions.append(condition)
+        ma_weekly_close_condition = not (False in weekly_conditions)
+    else:
+        ma_weekly_close_condition = True
+        print("-- note: MA30 weekly is NaN, considering weekly close rule as true")
 
     # Volume MA and volume spike over the considered day
     if consider_volume_spike:
@@ -96,7 +118,8 @@ def met_conditions_bullish(
             f"Not overextended: [{format_bool(not_overextended)}] \n"
             f"- {stock_name} Higher close: [{format_bool(daily_condition_close_higher)}] | "
             f"Volume condition: [{format_bool(volume_condition)}] | Upper condition: [{format_bool(upper_condition)}] | "
-            f"Last candle is green: [{format_bool(last_candle_is_green)}]"
+            f"Last candle is green: [{format_bool(last_candle_is_green)}] | "
+            f"Weekly/MA close: [{format_bool(ma_weekly_close_condition)}]"
         )
 
     confirmation = [
@@ -109,6 +132,7 @@ def met_conditions_bullish(
         volume_condition,
         upper_condition,
         last_candle_is_green,
+        ma_weekly_close_condition,
     ]
     numerical_score = round(
         5 * sum(confirmation) / len(confirmation), 1
