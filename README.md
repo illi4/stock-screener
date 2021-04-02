@@ -9,7 +9,8 @@ Stock shortlisting and industry score estimates incorporate the following condit
 - Bullish [MRI](https://tonevays.com/indicator) indicator value on the daily timeframe
 - Bullish MRI indicator on the weekly timeframe  
 - Moving averages (10, 20, 30 day) Consensio ([Guppy MMA](https://www.investopedia.com/terms/g/guppy-multiple-moving-average.asp))
-- Moving averages (10, 20, 30 day) rising 
+- Moving averages (10, 20, 30 day) rising
+- 2 most recent weekly candles closing above weekly moving averages (10/20/30)
 - Close for the last week is not exceeding 200% when compared to 4 weeks ago
 - Volume spike in the last day compared to the 20-day moving average  
 

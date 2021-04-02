@@ -64,6 +64,6 @@ def get_test_stocks():
         code, name = None, None
 
     test_stock = Stk()
-    test_stock.code = "TTA"
-    test_stock.name = "TTA"
+    test_stock.code = "WAM"
+    test_stock.name = "WAM"
     return [test_stock]
