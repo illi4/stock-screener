@@ -144,12 +144,12 @@ def ohlc_last_day_workaround(df):
 
 
 @exception_handler(handler_type="yfinance")
-def get_stock_data(symbol):
+def get_stock_data(symbol, start_date=None):
     period = "300d"
     interval = "1d"
 
     asset = yf.Ticker(symbol)
-    hist = asset.history(period=period, interval=interval).reset_index(drop=False)
+    hist = asset.history(period=period, interval=interval, start_date=start_date).reset_index(drop=False)
 
     if hist.empty:
         print(f"Ticker {symbol} not found on Yahoo Finance")
