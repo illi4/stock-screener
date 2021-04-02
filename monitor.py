@@ -1,5 +1,5 @@
 import libs.gsheetobj as gsheetsobj
-from libs.stocktools import get_stock_data
+from libs.stocktools import get_stock_data, get_stock_suffix
 from libs.techanalysis import MA
 import arrow
 
@@ -10,10 +10,7 @@ def check_positions():
     alerted_positions = []
     for exchange in ["ASX", "NASDAQ"]:
 
-        if exchange == "NASDAQ":
-            stock_suffix = ""
-        elif exchange == "ASX":
-            stock_suffix = ".AX"
+        stock_suffix = get_stock_suffix(exchange)
 
         ws = gsheetsobj.sheet_to_df(wb, exchange)
 

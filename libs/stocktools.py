@@ -95,6 +95,14 @@ def get_stocks_per_letter(letters, exchange, exchange_url):
     return stocks
 
 
+def get_stock_suffix(exchange):
+    # Defines stock suffix for YFinance
+    if exchange == "NASDAQ":
+        return ""
+    elif exchange == "ASX":
+        return ".AX"
+
+
 def get_exchange_symbols(exchange):
     all_letters = list(string.ascii_lowercase)
 
@@ -149,7 +157,9 @@ def get_stock_data(symbol, start_date=None):
     interval = "1d"
 
     asset = yf.Ticker(symbol)
-    hist = asset.history(period=period, interval=interval, start_date=start_date).reset_index(drop=False)
+    hist = asset.history(
+        period=period, interval=interval, start_date=start_date
+    ).reset_index(drop=False)
 
     if hist.empty:
         print(f"Ticker {symbol} not found on Yahoo Finance")
