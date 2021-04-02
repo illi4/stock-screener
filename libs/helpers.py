@@ -14,7 +14,7 @@ def define_args():
         "--scan", action="store_true", help="Scan for potential signals"
     )
     parser.add_argument(
-        "-exchange", type=str, required=True, help="Exchange (asx/nasdaq)", choices=['asx', 'nasdaq']
+        "-exchange", type=str, required=True, help="Exchange (asx/nasdaq/all)", choices=['asx', 'nasdaq', 'all']
     )
     parser.add_argument(
         "-num", type=int, required=False, help="Limit the number of scanned stocks"

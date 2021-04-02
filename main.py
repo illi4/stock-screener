@@ -7,6 +7,8 @@ from libs.stocktools import (
     ohlc_daily_to_weekly,
     get_industry_mapping,
     get_industry,
+    get_exchange_symbols,
+    get_stock_suffix,
 )
 from libs.db import (
     bulk_add_stocks,
@@ -24,13 +26,7 @@ import numpy as np
 import itertools
 
 
-def update_stocks():
-    exchange = arguments["exchange"]
-    if exchange == "ASX":
-        stocks = get_asx_symbols()
-    elif exchange == "NASDAQ":
-        stocks = get_nasdaq_symbols()
-
+def rewrite_stocks(exchange, stocks):
     create_stock_table()
     print(f"Deleting the existing stocks for {exchange}")
     delete_all_stocks(exchange)
@@ -39,9 +35,23 @@ def update_stocks():
     print("Update finished")
 
 
-def check_update_date():
+def update_stocks():
     exchange = arguments["exchange"]
-    last_update_date = get_update_date(exchange)
+    if exchange == "ASX":
+        stocks = get_asx_symbols()
+        rewrite_stocks(exchange, stocks)
+    elif exchange == "NASDAQ":
+        stocks = get_nasdaq_symbols()
+        rewrite_stocks(exchange, stocks)
+    elif exchange == "ALL":
+        for each_exchange in ["ASX", "NASDAQ"]:
+            print(f"Updating {each_exchange}")
+            stocks = get_exchange_symbols(each_exchange)
+            rewrite_stocks(each_exchange, stocks)
+
+
+def check_update_date():
+    last_update_date = get_update_date()
     diff = dates_diff(last_update_date)
     if diff > 1:
         print(
@@ -76,12 +86,12 @@ def generate_indicators_daily_weekly(ohlc_daily):
     return ohlc_with_indicators_daily, ohlc_with_indicators_weekly
 
 
-def get_industry_momentum():
-    print("Calculating industry momentum scores...")
+def get_industry_momentum(exchange):
+    print(f"Calculating industry momentum scores for {exchange}...")
     industry_momentum, industry_score = dict(), dict()
-    industry_mapping = get_industry_mapping(arguments["exchange"])
+    industry_mapping = get_industry_mapping(exchange)
 
-    if arguments["exchange"] == "ASX":
+    if exchange == "ASX":
         stock_prefix = "^A"
     else:
         stock_prefix = ""
@@ -102,7 +112,9 @@ def get_industry_momentum():
     return industry_momentum, industry_score
 
 
-def report_on_shortlist(shortlist, industry_score, report_on_industry):
+def report_on_shortlist(
+    shortlist, industry_score, exchange, report_on_industry=True, print_progress=False
+):
     if report_on_industry:
         # Get the sectors for shortlisted stocks only
         print(
@@ -112,12 +124,11 @@ def report_on_shortlist(shortlist, industry_score, report_on_industry):
         stock_codes = [stock[0] for stock in shortlist]
         sectors = dict()
         for idx, stock_code in enumerate(stock_codes):
-            print(f"- {stock_code} ({idx+1}/{len(stock_codes)})")
-            sectors[stock_code] = get_industry(
-                stock_code, exchange=arguments["exchange"]
-            )
+            if print_progress:
+                print(f"- {stock_code} ({idx + 1}/{len(stock_codes)})")
+            sectors[stock_code] = get_industry(stock_code, exchange=exchange)
 
-        industry_mapping = get_industry_mapping(arguments["exchange"])
+        industry_mapping = get_industry_mapping(exchange)
 
         print()
         print(f"All shortlisted stocks (sorted by 5-day moving average volume):")
@@ -141,11 +152,8 @@ def report_on_shortlist(shortlist, industry_score, report_on_industry):
             print(f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} vol")
 
 
-def scan_stock_group(stocks, set_counter):
-    if arguments["exchange"] == "ASX":
-        stock_suffix = ".AX"
-    else:
-        stock_suffix = ""
+def scan_stock_group(stocks, set_counter, exchange):
+    stock_suffix = get_stock_suffix(exchange)
 
     shortlisted_stocks = []
     for i, stock in enumerate(stocks):
@@ -195,9 +203,9 @@ def scan_stock_group(stocks, set_counter):
     return shortlisted_stocks
 
 
-def scan_stocks():
+def scan_exchange_stocks(exchange):
     stocks = get_stocks(
-        exchange=arguments["exchange"],
+        exchange=exchange,
         price_min=price_min,
         price_max=price_max,
         min_volume=minimum_volume_level,
@@ -209,8 +217,7 @@ def scan_stocks():
         stocks = stocks[: arguments["num"]]
 
     # Get industry bullishness scores
-    report_on_industry = True
-    industry_momentum, industry_score = get_industry_momentum()
+    industry_momentum, industry_score = get_industry_momentum(exchange)
 
     total_number = len(stocks)
     print(
@@ -224,7 +231,7 @@ def scan_stocks():
     stocks_sets = np.array_split(stocks, 5)
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         futures = [
-            executor.submit(scan_stock_group, stocks_set, set_counter)
+            executor.submit(scan_stock_group, stocks_set, set_counter, exchange)
             for set_counter, stocks_set in enumerate(stocks_sets)
         ]
         shortlisted_stock_collections = [f.result() for f in futures]
@@ -236,12 +243,40 @@ def scan_stocks():
     sorted_stocks = sorted(shortlist, key=lambda tup: tup[2], reverse=True)
     shortlist = [(stock[0], stock[1], stock[2]) for stock in sorted_stocks]
 
-    print()
-    if len(shortlist) > 0:
-        report_on_shortlist(shortlist, industry_score, report_on_industry)
+    return shortlist, industry_momentum, industry_score
 
+
+def scan_stocks():
+    if arguments["exchange"] != "ALL":
+        shortlist, industry_momentum, industry_score = scan_exchange_stocks(
+            arguments["exchange"]
+        )
+        print()
+        if len(shortlist) > 0:
+            report_on_shortlist(shortlist, industry_score, arguments["exchange"])
+        else:
+            print(f"No shortlisted stocks")
     else:
-        print(f"No shortlisted stocks")
+        all_exchanges = ["ASX", "NASDAQ"]
+        shortlists, industry_momentums, industry_scores = dict(), dict(), dict()
+        for each_exchange in all_exchanges:
+            (
+                shortlists[each_exchange],
+                industry_momentums[each_exchange],
+                industry_scores[each_exchange],
+            ) = scan_exchange_stocks(each_exchange)
+
+        for each_exchange in all_exchanges:
+            print()
+            print(f"Results for {each_exchange}")
+            if len(shortlists[each_exchange]) > 0:
+                report_on_shortlist(
+                    shortlists[each_exchange],
+                    industry_scores[each_exchange],
+                    each_exchange,
+                )
+            else:
+                print(f"No shortlisted stocks")
 
 
 if __name__ == "__main__":
@@ -250,7 +285,9 @@ if __name__ == "__main__":
 
     arguments = define_args()
     if arguments["update"]:
-        print("Updating the stocks list...")
+        print(
+            f"Updating the stocks list (exchange: {arguments['exchange'].capitalize()})"
+        )
         update_stocks()
 
     if arguments["scan"]:
