@@ -5,3 +5,4 @@ pandas
 selenium
 arrow
 bs4
+html5lib
