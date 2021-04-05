@@ -267,7 +267,7 @@ def bullish_ma_based(
         ma_weekly_close_condition,
     ]
     numerical_score = round(
-        5 * sum(confirmation) / len(confirmation), 1
+        5 * sum(confirmation) / len(confirmation), 0
     )  # score X (of 5)
     result = False not in confirmation
 
