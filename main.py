@@ -1,5 +1,5 @@
 from libs.helpers import define_args, dates_diff, format_number, get_test_stocks
-from libs.criteria import met_conditions_bullish
+from libs.signal import bullish_ma_based
 from libs.stocktools import (
     get_asx_symbols,
     get_nasdaq_symbols,
@@ -96,16 +96,19 @@ def get_industry_momentum(exchange):
     else:
         stock_prefix = ""
 
+    ma_num = ma_num_per_system()
+
     for name, code in industry_mapping.items():
         ohlc_daily, volume_daily = get_stock_data(f"{stock_prefix}{code}")
         (
             ohlc_with_indicators_daily,
             ohlc_with_indicators_weekly,
         ) = generate_indicators_daily_weekly(ohlc_daily)
-        industry_momentum[code], industry_score[code] = met_conditions_bullish(
+        industry_momentum[code], industry_score[code] = bullish_ma_based(
             ohlc_with_indicators_daily,
             volume_daily,
             ohlc_with_indicators_weekly,
+            ma_num,
             consider_volume_spike=False,
             output=False,
         )
@@ -152,8 +155,18 @@ def report_on_shortlist(
             print(f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} vol")
 
 
+def ma_num_per_system():
+    system_name = arguments["system"]
+    if system_name == "2ma":
+        ma_num = 2
+    elif system_name == "3ma":
+        ma_num = 3
+    return ma_num
+
+
 def scan_stock_group(stocks, set_counter, exchange):
     stock_suffix = get_stock_suffix(exchange)
+    ma_num = ma_num_per_system()
 
     shortlisted_stocks = []
     for i, stock in enumerate(stocks):
@@ -173,10 +186,11 @@ def scan_stock_group(stocks, set_counter, exchange):
         if ohlc_with_indicators_daily is None or ohlc_with_indicators_weekly is None:
             continue
 
-        confirmation, _ = met_conditions_bullish(
+        confirmation, _ = bullish_ma_based(
             ohlc_with_indicators_daily,
             volume_daily,
             ohlc_with_indicators_weekly,
+            ma_num,
             consider_volume_spike=True,
             output=True,
             stock_name=stock.name,
