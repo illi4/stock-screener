@@ -26,7 +26,7 @@ def define_args():
     parser.add_argument(
         "-system",
         type=str,
-        required=True,
+        required=False,
         help="System (2ma|3ma)",
         choices=["2ma", "3ma"],
     )

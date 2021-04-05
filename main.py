@@ -261,6 +261,10 @@ def scan_exchange_stocks(exchange):
 
 
 def scan_stocks():
+    if arguments["system"] is None:
+        print("The system name must be specified for a scan")
+        exit(0)
+
     if arguments["exchange"] != "ALL":
         shortlist, industry_momentum, industry_score = scan_exchange_stocks(
             arguments["exchange"]
