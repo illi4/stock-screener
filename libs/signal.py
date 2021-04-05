@@ -10,7 +10,7 @@ def bullish_2ma(
     ohlc_with_indicators_weekly,
     consider_volume_spike=True,
     output=True,
-    stock_name=''
+    stock_name="",
 ):
     # 2MA variant of a bullish breakout system on volume
     result, numerical_score = bullish_ma_based(
@@ -20,7 +20,7 @@ def bullish_2ma(
         2,
         consider_volume_spike,
         output,
-        stock_name
+        stock_name,
     )
     return result, numerical_score
 
@@ -31,7 +31,7 @@ def bullish_3ma(
     ohlc_with_indicators_weekly,
     consider_volume_spike=True,
     output=True,
-    stock_name=''
+    stock_name="",
 ):
     # 3MA variant of a bullish breakout system on volume
     result, numerical_score = bullish_ma_based(
@@ -41,7 +41,7 @@ def bullish_3ma(
         3,
         consider_volume_spike,
         output,
-        stock_name
+        stock_name,
     )
     return result, numerical_score
 
@@ -52,16 +52,18 @@ def slow_ma_inavailable(ma30):
 
 
 def ma_consensio(slow_ma_nan, ma_values, number_of_ma):
-    '''
+    """
     :param slow_ma_nan: is the slowest MA none
     :param ma_values: dictionary of MA values (dataframes)
     :param number_of_ma: number of MAs considered (2 or 3)
     :return: bool
-    '''
+    """
     if not slow_ma_nan:
         if number_of_ma == 3:
             is_ma_consensio = (
-                ma_values["ma10"]["ma10"].iloc[-1] > ma_values["ma20"]["ma20"].iloc[-1] > ma_values["ma30"]["ma30"].iloc[-1]
+                ma_values["ma10"]["ma10"].iloc[-1]
+                > ma_values["ma20"]["ma20"].iloc[-1]
+                > ma_values["ma30"]["ma30"].iloc[-1]
             )
         elif number_of_ma == 2:
             is_ma_consensio = (
@@ -82,7 +84,7 @@ def weekly_close_above_ma(ma_weekly_values, weekly_closes):
             for ma_checked in [
                 ma_weekly_values["ma10"]["ma10"],
                 ma_weekly_values["ma20"]["ma20"],
-                ma_weekly_values["ma30"]["ma30"]
+                ma_weekly_values["ma30"]["ma30"],
             ]:
                 condition = weekly_closes["close"].iloc[-pit] > ma_checked.iloc[-pit]
                 weekly_conditions.append(condition)
@@ -109,14 +111,17 @@ def ma_increasing(ma_values, number_of_ma):
     if number_of_ma == 3:
         ma_rising = (
             (ma_values["ma10"]["ma10"].iloc[-1] >= ma_values["ma10"]["ma10"].iloc[-3])
-            and (ma_values["ma20"]["ma20"].iloc[-1] >= ma_values["ma20"]["ma20"].iloc[-3])
-            and (ma_values["ma30"]["ma30"].iloc[-1] >= ma_values["ma30"]["ma30"].iloc[-3])
+            and (
+                ma_values["ma20"]["ma20"].iloc[-1] >= ma_values["ma20"]["ma20"].iloc[-3]
+            )
+            and (
+                ma_values["ma30"]["ma30"].iloc[-1] >= ma_values["ma30"]["ma30"].iloc[-3]
+            )
         )
     elif number_of_ma == 2:
         ma_rising = (
-            (ma_values["ma10"]["ma10"].iloc[-1] >= ma_values["ma10"]["ma10"].iloc[-3])
-            and (ma_values["ma30"]["ma30"].iloc[-1] >= ma_values["ma30"]["ma30"].iloc[-3])
-        )
+            ma_values["ma10"]["ma10"].iloc[-1] >= ma_values["ma10"]["ma10"].iloc[-3]
+        ) and (ma_values["ma30"]["ma30"].iloc[-1] >= ma_values["ma30"]["ma30"].iloc[-3])
     return ma_rising
 
 
@@ -131,8 +136,8 @@ def weekly_not_overextended(ohlc_with_indicators_weekly):
 
 def last_is_green(ohlc_with_indicators_daily):
     last_candle_is_green = (
-            ohlc_with_indicators_daily["close"].iloc[-1]
-            > ohlc_with_indicators_daily["open"].iloc[-1]
+        ohlc_with_indicators_daily["close"].iloc[-1]
+        > ohlc_with_indicators_daily["open"].iloc[-1]
     )
     return last_candle_is_green
 
@@ -162,9 +167,9 @@ def bullish_ma_based(
     ma_num_considered,
     consider_volume_spike=True,
     output=True,
-    stock_name=''
+    stock_name="",
 ):
-    '''
+    """
     :param ohlc_with_indicators_daily: daily OHLC with indicators (pandas df)
     :param volume_daily: volume values (pandas df)
     :param ohlc_with_indicators_weekly: weekly OHLC with indicators (pandas df)
@@ -173,7 +178,7 @@ def bullish_ma_based(
     :param output: should the output be printed
     :param stock_name: name of a stock
     :return:
-    '''
+    """
     if not (ma_num_considered in [2, 3]):
         print("-- this number of MAs is not supported in the signal")
         exit(0)
@@ -216,7 +221,9 @@ def bullish_ma_based(
     is_ma_consensio = ma_consensio(slow_ma_nan, ma_daily_values, ma_num_considered)
 
     # Factor: weekly close is higher than MAs for the last 2 closes
-    ma_weekly_close_condition = weekly_close_above_ma(ma_weekly_values, ohlc_with_indicators_weekly)
+    ma_weekly_close_condition = weekly_close_above_ma(
+        ma_weekly_values, ohlc_with_indicators_weekly
+    )
 
     # Factor: Volume MA and volume spike over the considered day
     if consider_volume_spike:
