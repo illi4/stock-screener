@@ -7,7 +7,7 @@ wb = "Trading journal 2021"
 systems = ["2ma", "3ma"]
 
 def check_positions():
-    alerted_positions = []
+    alerted_positions = set()
     for exchange in ["ASX", "NASDAQ"]:
         for system in systems:
 
@@ -20,7 +20,8 @@ def check_positions():
                     row["Outcome"] == ""
                 ):  # exclude the ones where we have results already, check if price falls below MA10
                     stock_code = row["Stock"]
-                    entry_date = arrow.get(row["Entry date"], "DD/MM/YY").datetime.date()
+                    entry_date_value = row["Entry date"]
+                    entry_date = arrow.get(entry_date_value, "DD/MM/YY").datetime.date()
                     ohlc_daily, volume_daily = get_stock_data(f"{stock_code}{stock_suffix}")
                     ma10 = MA(ohlc_daily, 10)
 
@@ -38,7 +39,7 @@ def check_positions():
 
                     alert = True in mergedDf["close_below_ma"].values
                     if alert:
-                        alerted_positions.append(f"{stock_code} ({exchange}) ({system})")
+                        alerted_positions.add(f"{stock_code} ({exchange})")
                         print(f"{stock_code} ({exchange}) ({system}) [{entry_date}]: alert")
                     else:
                         print(f"{stock_code} ({exchange}) ({system}) [{entry_date}]: on track")
