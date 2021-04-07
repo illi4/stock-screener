@@ -1,19 +1,19 @@
+# Monitors whether the open positions hit the exit criteria at some point
 import libs.gsheetobj as gsheetsobj
 from libs.stocktools import get_stock_data, get_stock_suffix
 from libs.techanalysis import MA
+from libs.settings import gsheet_name, trading_systems
 import arrow
 
-wb = "Trading journal 2021"
-systems = ["2ma", "3ma"]
 
 def check_positions():
     alerted_positions = set()
     for exchange in ["ASX", "NASDAQ"]:
-        for system in systems:
+        for system in trading_systems:
 
             stock_suffix = get_stock_suffix(exchange)
 
-            ws = gsheetsobj.sheet_to_df(wb, f"{exchange} - {system}")
+            ws = gsheetsobj.sheet_to_df(gsheet_name, f"{exchange} - {system}")
 
             for index, row in ws.iterrows():
                 if (
