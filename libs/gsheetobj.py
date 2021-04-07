@@ -20,3 +20,11 @@ def sheet_to_df(book_name, sheet_name):
     df.columns = header_row
 
     return df
+
+
+def sheet_update(book_name, sheet_name, row_idx, column_idx, value):
+    sh = gc.open(book_name)
+    worksheet = sh.worksheet(sheet_name)
+    worksheet.update(
+        f"{column_idx}{row_idx}", value
+    )
