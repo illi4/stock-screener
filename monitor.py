@@ -22,7 +22,9 @@ def check_positions():
                     stock_code = row["Stock"]
                     entry_date_value = row["Entry date"]
                     entry_date = arrow.get(entry_date_value, "DD/MM/YY").datetime.date()
-                    ohlc_daily, volume_daily = get_stock_data(f"{stock_code}{stock_suffix}")
+                    ohlc_daily, volume_daily = get_stock_data(
+                        f"{stock_code}{stock_suffix}"
+                    )
                     ma10 = MA(ohlc_daily, 10)
 
                     mergedDf = ohlc_daily.merge(ma10, left_index=True, right_index=True)
@@ -40,9 +42,13 @@ def check_positions():
                     alert = True in mergedDf["close_below_ma"].values
                     if alert:
                         alerted_positions.add(f"{stock_code} ({exchange})")
-                        print(f"{stock_code} ({exchange}) ({system}) [{entry_date}]: alert")
+                        print(
+                            f"{stock_code} ({exchange}) ({system}) [{entry_date}]: alert"
+                        )
                     else:
-                        print(f"{stock_code} ({exchange}) ({system}) [{entry_date}]: on track")
+                        print(
+                            f"{stock_code} ({exchange}) ({system}) [{entry_date}]: on track"
+                        )
 
     return alerted_positions
 
