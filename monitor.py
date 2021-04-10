@@ -6,6 +6,11 @@ from libs.settings import gsheet_name, trading_systems
 import arrow
 
 
+def get_first_true_idx(list):
+    filtr = (lambda x: x == True)
+    return [i for i,x in enumerate(list) if filtr(x)][0]
+
+
 def check_positions():
     alerted_positions = set()
     for exchange in ["ASX", "NASDAQ"]:
@@ -41,7 +46,9 @@ def check_positions():
 
                     alert = True in mergedDf["close_below_ma"].values
                     if alert:
-                        alerted_positions.add(f"{stock_code} ({exchange})")
+                        hit_idx = get_first_true_idx(mergedDf["close_below_ma"].values)
+                        hit_date = mergedDf["timestamp"].values[hit_idx]
+                        alerted_positions.add(f"{stock_code} ({exchange}) [{entry_date} -> {hit_date}]")
                         print(
                             f"{stock_code} ({exchange}) ({system}) [{entry_date}]: alert"
                         )
