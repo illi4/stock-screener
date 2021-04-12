@@ -18,7 +18,7 @@ def fill_prices():
                 if (
                     row["Paper / real trade"] == "paper"
                     and row["Entry price actual"] == ""
-                ):  # exclude the ones where we have results already, check if price falls below MA10
+                ):  # only process paper trades with no entry price info
                     stock_code = row["Stock"]
 
                     entry_date_value = row["Entry date"]
@@ -33,7 +33,7 @@ def fill_prices():
                     ]  # only look from the entry date
 
                     if len(ohlc_daily) > 0:
-                        open_price = round(ohlc_daily["open"].iloc[-1], 3)
+                        open_price = round(ohlc_daily["open"].iloc[0], 3)  # take the first value (entry date)
                         print(f"{stock_code} ({exchange}) ({system}): {open_price}")
                         update_row = (
                             index + 2
