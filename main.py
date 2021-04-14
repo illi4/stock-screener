@@ -138,7 +138,7 @@ def report_on_shortlist(
         for stock in shortlist:
 
             # May not find a sector for a stock
-            if sectors[stock[0]] not in ["-", ""]:
+            if sectors[stock[0]] in ["-", ""]:
                 print(
                     f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} vol | "
                     f"Sector score unavailable"
