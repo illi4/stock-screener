@@ -4,11 +4,12 @@ from libs.stocktools import get_stock_data, get_stock_suffix
 from libs.techanalysis import MA
 from libs.settings import gsheet_name, trading_systems
 import arrow
+from datetime import timedelta
 
 
 def get_first_true_idx(list):
-    filtr = (lambda x: x == True)
-    return [i for i,x in enumerate(list) if filtr(x)][0]
+    filtr = lambda x: x == True
+    return [i for i, x in enumerate(list) if filtr(x)][0]
 
 
 def check_positions():
@@ -48,10 +49,22 @@ def check_positions():
                     if alert:
                         hit_idx = get_first_true_idx(mergedDf["close_below_ma"].values)
                         hit_date = mergedDf["timestamp"].values[hit_idx]
-                        alerted_positions.add(f"{stock_code} ({exchange}) [{entry_date} -> {hit_date}]")
-                        print(
-                            f"{stock_code} ({exchange}) ({system}) [{entry_date}]: alert"
-                        )
+                        exit_date = hit_date + timedelta(days=1)
+
+                        wanted_price = mergedDf["close"].values[hit_idx]
+
+                        try:
+                            opened_price = mergedDf["open"].values[hit_idx + 1]
+                            alerted_positions.add(
+                                f"{stock_code} ({exchange}) [{entry_date} -> {exit_date}] "
+                                f"W {round(wanted_price, 3)} A {round(opened_price, 3)}"
+                            )
+                            print(
+                                f"{stock_code} ({exchange}) ({system}) [{entry_date}]: alert"
+                            )
+                        except IndexError:
+                            print(f"Too early to add for {stock_code}")
+
                     else:
                         print(
                             f"{stock_code} ({exchange}) ({system}) [{entry_date}]: on track"
