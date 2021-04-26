@@ -1,4 +1,5 @@
 # Monitors whether the open positions hit the exit criteria at some point
+# Output W: wanted exit price, A: actual exit, D4: result if nothing on day 3 (so exit on 4), similar with D6
 import libs.gsheetobj as gsheetsobj
 from libs.stocktools import get_stock_data, get_stock_suffix
 from libs.techanalysis import MA
@@ -50,14 +51,19 @@ def check_positions():
                         hit_idx = get_first_true_idx(mergedDf["close_below_ma"].values)
                         hit_date = mergedDf["timestamp"].values[hit_idx]
                         exit_date = hit_date + timedelta(days=1)
-
                         wanted_price = mergedDf["close"].values[hit_idx]
 
                         try:
                             opened_price = mergedDf["open"].values[hit_idx + 1]
+                            # results for 4th day open and 6th day open
+                            # for 'not moving for 3d / 5d' (first index is 0)
+                            result_d_4 = (mergedDf["open"].values[3] - mergedDf["open"].values[0])/(mergedDf["open"].values[0])
+                            result_d_6 = (mergedDf["open"].values[5] - mergedDf["open"].values[0])/(mergedDf["open"].values[0])
+
                             alerted_positions.add(
                                 f"{stock_code} ({exchange}) [{entry_date} -> {exit_date}] "
-                                f"W {round(wanted_price, 3)} A {round(opened_price, 3)}"
+                                f"W {round(wanted_price, 3)} A {round(opened_price, 3)} D4 {result_d_4:.2%} "
+                                f"D6 {result_d_6:.2%}"
                             )
                             print(
                                 f"{stock_code} ({exchange}) ({system}) [{entry_date}]: alert"
