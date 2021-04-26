@@ -57,8 +57,28 @@ def check_positions():
                             opened_price = mergedDf["open"].values[hit_idx + 1]
                             # results for 4th day open and 6th day open
                             # for 'not moving for 3d / 5d' (first index is 0)
-                            result_d_4 = (mergedDf["open"].values[3] - mergedDf["open"].values[0])/(mergedDf["open"].values[0])
-                            result_d_6 = (mergedDf["open"].values[5] - mergedDf["open"].values[0])/(mergedDf["open"].values[0])
+
+                            try:
+                                result_d_4 = (
+                                    mergedDf["open"].values[3]
+                                    - mergedDf["open"].values[0]
+                                ) / (mergedDf["open"].values[0])
+                            except IndexError:
+                                result_d_4 = (
+                                    mergedDf["open"].values[-1]
+                                    - mergedDf["open"].values[0]
+                                ) / (mergedDf["open"].values[0])
+
+                            try:
+                                result_d_6 = (
+                                    mergedDf["open"].values[5]
+                                    - mergedDf["open"].values[0]
+                                ) / (mergedDf["open"].values[0])
+                            except IndexError:
+                                result_d_6 = (
+                                    mergedDf["open"].values[-1]
+                                    - mergedDf["open"].values[0]
+                                ) / (mergedDf["open"].values[0])
 
                             alerted_positions.add(
                                 f"{stock_code} ({exchange}) [{entry_date} -> {exit_date}] "
