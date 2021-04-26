@@ -88,8 +88,8 @@ def check_positions():
                             alerted_positions.add(
                                 f"{stock_code} ({exchange}) [{entry_date} -> {exit_date}] "
                                 f"W {round(wanted_price, 3)} A {round(opened_price, 3)} | "
-                                f"D4 ({date_d4}) {result_d_4:.2%} | "
                                 f"D6 ({date_d6}) {result_d_6:.2%} | "
+                                f"D4 ({date_d4}) {result_d_4:.2%} | "
                                 f"ED low {entry_day_low_result:.2%} |"
                             )
                             print(
