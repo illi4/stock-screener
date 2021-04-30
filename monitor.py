@@ -41,15 +41,16 @@ def check_positions():
                         mergedDf["ma10"]
                     )  # LT is lower than
 
-                    # Also find the first date where price was lower than the entry date low
-                    mergedDf["close_below_entry_low"] = mergedDf["low"].lt(
-                        mergedDf["low"].values[0]
-                    )  # LT is lower than
-
                     mergedDf["timestamp"] = mergedDf["timestamp"].dt.date
                     mergedDf = mergedDf[
                         mergedDf["timestamp"] >= entry_date
                     ]  # only look from the entry date
+
+                    # Also find the first date where price was lower than the entry date low
+                    entry_low = mergedDf["low"].values[0]
+                    mergedDf["close_below_entry_low"] = mergedDf["low"].lt(
+                        entry_low
+                    )  # LT is lower than
 
                     alert = True in mergedDf["close_below_ma"].values
                     if alert:
