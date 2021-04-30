@@ -41,6 +41,11 @@ def check_positions():
                         mergedDf["ma10"]
                     )  # LT is lower than
 
+                    # Also find the first date where price was lower than the entry date low
+                    mergedDf["close_below_entry_low"] = mergedDf["low"].lt(
+                        mergedDf["low"].values[0]
+                    )  # LT is lower than
+
                     mergedDf["timestamp"] = mergedDf["timestamp"].dt.date
                     mergedDf = mergedDf[
                         mergedDf["timestamp"] >= entry_date
@@ -50,6 +55,13 @@ def check_positions():
                     if alert:
                         hit_idx = get_first_true_idx(mergedDf["close_below_ma"].values)
                         hit_date = mergedDf["timestamp"].values[hit_idx]
+
+                        if True in mergedDf["close_below_entry_low"].values:
+                            hit_lower_than_low_idx = get_first_true_idx(mergedDf["close_below_entry_low"].values)
+                            lower_than_low_date = mergedDf["timestamp"].values[hit_lower_than_low_idx]
+                        else:
+                            lower_than_low_date = "-"
+
                         exit_date = hit_date + timedelta(days=1)
                         wanted_price = mergedDf["close"].values[hit_idx]
                         entry_day_low_result = (mergedDf["low"].values[0] - mergedDf["open"].values[0])/(mergedDf["open"].values[0])
@@ -90,13 +102,13 @@ def check_positions():
                                 f"W {round(wanted_price, 3)} A {round(opened_price, 3)} | "
                                 f"D6 ({date_d6}) {result_d_6:.2%} | "
                                 f"D4 ({date_d4}) {result_d_4:.2%} | "
-                                f"ED low {entry_day_low_result:.2%} |"
+                                f"ED low {entry_day_low_result:.2%} ({lower_than_low_date})"
                             )
                             print(
                                 f"{stock_code} ({exchange}) ({system}) [{entry_date}]: alert"
                             )
                         except IndexError:
-                            print(f"Too early to add for {stock_code}")
+                            print(f"{stock_code} ({exchange}) ({system}): need to wait for next day after hitting MA10")
 
                     else:
                         print(
