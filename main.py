@@ -104,6 +104,12 @@ def get_industry_momentum(exchange):
             ohlc_with_indicators_daily,
             ohlc_with_indicators_weekly,
         ) = generate_indicators_daily_weekly(ohlc_daily)
+
+        if ohlc_with_indicators_daily is None:
+            print(f"Cannot get industry score for {code} as there is no data")
+            industry_momentum[code], industry_score[code] = "-", "-"
+            continue  # skip to the next one
+
         industry_momentum[code], industry_score[code] = bullish_ma_based(
             ohlc_with_indicators_daily,
             volume_daily,
