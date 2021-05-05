@@ -26,6 +26,9 @@ def check_positions():
                 if (
                     row["Outcome"] == ""
                 ):  # exclude the ones where we have results already, check if price falls below MA10
+
+                    ma10, mergedDf = None, None
+
                     stock_code = row["Stock"]
                     entry_date_value = row["Entry date"]
                     entry_date = arrow.get(entry_date_value, "DD/MM/YY").datetime.date()
