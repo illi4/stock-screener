@@ -1,7 +1,7 @@
 # Fills in the missing prices for paper entries where applicable
 import libs.gsheetobj as gsheetsobj
 from libs.stocktools import get_stock_data, get_stock_suffix
-from libs.settings import gsheet_name, trading_systems
+from libs.settings import gsheet_name
 import arrow
 
 

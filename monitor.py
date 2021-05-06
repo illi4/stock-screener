@@ -3,7 +3,7 @@
 import libs.gsheetobj as gsheetsobj
 from libs.stocktools import get_stock_data, get_stock_suffix
 from libs.techanalysis import MA
-from libs.settings import gsheet_name, trading_systems
+from libs.settings import gsheet_name
 import arrow
 from datetime import timedelta
 

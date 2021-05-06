@@ -10,6 +10,3 @@ tzinfo = "Australia/Sydney"
 
 # Gsheet
 gsheet_name = "Trading journal 2021"
-
-# Trading
-trading_systems = ["2ma", "3ma"]
