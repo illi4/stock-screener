@@ -96,7 +96,7 @@ def get_industry_momentum(exchange):
     else:
         stock_prefix = ""
 
-    ma_num = ma_num_per_system()
+    ma_num = 3
 
     for name, code in industry_mapping.items():
         ohlc_daily, volume_daily = get_stock_data(f"{stock_prefix}{code}")
@@ -114,7 +114,6 @@ def get_industry_momentum(exchange):
             ohlc_with_indicators_daily,
             volume_daily,
             ohlc_with_indicators_weekly,
-            ma_num,
             consider_volume_spike=False,
             output=False,
         )
@@ -161,18 +160,9 @@ def report_on_shortlist(
             print(f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} volume")
 
 
-def ma_num_per_system():
-    system_name = arguments["system"]
-    if system_name == "2ma":
-        ma_num = 2
-    elif system_name == "3ma":
-        ma_num = 3
-    return ma_num
-
-
 def scan_stock_group(stocks, set_counter, exchange):
     stock_suffix = get_stock_suffix(exchange)
-    ma_num = ma_num_per_system()
+    ma_num = 3
 
     shortlisted_stocks = []
     for i, stock in enumerate(stocks):
@@ -196,7 +186,6 @@ def scan_stock_group(stocks, set_counter, exchange):
             ohlc_with_indicators_daily,
             volume_daily,
             ohlc_with_indicators_weekly,
-            ma_num,
             consider_volume_spike=True,
             output=True,
             stock_name=stock.name,
@@ -268,9 +257,6 @@ def scan_exchange_stocks(exchange):
 
 
 def scan_stocks():
-    if arguments["system"] is None:
-        print("The system name must be specified for a scan")
-        exit(0)
 
     if arguments["exchange"] != "ALL":
         shortlist, industry_momentum, industry_score = scan_exchange_stocks(

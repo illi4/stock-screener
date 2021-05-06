@@ -23,13 +23,6 @@ def define_args():
     parser.add_argument(
         "-num", type=int, required=False, help="Limit the number of scanned stocks"
     )
-    parser.add_argument(
-        "-system",
-        type=str,
-        required=False,
-        help="System (2ma|3ma)",
-        choices=["2ma", "3ma"],
-    )
 
     args = parser.parse_args()
     arguments = vars(args)

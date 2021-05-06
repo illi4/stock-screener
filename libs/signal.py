@@ -4,28 +4,7 @@ from libs.helpers import format_bool
 import numpy as np
 
 
-def bullish_2ma(
-    ohlc_with_indicators_daily,
-    volume_daily,
-    ohlc_with_indicators_weekly,
-    consider_volume_spike=True,
-    output=True,
-    stock_name="",
-):
-    # 2MA variant of a bullish breakout system on volume
-    result, numerical_score = bullish_ma_based(
-        ohlc_with_indicators_daily,
-        volume_daily,
-        ohlc_with_indicators_weekly,
-        2,
-        consider_volume_spike,
-        output,
-        stock_name,
-    )
-    return result, numerical_score
-
-
-def bullish_3ma(
+def bullish_breakout(
     ohlc_with_indicators_daily,
     volume_daily,
     ohlc_with_indicators_weekly,
@@ -38,7 +17,6 @@ def bullish_3ma(
         ohlc_with_indicators_daily,
         volume_daily,
         ohlc_with_indicators_weekly,
-        3,
         consider_volume_spike,
         output,
         stock_name,
@@ -164,7 +142,6 @@ def bullish_ma_based(
     ohlc_with_indicators_daily,
     volume_daily,
     ohlc_with_indicators_weekly,
-    ma_num_considered,
     consider_volume_spike=True,
     output=True,
     stock_name="",
@@ -173,15 +150,12 @@ def bullish_ma_based(
     :param ohlc_with_indicators_daily: daily OHLC with indicators (pandas df)
     :param volume_daily: volume values (pandas df)
     :param ohlc_with_indicators_weekly: weekly OHLC with indicators (pandas df)
-    :param ma_num_considered: how many MAs to consider (2 or 3)
     :param consider_volume_spike: is the volume spike condition considered
     :param output: should the output be printed
     :param stock_name: name of a stock
     :return:
     """
-    if not (ma_num_considered in [2, 3]):
-        print("-- this number of MAs is not supported in the signal")
-        exit(0)
+    ma_num_considered = 3  # number of MAs to use
 
     daily_condition_close_higher = (  # closes higher
         ohlc_with_indicators_daily["close"].iloc[-1]
