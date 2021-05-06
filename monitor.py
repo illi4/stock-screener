@@ -131,6 +131,6 @@ if __name__ == "__main__":
     if len(alerted_positions) == 0:
         print("No alerts")
     else:
-        print("Exit rules triggered for:")
-        for position in alerted_positions:
+        print(f"Exit rules triggered for {len(alerted_positions)} stock(s):")
+        for position in sorted(alerted_positions):
             print(f"- {position}")
