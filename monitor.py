@@ -16,111 +16,110 @@ def get_first_true_idx(list):
 def check_positions():
     alerted_positions = set()
     for exchange in ["ASX", "NASDAQ"]:
-        for system in trading_systems:
 
-            stock_suffix = get_stock_suffix(exchange)
+        stock_suffix = get_stock_suffix(exchange)
 
-            ws = gsheetsobj.sheet_to_df(gsheet_name, f"{exchange} - {system}")
+        ws = gsheetsobj.sheet_to_df(gsheet_name, f"{exchange}")
 
-            for index, row in ws.iterrows():
-                if (
-                    row["Outcome"] == ""
-                ):  # exclude the ones where we have results already, check if price falls below MA10
+        for index, row in ws.iterrows():
+            if (
+                row["Outcome"] == ""
+            ):  # exclude the ones where we have results already, check if price falls below MA10
 
-                    ma10, mergedDf = None, None
+                ma10, mergedDf = None, None
 
-                    stock_code = row["Stock"]
-                    entry_date_value = row["Entry date"]
-                    entry_date = arrow.get(entry_date_value, "DD/MM/YY").datetime.date()
-                    ohlc_daily, volume_daily = get_stock_data(
-                        f"{stock_code}{stock_suffix}"
-                    )
-                    ma10 = MA(ohlc_daily, 10)
+                stock_code = row["Stock"]
+                entry_date_value = row["Entry date"]
+                entry_date = arrow.get(entry_date_value, "DD/MM/YY").datetime.date()
+                ohlc_daily, volume_daily = get_stock_data(
+                    f"{stock_code}{stock_suffix}"
+                )
+                ma10 = MA(ohlc_daily, 10)
 
-                    mergedDf = ohlc_daily.merge(ma10, left_index=True, right_index=True)
-                    mergedDf.dropna(inplace=True, how="any")
+                mergedDf = ohlc_daily.merge(ma10, left_index=True, right_index=True)
+                mergedDf.dropna(inplace=True, how="any")
 
-                    mergedDf["close_below_ma"] = mergedDf["close"].lt(
-                        mergedDf["ma10"]
-                    )  # LT is lower than
+                mergedDf["close_below_ma"] = mergedDf["close"].lt(
+                    mergedDf["ma10"]
+                )  # LT is lower than
 
-                    mergedDf["timestamp"] = mergedDf["timestamp"].dt.date
-                    mergedDf = mergedDf[
-                        mergedDf["timestamp"] >= entry_date
-                    ]  # only look from the entry date
+                mergedDf["timestamp"] = mergedDf["timestamp"].dt.date
+                mergedDf = mergedDf[
+                    mergedDf["timestamp"] >= entry_date
+                ]  # only look from the entry date
 
-                    if len(mergedDf) == 0:
-                        continue  # skip to the next element if there is nothing yet
+                if len(mergedDf) == 0:
+                    continue  # skip to the next element if there is nothing yet
 
-                    # Also find the first date where price was lower than the entry date low
-                    entry_low = mergedDf["low"].values[0]
-                    mergedDf["close_below_entry_low"] = mergedDf["low"].lt(
-                        entry_low
-                    )  # LT is lower than
+                # Also find the first date where price was lower than the entry date low
+                entry_low = mergedDf["low"].values[0]
+                mergedDf["close_below_entry_low"] = mergedDf["low"].lt(
+                    entry_low
+                )  # LT is lower than
 
-                    alert = True in mergedDf["close_below_ma"].values
-                    if alert:
-                        hit_idx = get_first_true_idx(mergedDf["close_below_ma"].values)
-                        hit_date = mergedDf["timestamp"].values[hit_idx]
+                alert = True in mergedDf["close_below_ma"].values
+                if alert:
+                    hit_idx = get_first_true_idx(mergedDf["close_below_ma"].values)
+                    hit_date = mergedDf["timestamp"].values[hit_idx]
 
-                        if True in mergedDf["close_below_entry_low"].values:
-                            hit_lower_than_low_idx = get_first_true_idx(mergedDf["close_below_entry_low"].values)
-                            lower_than_low_date = mergedDf["timestamp"].values[hit_lower_than_low_idx]
-                        else:
-                            lower_than_low_date = "-"
+                    if True in mergedDf["close_below_entry_low"].values:
+                        hit_lower_than_low_idx = get_first_true_idx(mergedDf["close_below_entry_low"].values)
+                        lower_than_low_date = mergedDf["timestamp"].values[hit_lower_than_low_idx]
+                    else:
+                        lower_than_low_date = "-"
 
-                        exit_date = hit_date + timedelta(days=1)
-                        wanted_price = mergedDf["close"].values[hit_idx]
-                        entry_day_low_result = (mergedDf["low"].values[0] - mergedDf["open"].values[0])/(mergedDf["open"].values[0])
+                    exit_date = hit_date + timedelta(days=1)
+                    wanted_price = mergedDf["close"].values[hit_idx]
+                    entry_day_low_result = (mergedDf["low"].values[0] - mergedDf["open"].values[0])/(mergedDf["open"].values[0])
+
+                    try:
+                        opened_price = mergedDf["open"].values[hit_idx + 1]
+                        # results for 4th day open and 6th day open
+                        # for 'not moving for 3d / 5d' (first index is 0)
 
                         try:
-                            opened_price = mergedDf["open"].values[hit_idx + 1]
-                            # results for 4th day open and 6th day open
-                            # for 'not moving for 3d / 5d' (first index is 0)
-
-                            try:
-                                result_d_4 = (
-                                    mergedDf["open"].values[3]
-                                    - mergedDf["open"].values[0]
-                                ) / (mergedDf["open"].values[0])
-                                date_d4 = mergedDf["timestamp"].values[3]
-                            except IndexError:
-                                result_d_4 = (
-                                    mergedDf["open"].values[-1]
-                                    - mergedDf["open"].values[0]
-                                ) / (mergedDf["open"].values[0])
-                                date_d4 = mergedDf["timestamp"].values[-1]
-
-                            try:
-                                result_d_6 = (
-                                    mergedDf["open"].values[5]
-                                    - mergedDf["open"].values[0]
-                                ) / (mergedDf["open"].values[0])
-                                date_d6 = mergedDf["timestamp"].values[5]
-                            except IndexError:
-                                result_d_6 = (
-                                    mergedDf["open"].values[-1]
-                                    - mergedDf["open"].values[0]
-                                ) / (mergedDf["open"].values[0])
-                                date_d6 = mergedDf["timestamp"].values[-1]
-
-                            alerted_positions.add(
-                                f"{stock_code} ({exchange}) [{entry_date} -> {exit_date}] "
-                                f"W {round(wanted_price, 3)} A {round(opened_price, 3)} | "
-                                f"D6 ({date_d6}) {result_d_6:.2%} | "
-                                f"D4 ({date_d4}) {result_d_4:.2%} | "
-                                f"ED low {entry_day_low_result:.2%} ({lower_than_low_date})"
-                            )
-                            print(
-                                f"{stock_code} ({exchange}) ({system}) [{entry_date}]: alert"
-                            )
+                            result_d_4 = (
+                                mergedDf["open"].values[3]
+                                - mergedDf["open"].values[0]
+                            ) / (mergedDf["open"].values[0])
+                            date_d4 = mergedDf["timestamp"].values[3]
                         except IndexError:
-                            print(f"{stock_code} ({exchange}) ({system}): need to wait for next day after hitting MA10")
+                            result_d_4 = (
+                                mergedDf["open"].values[-1]
+                                - mergedDf["open"].values[0]
+                            ) / (mergedDf["open"].values[0])
+                            date_d4 = mergedDf["timestamp"].values[-1]
 
-                    else:
-                        print(
-                            f"{stock_code} ({exchange}) ({system}) [{entry_date}]: on track"
+                        try:
+                            result_d_6 = (
+                                mergedDf["open"].values[5]
+                                - mergedDf["open"].values[0]
+                            ) / (mergedDf["open"].values[0])
+                            date_d6 = mergedDf["timestamp"].values[5]
+                        except IndexError:
+                            result_d_6 = (
+                                mergedDf["open"].values[-1]
+                                - mergedDf["open"].values[0]
+                            ) / (mergedDf["open"].values[0])
+                            date_d6 = mergedDf["timestamp"].values[-1]
+
+                        alerted_positions.add(
+                            f"{stock_code} ({exchange}) [{entry_date} -> {exit_date}] "
+                            f"W {round(wanted_price, 3)} A {round(opened_price, 3)} | "
+                            f"D6 ({date_d6}) {result_d_6:.2%} | "
+                            f"D4 ({date_d4}) {result_d_4:.2%} | "
+                            f"ED low {entry_day_low_result:.2%} ({lower_than_low_date})"
                         )
+                        print(
+                            f"{stock_code} ({exchange}) [{entry_date}]: alert"
+                        )
+                    except IndexError:
+                        print(f"{stock_code} ({exchange}): need to wait for next day after hitting MA10")
+
+                else:
+                    print(
+                        f"{stock_code} ({exchange}) [{entry_date}]: on track"
+                    )
 
     return alerted_positions
 
