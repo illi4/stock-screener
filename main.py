@@ -155,7 +155,7 @@ def report_on_shortlist(
                     f"{sectors[stock[0]]} score {industry_score[industry_code]}/5"
                 )
     else:
-        print(f"All shortlisted stocks (sorted by 5-day moving average volume):")
+        print(f"{len(shortlist)} shortlisted stocks (sorted by 5-day moving average volume):")
         for stock in shortlist:
             print(f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} volume")
 
