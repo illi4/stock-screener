@@ -250,7 +250,7 @@ def scan_exchange_stocks(exchange):
     shortlist = list(itertools.chain.from_iterable(shortlisted_stock_collections))    
     
     '''
-    # Is there an issue because of parallel run?
+    # Back to basics because parallel run shows incorrect results for some reason
     shortlist = scan_stock_group(stocks, 0, exchange)
 
     # Short the stocks by volume desc
