@@ -235,9 +235,10 @@ def scan_exchange_stocks(exchange):
         f"and with volume of at least {format_number(minimum_volume_level)}\n"
     )
 
-    # Split stocks on 5 parts for threading
-    # It is MUCH faster with threading
-    # KeyboardInterrupt does not work very well. Did not find a solution just yet which is ok.
+    '''
+    # Split stocks on 5 parts for threading, which is much faster
+    # Issue 1: Unfortunately, this is messing with the result (is this because of same variable names?)
+    # Issue 2: KeyboardInterrupt does not work very well. Did not find a solution just yet which is ok.
     stocks_sets = np.array_split(stocks, 5)
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         futures = [
@@ -245,9 +246,12 @@ def scan_exchange_stocks(exchange):
             for set_counter, stocks_set in enumerate(stocks_sets)
         ]
         shortlisted_stock_collections = [f.result() for f in futures]
-
     # Join list of lists into a single list
-    shortlist = list(itertools.chain.from_iterable(shortlisted_stock_collections))
+    shortlist = list(itertools.chain.from_iterable(shortlisted_stock_collections))    
+    
+    '''
+    # Is there an issue because of parallel run?
+    shortlist = scan_stock_group(stocks, 0, exchange)
 
     # Short the stocks by volume desc
     sorted_stocks = sorted(shortlist, key=lambda tup: tup[2], reverse=True)
