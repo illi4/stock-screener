@@ -1,0 +1,217 @@
+# Simulates trading progress and results over time using a spreadsheet with various considerations
+import libs.gsheetobj as gsheetsobj
+from libs.settings import gsheet_name
+import pandas as pd
+
+# Settings
+exchange = "ASX"
+confidence_filter = [8, 9]
+variant_names = ["control", "test_a", "test_b", "test_c", "test_d"]
+capital = 5000
+commission = 5
+
+# Variations to go through
+simultaneous_positions = [3, 4, 5]
+
+# Sheet columns for the Gsheet
+sheet_columns = [
+    "stock",
+    "trade_type",
+    "entry_date",
+    "entry_price_planned",
+    "entry_price_actual",
+    "confidence",
+    "penny_stock",
+    "control_exit_date",
+    "exit_price_planned",
+    "exit_price_actual",
+    "outcome",
+    "control_result_%",
+    "test_a_exit_date",
+    "test_a_result_%",
+    "test_b_exit_date",
+    "test_b_result_%",
+    "test_c_exit_date",
+    "test_c_result_%",
+    "test_d_price",
+    "test_d_exit_date",
+    "test_d_result_%",
+    "comments",
+    "time_in_trade_control",
+    "time_in_trade_test_a",
+    "time_in_trade_test_b",
+    "time_in_trade_test_c",
+    "time_in_trade_test_d",
+]
+
+
+if __name__ == "__main__":
+    print("Reading the values...")
+
+    ws = gsheetsobj.sheet_to_df(gsheet_name, f"{exchange}")
+    ws.columns = sheet_columns
+
+    # ws['confidence'] = pd.to_numeric(ws['confidence'])
+    # ws[['confidence']] = ws[['confidence']].apply(pd.to_numeric, errors='coerce')
+
+    # Convert types
+    num_cols = [
+        "confidence",
+        "entry_price_planned",
+        "entry_price_actual",
+        "exit_price_planned",
+        "exit_price_actual",
+    ]
+    ws[num_cols] = ws[num_cols].apply(pd.to_numeric, errors="coerce")
+    dt_cols = ["entry_date"]
+    ws[dt_cols] = ws[dt_cols].apply(pd.to_datetime, errors="coerce")
+
+    for variant_name in variant_names:
+        ws[[f"{variant_name}_result_%", f"time_in_trade_{variant_name}"]] = ws[
+            [f"{variant_name}_result_%", f"time_in_trade_{variant_name}"]
+        ].apply(pd.to_numeric, errors="coerce")
+
+    ws = ws.loc[ws["confidence"].isin(confidence_filter)]
+
+    print(ws.head())
+    print(ws.dtypes)
+
+
+"""
+# Monitor part - use as a reference to code in using spreadsheet 
+#
+import libs.gsheetobj as gsheetsobj
+from libs.stocktools import get_stock_data, get_stock_suffix
+from libs.techanalysis import MA
+from libs.settings import gsheet_name
+import arrow
+from datetime import timedelta
+
+
+def get_first_true_idx(list):
+    filtr = lambda x: x == True
+    return [i for i, x in enumerate(list) if filtr(x)][0]
+
+
+def check_positions():
+    alerted_positions = set()
+    for exchange in ["ASX", "NASDAQ"]:
+
+        stock_suffix = get_stock_suffix(exchange)
+
+        ws = gsheetsobj.sheet_to_df(gsheet_name, f"{exchange}")
+
+        for index, row in ws.iterrows():
+            if (
+                row["Outcome"] == ""
+            ):  # exclude the ones where we have results already, check if price falls below MA10
+
+                ma10, mergedDf = None, None
+
+                stock_code = row["Stock"]
+                entry_date_value = row["Entry date"]
+                entry_date = arrow.get(entry_date_value, "DD/MM/YY").datetime.date()
+                ohlc_daily, volume_daily = get_stock_data(
+                    f"{stock_code}{stock_suffix}"
+                )
+                ma10 = MA(ohlc_daily, 10)
+
+                mergedDf = ohlc_daily.merge(ma10, left_index=True, right_index=True)
+                mergedDf.dropna(inplace=True, how="any")
+
+                mergedDf["close_below_ma"] = mergedDf["close"].lt(
+                    mergedDf["ma10"]
+                )  # LT is lower than
+
+                mergedDf["timestamp"] = mergedDf["timestamp"].dt.date
+                mergedDf = mergedDf[
+                    mergedDf["timestamp"] >= entry_date
+                ]  # only look from the entry date
+
+                if len(mergedDf) == 0:
+                    continue  # skip to the next element if there is nothing yet
+
+                # Also find the first date where price was lower than the entry date low
+                entry_low = mergedDf["low"].values[0]
+                mergedDf["close_below_entry_low"] = mergedDf["low"].lt(
+                    entry_low
+                )  # LT is lower than
+
+                alert = True in mergedDf["close_below_ma"].values
+                if alert:
+                    hit_idx = get_first_true_idx(mergedDf["close_below_ma"].values)
+                    hit_date = mergedDf["timestamp"].values[hit_idx]
+
+                    if True in mergedDf["close_below_entry_low"].values:
+                        hit_lower_than_low_idx = get_first_true_idx(mergedDf["close_below_entry_low"].values)
+                        lower_than_low_date = mergedDf["timestamp"].values[hit_lower_than_low_idx]
+                    else:
+                        lower_than_low_date = "-"
+
+                    exit_date = hit_date + timedelta(days=1)
+                    wanted_price = mergedDf["close"].values[hit_idx]
+                    entry_day_low_result = (mergedDf["low"].values[0] - mergedDf["open"].values[0])/(mergedDf["open"].values[0])
+
+                    try:
+                        opened_price = mergedDf["open"].values[hit_idx + 1]
+                        # results for 4th day open and 6th day open
+                        # for 'not moving for 3d / 5d' (first index is 0)
+
+                        try:
+                            result_d_4 = (
+                                mergedDf["open"].values[3]
+                                - mergedDf["open"].values[0]
+                            ) / (mergedDf["open"].values[0])
+                            date_d4 = mergedDf["timestamp"].values[3]
+                        except IndexError:
+                            result_d_4 = (
+                                mergedDf["open"].values[-1]
+                                - mergedDf["open"].values[0]
+                            ) / (mergedDf["open"].values[0])
+                            date_d4 = mergedDf["timestamp"].values[-1]
+
+                        try:
+                            result_d_6 = (
+                                mergedDf["open"].values[5]
+                                - mergedDf["open"].values[0]
+                            ) / (mergedDf["open"].values[0])
+                            date_d6 = mergedDf["timestamp"].values[5]
+                        except IndexError:
+                            result_d_6 = (
+                                mergedDf["open"].values[-1]
+                                - mergedDf["open"].values[0]
+                            ) / (mergedDf["open"].values[0])
+                            date_d6 = mergedDf["timestamp"].values[-1]
+
+                        alerted_positions.add(
+                            f"{stock_code} ({exchange}) [{entry_date} -> {exit_date}] "
+                            f"W {round(wanted_price, 3)} A {round(opened_price, 3)} | "
+                            f"D6 ({date_d6}) {result_d_6:.2%} | "
+                            f"D4 ({date_d4}) {result_d_4:.2%} | "
+                            f"ED low {entry_day_low_result:.2%} ({lower_than_low_date})"
+                        )
+                        print(
+                            f"{stock_code} ({exchange}) [{entry_date}]: alert"
+                        )
+                    except IndexError:
+                        print(f"{stock_code} ({exchange}): need to wait for next day after hitting MA10")
+
+                else:
+                    print(
+                        f"{stock_code} ({exchange}) [{entry_date}]: on track"
+                    )
+
+    return alerted_positions
+
+
+if __name__ == "__main__":
+    print("Checking positions...")
+    alerted_positions = check_positions()
+    print()
+    if len(alerted_positions) == 0:
+        print("No alerts")
+    else:
+        print(f"Exit rules triggered for {len(alerted_positions)} stock(s):")
+        for position in sorted(alerted_positions):
+            print(f"- {position}")
+"""
