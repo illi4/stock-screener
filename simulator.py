@@ -45,15 +45,7 @@ sheet_columns = [
 ]
 
 
-if __name__ == "__main__":
-    print("Reading the values...")
-
-    ws = gsheetsobj.sheet_to_df(gsheet_name, f"{exchange}")
-    ws.columns = sheet_columns
-
-    # ws['confidence'] = pd.to_numeric(ws['confidence'])
-    # ws[['confidence']] = ws[['confidence']].apply(pd.to_numeric, errors='coerce')
-
+def convert_types(ws):
     # Convert types
     num_cols = [
         "confidence",
@@ -70,8 +62,20 @@ if __name__ == "__main__":
         ws[[f"{variant_name}_result_%", f"time_in_trade_{variant_name}"]] = ws[
             [f"{variant_name}_result_%", f"time_in_trade_{variant_name}"]
         ].apply(pd.to_numeric, errors="coerce")
+        ws[[f"{variant_name}_exit_date"]] = ws[[f"{variant_name}_exit_date"]].apply(pd.to_datetime, errors="coerce")
 
     ws = ws.loc[ws["confidence"].isin(confidence_filter)]
+
+    return ws
+
+
+if __name__ == "__main__":
+    print("Reading the values...")
+
+    ws = gsheetsobj.sheet_to_df(gsheet_name, f"{exchange}")
+    ws.columns = sheet_columns
+
+    ws = convert_types(ws)
 
     print(ws.head())
     print(ws.dtypes)
