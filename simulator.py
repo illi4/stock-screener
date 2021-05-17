@@ -14,8 +14,8 @@ commission = 5
 # Variations to go through
 simultaneous_positions = [2, 3, 4, 5]
 variant_names = ["control", "test_a", "test_b", "test_c", "test_d"]
-start_date = "2020-04-01"
-end_date = "2020-05-01"
+start_date = "2021-04-01"
+end_date = "2021-05-01"
 
 # Sheet columns for the Gsheet
 sheet_columns = [
@@ -78,17 +78,25 @@ if __name__ == "__main__":
     print("Reading the values...")
 
     # This is working ok
-    #ws = gsheetsobj.sheet_to_df(gsheet_name, f"{exchange}")
-    #ws.columns = sheet_columns
-    #ws = convert_types(ws)
+    ws = gsheetsobj.sheet_to_df(gsheet_name, f"{exchange}")
+    ws.columns = sheet_columns
+    ws = convert_types(ws)
 
     # Iterating through days and simulations
     # Iterate and check for entries / exits in a day depending on the variant
+    current_variant = "control"
+    current_simultaneous_positions = 2
+    positions_held = 0
+
     start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
     end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
     current_date_dt = start_date_dt
-    print(start_date_dt)
 
     while current_date_dt < end_date_dt:
         current_date_dt = current_date_dt + timedelta(days=1)
         print(current_date_dt)
+
+        selection = ws.loc[ws['entry_date'] == current_date_dt]
+        for key, elem in selection.iterrows():
+            positions_held+=1
+            print("Entry", elem["stock"], "| positions held", positions_held)
