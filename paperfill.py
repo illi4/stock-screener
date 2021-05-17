@@ -15,7 +15,7 @@ def fill_prices():
 
         for index, row in ws.iterrows():
             if (
-                row["Paper / real trade"] == "paper"
+                row["Trade type"] == "paper"
                 and row["Entry price actual"] == ""
             ):  # only process paper trades with no entry price info
                 stock_code = row["Stock"]
