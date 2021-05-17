@@ -2,16 +2,20 @@
 import libs.gsheetobj as gsheetsobj
 from libs.settings import gsheet_name
 import pandas as pd
+from datetime import datetime, timedelta
 
 # Settings
 exchange = "ASX"
 confidence_filter = [8, 9]
-variant_names = ["control", "test_a", "test_b", "test_c", "test_d"]
+penny_filter = ['Y', 'N']
 capital = 5000
 commission = 5
 
 # Variations to go through
 simultaneous_positions = [2, 3, 4, 5]
+variant_names = ["control", "test_a", "test_b", "test_c", "test_d"]
+start_date = "2020-04-01"
+end_date = "2020-05-01"
 
 # Sheet columns for the Gsheet
 sheet_columns = [
@@ -65,6 +69,7 @@ def convert_types(ws):
         ws[[f"{variant_name}_exit_date"]] = ws[[f"{variant_name}_exit_date"]].apply(pd.to_datetime, errors="coerce")
 
     ws = ws.loc[ws["confidence"].isin(confidence_filter)]
+    ws = ws.loc[ws["penny_stock"].isin(penny_filter)]
 
     return ws
 
@@ -72,10 +77,18 @@ def convert_types(ws):
 if __name__ == "__main__":
     print("Reading the values...")
 
-    ws = gsheetsobj.sheet_to_df(gsheet_name, f"{exchange}")
-    ws.columns = sheet_columns
+    # This is working ok
+    #ws = gsheetsobj.sheet_to_df(gsheet_name, f"{exchange}")
+    #ws.columns = sheet_columns
+    #ws = convert_types(ws)
 
-    ws = convert_types(ws)
+    # Iterating through days and simulations
+    # Iterate and check for entries / exits in a day depending on the variant
+    start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
+    end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
+    current_date_dt = start_date_dt
+    print(start_date_dt)
 
-    print(ws.head())
-    print(ws.dtypes)
+    while current_date_dt < end_date_dt:
+        current_date_dt = current_date_dt + timedelta(days=1)
+        print(current_date_dt)
