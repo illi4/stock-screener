@@ -89,20 +89,15 @@ def convert_types(ws):
 
 
 if __name__ == "__main__":
+    print("This solution will remain incomplete until there is an actual need for it")
+    exit(0)
+
     print("Reading the values...")
 
     # This is working ok
     ws = gsheetsobj.sheet_to_df(gsheet_name, f"{exchange}")
     ws.columns = sheet_columns
     ws = convert_types(ws)
-
-    # TEST # annoying enx format issue where 06/04 is interpreted as june - fixes
-    print(ws.head())
-    print(ws.dtypes)
-    test = ws.loc[ws["entry_date"] == datetime.strptime("2021-04-06", "%Y-%m-%d")]
-    print(test)
-
-    exit(0)  # HERE
 
     # Dict to hold all the results
     results_dict = dict()
