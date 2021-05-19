@@ -18,9 +18,9 @@ Please note that the shortlist should only be used to guide your own research an
 
 #### Usage  
 - Run `main.py --h` to view context help 
-- To update the stocks list, run `main.py --update -exchange=all`. Recommended to run this daily prior to scanning.  
-- To scan and shortlist, run `main.py --scan -exchange=all`. System (2ma|3ma) should be specified.
-- Helper scripts:  
+- To update the stocks list, run `main.py --update -exchange=all`. It is recommended to run this daily prior to scanning.  
+- To scan and shortlist, run `main.py --scan -exchange=all`.
+- Helper scripts (note: requires configuring Google credentials in order to work):  
    - `monitor.py` to run daily to check whether the exit condition was hit for active entries.
    - `paperfill.py` to run daily to fill in the values for paper trade entries automatically.
 
@@ -29,7 +29,7 @@ See `libs/settings.py` for settings:
 - URL for grabbing the listed codes and the price
 - Price range for stocks considered on scan
 - Minimum volume threshold (500k)  
-- Overextended threshold 
+- Overextended threshold
 
 #### Limitations
 - Yahoo Finance is used to get stock OHLC information. Theoretically, the API limit for YFinance is 2000 requests per hour per IP. However, I have launched it several times in a row producing more than 2000 requests and was not yet able to hit the limit. If you do, the script will just keep retrying with 1-minute intervals until cancelled.
@@ -56,3 +56,6 @@ See `libs/settings.py` for settings:
    
 4. Install the required libraries: `pip install -r requirements.txt`
 5. Install [ChromeDriver](https://sites.google.com/a/chromium.org/chromedriver/home)
+
+#### Google sheet / project configuration 
+If you want to use monitor and paperfill in addition to the screener, please create a sheet similar to [this one](https://docs.google.com/spreadsheets/d/1luuTn-wRsa2IXkaLTB-3FGlev6gJy6fnO0uQfqnHjRI/edit?usp=sharing) and configure API access, then save the credentials under `.config\gspread\service_account.json`. This is not required if you only want to use the screener (main.py).
