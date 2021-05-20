@@ -264,17 +264,21 @@ if __name__ == "__main__":
     '''
     #### Iterations finished
 
-    ##### More complex implementation - various options on threshold levels # to complete
+    ##### More complex implementation - various options on threshold levels # to complete - here
     # Need to grab prices for all stocks involved in the period
     stock_names = [item.stock for key, item in ws.iterrows()]
     stock_prices = dict()
     suffix = get_stock_suffix(exchange)
     for stock in stock_names:
         print(f'getting data for {stock}{suffix}')
-        #stock_prices[stock] =
+        stock_info = get_stock_data(f'{stock}{suffix}')
+        stock_prices[stock] = stock_info
+
+    # Similar iterations like for control, but with dynamic thresholds
+    # ...
 
 
-    ##### Finalisation
+    ######### Finalisation
     # write the output to a dataframe and a spreadsheet
     resulting_dataframes = []
     for k, v in results_dict.items():
