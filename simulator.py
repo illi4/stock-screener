@@ -4,6 +4,7 @@ from libs.settings import gsheet_name
 import pandas as pd
 from datetime import datetime, timedelta
 import numpy as np
+from libs.stocktools import get_stock_suffix, get_stock_data
 
 # Settings
 exchange = "ASX"
@@ -19,8 +20,13 @@ start_date = "2021-04-01"
 end_date = "2021-05-20"
 
 # Take profit level variations
-#take_profit_variants =
-# take_profit_levels = [0.25, 0.5, 0.9] # to use outside of control, test a, etc.
+# Control is 0.25, 0.5, 0.9
+take_profit_variants = {
+    'tp_a':[0.3, 0.5, 0.9],
+    'tp_b':[0.5, 1],
+    'tp_c':[0.15, 0.5, 0.9],
+    'tp_d':[0.5, 1, 1.5],
+}
 
 # Sheet columns for the Gsheet
 sheet_columns = [
@@ -129,6 +135,7 @@ if __name__ == "__main__":
     # Dict to hold all the results
     results_dict = dict()
 
+    '''
     # Iterating through days and simulations
     ### Iterate and check for entries / exits in a day depending on the variant ###
     for current_variant in variant_names:
@@ -254,11 +261,17 @@ if __name__ == "__main__":
                 variant_group=current_variant
             )
             results_dict[f"{current_variant}_{current_simultaneous_positions}pos"] = result_current_dict
-
+    '''
     #### Iterations finished
 
-    ##### More complex implementation - various options on threshold levels
-
+    ##### More complex implementation - various options on threshold levels # to complete
+    # Need to grab prices for all stocks involved in the period
+    stock_names = [item.stock for key, item in ws.iterrows()]
+    stock_prices = dict()
+    suffix = get_stock_suffix(exchange)
+    for stock in stock_names:
+        print(f'getting data for {stock}{suffix}')
+        #stock_prices[stock] =
 
 
     ##### Finalisation
