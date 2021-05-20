@@ -134,3 +134,6 @@ dmypy.json
 
 # Gsheets config
 /.config/
+
+# Test files
+*.csv
