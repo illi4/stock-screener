@@ -42,6 +42,7 @@ sheet_columns = [
     "test_d_price",
     "test_d_exit_date",
     "test_d_result_%",
+    "test_e_result_%",
     "max_level_reached",
     "comments",
     "time_in_trade_control",
