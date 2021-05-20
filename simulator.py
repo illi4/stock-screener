@@ -14,11 +14,13 @@ commission = 10
 
 # Variations to go through
 simultaneous_positions = [2, 3, 4, 5]
-variant_names = ["control", "test_a", "test_b", "test_c", "test_d"]
-# exit_threshold_variants = ... # todo later
-# take_profit_levels = [0.25, 0.5, 0.9] # to use outside of control, test a, etc.
+variant_names = ["control", "test_a", "test_b", "test_c", "test_d", "test_e"]
 start_date = "2021-04-01"
 end_date = "2021-05-20"
+
+# Take profit level variations
+#take_profit_variants =
+# take_profit_levels = [0.25, 0.5, 0.9] # to use outside of control, test a, etc.
 
 # Sheet columns for the Gsheet
 sheet_columns = [
@@ -43,6 +45,7 @@ sheet_columns = [
     "test_d_price",
     "test_d_exit_date",
     "test_d_result_%",
+    "test_e_exit_date",
     "test_e_result_%",
     "max_level_reached",
     "comments",
@@ -51,6 +54,7 @@ sheet_columns = [
     "time_in_trade_test_b",
     "time_in_trade_test_c",
     "time_in_trade_test_d",
+    "time_in_trade_test_e",
 ]
 
 
@@ -253,8 +257,9 @@ if __name__ == "__main__":
 
     #### Iterations finished
 
-
     ##### More complex implementation - various options on threshold levels
+
+
 
     ##### Finalisation
     # write the output to a dataframe and a spreadsheet
