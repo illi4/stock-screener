@@ -125,6 +125,119 @@ def convert_types(ws):
 
     return ws
 
+class simulation:
+    def __init__(self, capital):
+        self.current_capital = capital
+        self.minimum_value = capital
+        self.positions_held = 0
+        self.current_positions = set()
+        self.capital_values = []
+        self.winning_trades_number, self.losing_trades_number = 0, 0
+        self.winning_trades, self.losing_trades = [], []
+        self.worst_trade_adjusted, self.best_trade_adjusted = 0, 0
+        self.balances = dict()
+        self.capital_values.append(self.current_capital)
+
+    def snapshot_balance(self, current_date_dt):
+        self.balances[
+            current_date_dt.strftime("%d/%m/%Y")
+        ] = self.current_capital  # for the end date
+        print("result:", self.balances)
+
+
+def add_entry_no_profit_thresholds(sim, stock):
+    if len(sim.current_positions) + 1 > current_simultaneous_positions:
+        print(f"max possible positions held, skipping {stock}")
+    else:
+        sim.positions_held += 1
+        sim.current_positions.add(stock)
+        print(
+            "-> entry",
+            stock,
+            "| positions held",
+            sim.positions_held,
+        )
+        print(f"accounting for the trade price: ${commission}")
+        sim.current_capital -= commission
+
+
+def add_exit_no_profit_thresholds(sim, stock, result):
+    if stock in sim.current_positions:
+        sim.current_positions.remove(stock)
+        sim.positions_held -= 1
+
+        if result >= 0:
+            sim.winning_trades_number += 1
+            sim.winning_trades.append(result)
+            if (sim.best_trade_adjusted is None) or (
+                    result / current_simultaneous_positions
+                    > sim.best_trade_adjusted
+            ):
+                sim.best_trade_adjusted = (
+                        result / current_simultaneous_positions
+                )
+        elif result < 0:
+            sim.losing_trades_number += 1
+            sim.losing_trades.append(result)
+            if (sim.worst_trade_adjusted is None) or (
+                    result / current_simultaneous_positions
+                    < sim.worst_trade_adjusted
+            ):
+                sim.worst_trade_adjusted = (
+                        result / current_simultaneous_positions
+                )
+
+        print(
+            f'-> exit {stock} | result: {result:.2%} | positions held {sim.positions_held}'
+        )
+        sim.current_capital = sim.current_capital * (
+                1
+                + elem[f"{current_variant}_result_%"]
+                / current_simultaneous_positions
+        )
+        print(f"accounting for the trade price: ${commission}")
+        sim.current_capital -= commission
+        print(f"balance: ${sim.current_capital}")
+        sim.capital_values.append(sim.current_capital)
+
+
+def calculate_metrics(sim, capital):
+    growth = (sim.current_capital - capital) / capital
+    win_rate = (sim.winning_trades_number) / (
+            sim.winning_trades_number + sim.losing_trades_number
+    )
+    max_drawdown = calculate_max_drawdown(sim.capital_values)
+    return growth, win_rate, max_drawdown
+
+
+def print_metrics(growth, win_rate, max_drawdown, sim):
+    print(f"capital growth/loss: {growth:.2%}")
+    print(
+        f"win rate: {win_rate:.2%} | winning_trades: {sim.winning_trades_number} | losing trades: {sim.losing_trades_number}"
+    )
+    print(
+        f"best trade (adjusted for sizing) {sim.best_trade_adjusted:.2%} | worst trade (adjusted for sizing) {sim.worst_trade_adjusted:.2%}"
+    )
+    print(f"max_drawdown: {max_drawdown}:.2%")
+
+
+def update_results_dict(results_dict, growth, win_rate, max_drawdown, sim, current_simultaneous_positions, current_variant):
+    result_current_dict = dict(
+        growth=growth * 100,
+        win_rate=win_rate * 100,
+        winning_trades_number=sim.winning_trades_number,
+        losing_trades_number=sim.losing_trades_number,
+        best_trade_adjusted=sim.best_trade_adjusted * 100,
+        worst_trade_adjusted=sim.worst_trade_adjusted * 100,
+        max_drawdown=max_drawdown * 100,
+        simultaneous_positions=current_simultaneous_positions,
+        variant_group=current_variant,
+    )
+    results_dict[
+        f"{current_variant}_{current_simultaneous_positions}pos"
+    ] = result_current_dict
+    return results_dict
+
 
 if __name__ == "__main__":
 
@@ -138,23 +251,12 @@ if __name__ == "__main__":
     # Dict to hold all the results
     results_dict = dict()
 
-    # Iterating through days and simulations
-    ### Iterate and check for entries / exits in a day depending on the variant ###
-    ### One off exercise so no need to beautify and do proper functional stuff
+    # > Iterating through days and variants for the fixed TP levels per the control & spreadsheet
     for current_variant in variant_names:
         for current_simultaneous_positions in simultaneous_positions:
 
-            current_capital = capital
-            positions_held = 0
-            current_positions = set()
-            capital_values = []
-            capital_values.append(current_capital)
-
-            # Stuff for stats
-            winning_trades_number, losing_trades_number = 0, 0
-            minimum_value = current_capital
-            winning_trades, losing_trades = [], []
-            worst_trade_adjusted, best_trade_adjusted = 0, 0
+            # Initiate the simulation object
+            sim = simulation(capital)
 
             # Starting for a variant
             print(f"simulating {current_variant.lower()}")
@@ -163,8 +265,7 @@ if __name__ == "__main__":
             current_date_dt = start_date_dt
 
             # Balance for the start of the period which will then be updated
-            balances = dict()
-            balances[start_date_dt.strftime("%d/%m/%Y")] = current_capital
+            sim.balances[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
 
             # Iterating over days
             while current_date_dt < end_date_dt:
@@ -174,108 +275,36 @@ if __name__ == "__main__":
                 current_date_month = current_date_dt.strftime("%m")
 
                 if previous_date_month != current_date_month:
-                    balances[current_date_dt.strftime("%d/%m/%Y")] = current_capital
+                    sim.balances[current_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
 
-                print(current_date_dt, "| positions: ", current_positions)
+                print(current_date_dt, "| positions: ", sim.current_positions)
+
+                # Entries
                 day_entries = ws.loc[ws["entry_date"] == current_date_dt]
                 for key, elem in day_entries.iterrows():
+                    add_entry_no_profit_thresholds(sim, elem['stock'])
 
-                    if len(current_positions) + 1 > current_simultaneous_positions:
-                        print(f"max possible positions held, skipping {elem['stock']}")
-                    else:
-                        positions_held += 1
-                        current_positions.add(elem["stock"])
-                        print(
-                            "-> entry",
-                            elem["stock"],
-                            "| positions held",
-                            positions_held,
-                        )
-                        print(f"accounting for the trade price: ${commission}")
-                        current_capital -= commission
-
+                # Exits
                 day_exits = ws.loc[
                     ws[f"{current_variant}_exit_date"] == current_date_dt
                 ]
                 for key, elem in day_exits.iterrows():
-                    if elem["stock"] in current_positions:
-                        current_positions.remove(elem["stock"])
-                        positions_held -= 1
-                        result = elem[f"{current_variant}_result_%"]
+                    add_exit_no_profit_thresholds(sim, elem["stock"], elem[f"{current_variant}_result_%"])
 
-                        if result >= 0:
-                            winning_trades_number += 1
-                            winning_trades.append(result)
-                            if (best_trade_adjusted is None) or (
-                                result / current_simultaneous_positions
-                                > best_trade_adjusted
-                            ):
-                                best_trade_adjusted = (
-                                    result / current_simultaneous_positions
-                                )
-                        elif result < 0:
-                            losing_trades_number += 1
-                            losing_trades.append(result)
-                            if (worst_trade_adjusted is None) or (
-                                result / current_simultaneous_positions
-                                < worst_trade_adjusted
-                            ):
-                                worst_trade_adjusted = (
-                                    result / current_simultaneous_positions
-                                )
+            # Add the final balance at the end of the date
+            sim.snapshot_balance(current_date_dt)
 
-                        print(
-                            f'-> exit {elem["stock"]} | result: {result:.2%} | positions held {positions_held}'
-                        )
-                        current_capital = current_capital * (
-                            1
-                            + elem[f"{current_variant}_result_%"]
-                            / current_simultaneous_positions
-                        )
-                        print(f"accounting for the trade price: ${commission}")
-                        current_capital -= commission
-                        print(f"balance: ${current_capital}")
-                        capital_values.append(current_capital)
+            # Calculate metrics and print the results
+            growth, win_rate, max_drawdown = calculate_metrics(sim, capital)
+            print_metrics(growth, win_rate, max_drawdown, sim)
 
-            balances[
-                current_date_dt.strftime("%d/%m/%Y")
-            ] = current_capital  # for the end date
-            print("result:", balances)
+            # Saving the result in the overall dictionary
+            results_dict = update_results_dict(results_dict, growth, win_rate, max_drawdown, sim, current_simultaneous_positions, current_variant)
 
-            # other metrics
-            growth = (current_capital - capital) / capital
-            win_rate = (winning_trades_number) / (
-                winning_trades_number + losing_trades_number
-            )
-            print(f"capital growth/loss: {growth:.2%}")
-            print(
-                f"win rate: {win_rate:.2%} | winning_trades: {winning_trades_number} | losing trades: {losing_trades_number}"
-            )
-            print(
-                f"best trade (adjusted for sizing) {best_trade_adjusted:.2%} | worst trade (adjusted for sizing) {worst_trade_adjusted:.2%}"
-            )
-            max_drawdown = calculate_max_drawdown(capital_values)
-            print(f"max_drawdown: {max_drawdown}:.2%")
 
-            # saving the result
-            result_current_dict = dict(
-                growth=growth * 100,
-                win_rate=win_rate * 100,
-                winning_trades_number=winning_trades_number,
-                losing_trades_number=losing_trades_number,
-                best_trade_adjusted=best_trade_adjusted * 100,
-                worst_trade_adjusted=worst_trade_adjusted * 100,
-                max_drawdown=max_drawdown * 100,
-                simultaneous_positions=current_simultaneous_positions,
-                variant_group=current_variant,
-            )
-            results_dict[
-                f"{current_variant}_{current_simultaneous_positions}pos"
-            ] = result_current_dict
+    # < Finished iterating
 
-    #### Iteration finished
-
-    ##### More complex implementation - various options on threshold levels # TODO FINISH - FOLLOWING STEPS HERE
+    ##### More complex implementation - various options on threshold levels # TO CLEANUP HERE
     # Need to grab prices for all stocks involved in the period
     stock_names = [item.stock for key, item in ws.iterrows()]
     stock_prices = dict()
