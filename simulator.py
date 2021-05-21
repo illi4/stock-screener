@@ -322,7 +322,15 @@ if __name__ == "__main__":
         print(current_date_dt, "| positions: ", current_positions, "| left of entries:", left_of_initial_entries)
 
         # For each day, need to check the current positions and whether the position reached a threshold
-        # ...
+        # Note: also need to consider the entry date
+        for position in current_positions:
+            current_df = stock_prices[position][0]
+            #print(f"!{current_df['timestamp']}")
+            current_row = ws.loc[ws["entry_date"] == current_date_dt]
+            #curr_row = current_df.loc[current_df["timestamp"] == current_date_dt]
+            #print(f"!{curr_row}") # to continue here
+            exit(0)
+
 
         # Entries
         day_entries = ws.loc[ws["entry_date"] == current_date_dt]
