@@ -125,6 +125,7 @@ def convert_types(ws):
 
     return ws
 
+
 class simulation:
     def __init__(self, capital):
         self.current_capital = capital
@@ -170,30 +171,22 @@ def add_exit_no_profit_thresholds(sim, stock, result):
             sim.winning_trades_number += 1
             sim.winning_trades.append(result)
             if (sim.best_trade_adjusted is None) or (
-                    result / current_simultaneous_positions
-                    > sim.best_trade_adjusted
+                result / current_simultaneous_positions > sim.best_trade_adjusted
             ):
-                sim.best_trade_adjusted = (
-                        result / current_simultaneous_positions
-                )
+                sim.best_trade_adjusted = result / current_simultaneous_positions
         elif result < 0:
             sim.losing_trades_number += 1
             sim.losing_trades.append(result)
             if (sim.worst_trade_adjusted is None) or (
-                    result / current_simultaneous_positions
-                    < sim.worst_trade_adjusted
+                result / current_simultaneous_positions < sim.worst_trade_adjusted
             ):
-                sim.worst_trade_adjusted = (
-                        result / current_simultaneous_positions
-                )
+                sim.worst_trade_adjusted = result / current_simultaneous_positions
 
         print(
-            f'-> exit {stock} | result: {result:.2%} | positions held {sim.positions_held}'
+            f"-> exit {stock} | result: {result:.2%} | positions held {sim.positions_held}"
         )
         sim.current_capital = sim.current_capital * (
-                1
-                + elem[f"{current_variant}_result_%"]
-                / current_simultaneous_positions
+            1 + elem[f"{current_variant}_result_%"] / current_simultaneous_positions
         )
         print(f"accounting for the trade price: ${commission}")
         sim.current_capital -= commission
@@ -204,7 +197,7 @@ def add_exit_no_profit_thresholds(sim, stock, result):
 def calculate_metrics(sim, capital):
     growth = (sim.current_capital - capital) / capital
     win_rate = (sim.winning_trades_number) / (
-            sim.winning_trades_number + sim.losing_trades_number
+        sim.winning_trades_number + sim.losing_trades_number
     )
     max_drawdown = calculate_max_drawdown(sim.capital_values)
     return growth, win_rate, max_drawdown
@@ -221,7 +214,15 @@ def print_metrics(growth, win_rate, max_drawdown, sim):
     print(f"max_drawdown: {max_drawdown}:.2%")
 
 
-def update_results_dict(results_dict, growth, win_rate, max_drawdown, sim, current_simultaneous_positions, current_variant):
+def update_results_dict(
+    results_dict,
+    growth,
+    win_rate,
+    max_drawdown,
+    sim,
+    current_simultaneous_positions,
+    current_variant,
+):
     result_current_dict = dict(
         growth=growth * 100,
         win_rate=win_rate * 100,
@@ -275,21 +276,25 @@ if __name__ == "__main__":
                 current_date_month = current_date_dt.strftime("%m")
 
                 if previous_date_month != current_date_month:
-                    sim.balances[current_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
+                    sim.balances[
+                        current_date_dt.strftime("%d/%m/%Y")
+                    ] = sim.current_capital
 
                 print(current_date_dt, "| positions: ", sim.current_positions)
 
                 # Entries
                 day_entries = ws.loc[ws["entry_date"] == current_date_dt]
                 for key, elem in day_entries.iterrows():
-                    add_entry_no_profit_thresholds(sim, elem['stock'])
+                    add_entry_no_profit_thresholds(sim, elem["stock"])
 
                 # Exits
                 day_exits = ws.loc[
                     ws[f"{current_variant}_exit_date"] == current_date_dt
                 ]
                 for key, elem in day_exits.iterrows():
-                    add_exit_no_profit_thresholds(sim, elem["stock"], elem[f"{current_variant}_result_%"])
+                    add_exit_no_profit_thresholds(
+                        sim, elem["stock"], elem[f"{current_variant}_result_%"]
+                    )
 
             # Add the final balance at the end of the date
             sim.snapshot_balance(current_date_dt)
@@ -299,8 +304,15 @@ if __name__ == "__main__":
             print_metrics(growth, win_rate, max_drawdown, sim)
 
             # Saving the result in the overall dictionary
-            results_dict = update_results_dict(results_dict, growth, win_rate, max_drawdown, sim, current_simultaneous_positions, current_variant)
-
+            results_dict = update_results_dict(
+                results_dict,
+                growth,
+                win_rate,
+                max_drawdown,
+                sim,
+                current_simultaneous_positions,
+                current_variant,
+            )
 
     # < Finished iterating
 
