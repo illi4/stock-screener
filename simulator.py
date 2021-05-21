@@ -138,11 +138,13 @@ if __name__ == "__main__":
     # Dict to hold all the results
     results_dict = dict()
 
-    '''
     # Iterating through days and simulations
     ### Iterate and check for entries / exits in a day depending on the variant ###
     for current_variant in variant_names:
         for current_simultaneous_positions in simultaneous_positions:
+
+            ###TO TEST. ADD THE CYCLE BACK.
+
             current_capital = capital
             positions_held = 0
             current_positions = set()
@@ -262,7 +264,7 @@ if __name__ == "__main__":
                 variant_group=current_variant
             )
             results_dict[f"{current_variant}_{current_simultaneous_positions}pos"] = result_current_dict
-    '''
+
     #### Iterations finished
 
     ##### More complex implementation - various options on threshold levels # TODO FINISH - FOLLOWING STEPS HERE
@@ -276,10 +278,11 @@ if __name__ == "__main__":
         stock_prices[stock] = stock_info
 
 
-    # >>> Similar iterations like for control, but with dynamic thresholds
+    # >>> Similar iterations like for control, but with dynamic thresholds #HERE#
+    # DOESNT SEEM TO BE WORKING FINE, CONTINUE CHECKING WHY
     # Need to track the entry price and exit with a part of a position
     # ...
-    current_tp_variant = [0.25, 0.5, 0.9]  # this could have 3 or more values, would need to maintain dict per asset
+    current_tp_variant = [0.25, 0.45, 0.9]  # this could have 3 or more values, would need to maintain dict per asset
     current_tp_variant_name = 'xxx'
     current_simultaneous_positions = 4  # for testing
 
@@ -307,6 +310,7 @@ if __name__ == "__main__":
 
     # How much of a position is left and entry prices - this is required for partial exits tracking
     left_of_initial_entries = dict()
+    thresholds_reached = dict()  # for the thresholds reached
     entry_prices = dict() # here
 
     # Iterating over days
@@ -337,20 +341,23 @@ if __name__ == "__main__":
                 # on the entry, we have the full position
                 left_of_initial_entries[elem["stock"]] = 1
                 entry_prices[elem["stock"]] = elem['entry_price_actual']
+                # also, on the entry we initiate the dict of thresholds hit for the item
+                # they will then be populated with like (0.25, ...)
+                thresholds_reached[elem["stock"]] = set()  # appropriate as each would only be there once
+
 
         # For each day, need to check the current positions and whether the position reached a threshold
         # Note: also need to consider the entry date
         for position in current_positions:
             current_df = stock_prices[position][0]
-            #print(f"!{current_df['timestamp']}")
-            #current_row = ws.loc[ws["entry_date"] == current_date_dt]
             curr_row = current_df.loc[current_df["timestamp"] == current_date_dt]
-            print(f"Current high for {position} {curr_row['high'].iloc[0]} \nEntry: {entry_prices[position]}") # to continue here
-            # When it is reaching higher level  -> check if already reached. If not - mark as reached, get partial profit
-            # into another dictionary
-            # , and also decrease position on 1/(N of total thresholds+1) e.g. for 3 levels we sell 1/4th
-            # position size will then be used in defining the cap gain
-            exit(0)
+            if not curr_row.empty:
+                print(f"Current high for {position} {curr_row['high'].iloc[0]} | entry: {entry_prices[position]}") # to continue here
+                for each_threshold in current_tp_variant:
+                    #print(f"Checking the {each_threshold} threshold: {curr_row['high'].iloc[0]} vs {entry_prices[position]*(1+each_threshold)}")
+                    if curr_row['high'].iloc[0] > entry_prices[position]*(1+each_threshold):
+                        thresholds_reached[position].add(each_threshold)
+                        print("-- reached", each_threshold)
 
         # Exits
         day_exits = ws.loc[ws[f"control_exit_date"] == current_date_dt]
@@ -358,7 +365,25 @@ if __name__ == "__main__":
             if elem["stock"] in current_positions:
                 current_positions.remove(elem["stock"])
                 positions_held -= 1
-                result = elem[f"control_result_%"]
+
+                # check what thresholds were reached. use entry and exit price and thresholds reached
+                print(thresholds_reached[position])
+                number_thresholds_total = len(current_tp_variant)
+                number_thresholds_reached = len(thresholds_reached[position])
+                divisor = number_thresholds_total+1
+                portion_not_from_thresholds = divisor - number_thresholds_reached
+
+                absolute_price_result = (elem[f"exit_price_actual"] - elem[f"entry_price_actual"]) / elem[
+                    f"entry_price_actual"]
+                result = absolute_price_result * portion_not_from_thresholds / divisor
+                print(f'Price change result for {position}: {result}')
+                print(
+                    f"Thresholds reached ({position}): {thresholds_reached[position]}: {number_thresholds_reached} of {number_thresholds_total}")
+
+                for threshold_reached in thresholds_reached[position]:
+                    result += threshold_reached/divisor
+
+                print(f"Result ({position}) accounting for thresholds reached: {result}")
 
                 if result >= 0:
                     winning_trades_number += 1
@@ -381,13 +406,11 @@ if __name__ == "__main__":
                                 result / current_simultaneous_positions
                         )
 
-                # delete from the partial positions left
-                left_of_initial_entries.pop(elem["stock"], None)
-
-                # results
                 print(
                     f'-> exit {elem["stock"]} | result: {result:.2%} | positions held {positions_held}'
                 )
+
+                # old logic
                 current_capital = current_capital * (
                         1
                         + elem[f"control_result_%"]
@@ -397,6 +420,13 @@ if __name__ == "__main__":
                 current_capital -= commission
                 print(f"balance: ${current_capital}")
                 capital_values.append(current_capital)
+
+                # delete from the partial positions left, prices, thresholds for the element
+                left_of_initial_entries.pop(elem["stock"], None)
+                thresholds_reached.pop(elem["stock"], None)
+                entry_prices.pop(elem["stock"], None)
+                thresholds_reached[elem["stock"]]=[]
+
 
     balances[
         current_date_dt.strftime("%d/%m/%Y")
@@ -432,8 +462,7 @@ if __name__ == "__main__":
     )
     results_dict[f"control_{current_simultaneous_positions}pos_{current_tp_variant_name}"] = result_current_dict
 
-
-    ## <<< Finished more complex iterations
+    ## <<< Finished more complex iterations - finalise iterating #TODO
 
     ######### Finalisation
     # write the output to a dataframe and a spreadsheet
