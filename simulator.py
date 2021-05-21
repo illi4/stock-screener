@@ -20,12 +20,15 @@ start_date = "2021-04-01"
 end_date = "2021-05-20"
 
 # Take profit level variations
+# Would be used iterating over control with simultaneous_positions variations too
 # Control is 0.25, 0.5, 0.9
 take_profit_variants = {
-    'tp_a':[0.3, 0.5, 0.9],
-    'tp_b':[0.5, 1],
-    'tp_c':[0.15, 0.5, 0.9],
-    'tp_d':[0.5, 1, 1.5],
+    'tp_a':[0.25, 0.5, 0.9],  # this is just to check that I get the same result as in control, to remove
+    'tp_x':[0.15, 0.5, 0.9],  # this - to remove
+    #'tp_a':[0.3, 0.5, 0.9],
+    #'tp_b':[0.5, 1],
+    #'tp_c':[0.15, 0.5, 0.9],
+    #'tp_d':[0.5, 1, 1.5],
 }
 
 # Sheet columns for the Gsheet
@@ -140,8 +143,6 @@ if __name__ == "__main__":
     ### Iterate and check for entries / exits in a day depending on the variant ###
     for current_variant in variant_names:
         for current_simultaneous_positions in simultaneous_positions:
-            # current_variant = "control" # for testing
-            # current_simultaneous_positions = 4 # for testing
             current_capital = capital
             positions_held = 0
             current_positions = set()
@@ -264,7 +265,7 @@ if __name__ == "__main__":
     '''
     #### Iterations finished
 
-    ##### More complex implementation - various options on threshold levels # to complete - here
+    ##### More complex implementation - various options on threshold levels # TODO FINISH - FOLLOWING STEPS HERE
     # Need to grab prices for all stocks involved in the period
     stock_names = [item.stock for key, item in ws.iterrows()]
     stock_prices = dict()
@@ -274,9 +275,154 @@ if __name__ == "__main__":
         stock_info = get_stock_data(f'{stock}{suffix}')
         stock_prices[stock] = stock_info
 
-    # Similar iterations like for control, but with dynamic thresholds
-    # ...
 
+    # >>> Similar iterations like for control, but with dynamic thresholds
+    # Need to track the entry price and exit with a part of a position
+    # ...
+    current_tp_variant = [0.25, 0.5, 0.9]
+    current_tp_variant_name = 'xxx'
+    current_simultaneous_positions = 4  # for testing
+
+    current_capital = capital
+    positions_held = 0
+    current_positions = set()
+    capital_values = []
+    capital_values.append(current_capital)
+
+    # Stuff for stats
+    winning_trades_number, losing_trades_number = 0, 0
+    minimum_value = current_capital
+    winning_trades, losing_trades = [], []
+    worst_trade_adjusted, best_trade_adjusted = 0, 0
+
+    # Starting for a variant
+    print(f"simulating control with TP levels {current_tp_variant}")
+    start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
+    end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
+    current_date_dt = start_date_dt
+
+    # Balance for the start of the period which will then be updated
+    balances = dict()
+    balances[start_date_dt.strftime("%d/%m/%Y")] = current_capital
+
+    # How much of a position is left and entry prices - this is required for partial exits tracking
+    left_of_initial_entries = dict()
+    entry_prices = dict() # here
+
+    # Iterating over days
+    while current_date_dt < end_date_dt:
+
+        previous_date_month = current_date_dt.strftime("%m")
+        current_date_dt = current_date_dt + timedelta(days=1)
+        current_date_month = current_date_dt.strftime("%m")
+
+        if previous_date_month != current_date_month:
+            balances[current_date_dt.strftime("%d/%m/%Y")] = current_capital
+
+        print(current_date_dt, "| positions: ", current_positions, "| left of entries:", left_of_initial_entries)
+
+        # For each day, need to check the current positions and whether the position reached a threshold
+        # ...
+
+        # Entries
+        day_entries = ws.loc[ws["entry_date"] == current_date_dt]
+        for key, elem in day_entries.iterrows():
+
+            if len(current_positions) + 1 > current_simultaneous_positions:
+                print(f"max possible positions held, skipping {elem['stock']}")
+            else:
+                positions_held += 1
+                current_positions.add(elem["stock"])
+                print("-> entry", elem["stock"], "| positions held", positions_held)
+                print(f"-> entry price: {elem['entry_price_actual']}")
+                print(f"accounting for the trade price: ${commission}")
+                current_capital -= commission
+                # on the entry, we have the full position
+                left_of_initial_entries[elem["stock"]] = 1
+                entry_prices[elem["stock"]] = elem['entry_price_actual']
+
+        # Exits
+        day_exits = ws.loc[ws[f"control_exit_date"] == current_date_dt]
+        for key, elem in day_exits.iterrows():  ### this needs to be modified to account for partial exits
+            if elem["stock"] in current_positions:
+                current_positions.remove(elem["stock"])
+                positions_held -= 1
+                result = elem[f"control_result_%"]
+
+                if result >= 0:
+                    winning_trades_number += 1
+                    winning_trades.append(result)
+                    if (best_trade_adjusted is None) or (
+                            result / current_simultaneous_positions
+                            > best_trade_adjusted
+                    ):
+                        best_trade_adjusted = (
+                                result / current_simultaneous_positions
+                        )
+                elif result < 0:
+                    losing_trades_number += 1
+                    losing_trades.append(result)
+                    if (worst_trade_adjusted is None) or (
+                            result / current_simultaneous_positions
+                            < worst_trade_adjusted
+                    ):
+                        worst_trade_adjusted = (
+                                result / current_simultaneous_positions
+                        )
+
+                # delete from the partial positions left
+                left_of_initial_entries.pop(elem["stock"], None)
+
+                # results
+                print(
+                    f'-> exit {elem["stock"]} | result: {result:.2%} | positions held {positions_held}'
+                )
+                current_capital = current_capital * (
+                        1
+                        + elem[f"control_result_%"]
+                        / current_simultaneous_positions
+                )
+                print(f"accounting for the trade price: ${commission}")
+                current_capital -= commission
+                print(f"balance: ${current_capital}")
+                capital_values.append(current_capital)
+
+    balances[
+        current_date_dt.strftime("%d/%m/%Y")
+    ] = current_capital  # for the end date
+    print("result:", balances)
+
+    # other metrics
+    growth = (current_capital - capital) / capital
+    win_rate = (winning_trades_number) / (
+            winning_trades_number + losing_trades_number
+    )
+    print(f"capital growth/loss: {growth:.2%}")
+    print(
+        f"win rate: {win_rate:.2%} | winning_trades: {winning_trades_number} | losing trades: {losing_trades_number}"
+    )
+    print(
+        f"best trade (adjusted for sizing) {best_trade_adjusted:.2%} | worst trade (adjusted for sizing) {worst_trade_adjusted:.2%}"
+    )
+    max_drawdown = calculate_max_drawdown(capital_values)
+    print(f"max_drawdown: {max_drawdown}:.2%")
+
+    # saving the result
+    result_current_dict = dict(
+        growth=growth * 100,
+        win_rate=win_rate * 100,
+        winning_trades_number=winning_trades_number,
+        losing_trades_number=losing_trades_number,
+        best_trade_adjusted=best_trade_adjusted * 100,
+        worst_trade_adjusted=worst_trade_adjusted * 100,
+        max_drawdown=max_drawdown * 100,
+        simultaneous_positions=current_simultaneous_positions,
+        variant_group='control'
+    )
+    results_dict[f"control_{current_simultaneous_positions}pos_{current_tp_variant_name}"] = result_current_dict
+
+
+    ## <<< Finished more complex iterations
 
     ######### Finalisation
     # write the output to a dataframe and a spreadsheet
