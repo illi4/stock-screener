@@ -279,7 +279,7 @@ if __name__ == "__main__":
     # >>> Similar iterations like for control, but with dynamic thresholds
     # Need to track the entry price and exit with a part of a position
     # ...
-    current_tp_variant = [0.25, 0.5, 0.9]
+    current_tp_variant = [0.25, 0.5, 0.9]  # this could have 3 or more values, would need to maintain dict per asset
     current_tp_variant_name = 'xxx'
     current_simultaneous_positions = 4  # for testing
 
@@ -321,17 +321,6 @@ if __name__ == "__main__":
 
         print(current_date_dt, "| positions: ", current_positions, "| left of entries:", left_of_initial_entries)
 
-        # For each day, need to check the current positions and whether the position reached a threshold
-        # Note: also need to consider the entry date
-        for position in current_positions:
-            current_df = stock_prices[position][0]
-            #print(f"!{current_df['timestamp']}")
-            current_row = ws.loc[ws["entry_date"] == current_date_dt]
-            #curr_row = current_df.loc[current_df["timestamp"] == current_date_dt]
-            #print(f"!{curr_row}") # to continue here
-            exit(0)
-
-
         # Entries
         day_entries = ws.loc[ws["entry_date"] == current_date_dt]
         for key, elem in day_entries.iterrows():
@@ -348,6 +337,20 @@ if __name__ == "__main__":
                 # on the entry, we have the full position
                 left_of_initial_entries[elem["stock"]] = 1
                 entry_prices[elem["stock"]] = elem['entry_price_actual']
+
+        # For each day, need to check the current positions and whether the position reached a threshold
+        # Note: also need to consider the entry date
+        for position in current_positions:
+            current_df = stock_prices[position][0]
+            #print(f"!{current_df['timestamp']}")
+            #current_row = ws.loc[ws["entry_date"] == current_date_dt]
+            curr_row = current_df.loc[current_df["timestamp"] == current_date_dt]
+            print(f"Current high for {position} {curr_row['high'].iloc[0]} \nEntry: {entry_prices[position]}") # to continue here
+            # When it is reaching higher level  -> check if already reached. If not - mark as reached, get partial profit
+            # into another dictionary
+            # , and also decrease position on 1/(N of total thresholds+1) e.g. for 3 levels we sell 1/4th
+            # position size will then be used in defining the cap gain
+            exit(0)
 
         # Exits
         day_exits = ws.loc[ws[f"control_exit_date"] == current_date_dt]
