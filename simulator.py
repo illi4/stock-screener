@@ -139,6 +139,7 @@ class simulation:
         self.balances = dict()
         self.capital_values.append(self.current_capital)
         self.growth, self.win_rate, self.max_drawdown = None, None, None
+        # For thresholds 
 
     def snapshot_balance(self, current_date_dt):
         self.balances[
@@ -219,6 +220,7 @@ def update_results_dict(
     sim,
     current_simultaneous_positions,
     current_variant,
+    extra_suffix=''
 ):
     result_current_dict = dict(
         growth=sim.growth * 100,
@@ -232,7 +234,7 @@ def update_results_dict(
         variant_group=current_variant,
     )
     results_dict[
-        f"{current_variant}_{current_simultaneous_positions}pos"
+        f"{current_variant}_{current_simultaneous_positions}pos{extra_suffix}"
     ] = result_current_dict
     return results_dict
 
@@ -346,7 +348,7 @@ if __name__ == "__main__":
             # How much of a position is left and entry prices - this is required for partial exits tracking
             left_of_initial_entries = dict()
             thresholds_reached = dict()  # for the thresholds reached
-            entry_prices = dict()  # here
+            entry_prices = dict()  # for the entry prices
 
             # Iterating over days
             while current_date_dt < end_date_dt:
@@ -384,9 +386,11 @@ if __name__ == "__main__":
                         print(f"-> entry price: {elem['entry_price_actual']}")
                         print(f"accounting for the trade price: ${commission}")
                         sim.current_capital -= commission
+
                         # on the entry, we have the full position
                         left_of_initial_entries[elem["stock"]] = 1
                         entry_prices[elem["stock"]] = elem["entry_price_actual"]
+
                         # also, on the entry we initiate the dict of thresholds hit for the item
                         # they will then be populated with like (0.25, ...)
                         thresholds_reached[
@@ -497,41 +501,21 @@ if __name__ == "__main__":
                         entry_prices.pop(elem["stock"], None)
                         thresholds_reached[elem["stock"]] = []
 
-            balances[
-                current_date_dt.strftime("%d/%m/%Y")
-            ] = sim.current_capital  # for the end date
-            print("result:", balances)
+            # Add the final balance at the end of the date
+            sim.snapshot_balance(current_date_dt)
 
-            # other metrics
-            sim.growth = (sim.current_capital - capital) / capital
-            sim.win_rate = (sim.winning_trades_number) / (
-                sim.winning_trades_number + sim.losing_trades_number
-            )
-            print(f"capital growth/loss: {sim.growth:.2%}")
-            print(
-                f"win rate: {sim.win_rate:.2%} | winning_trades: {sim.winning_trades_number} | losing trades: {sim.losing_trades_number}"
-            )
-            print(
-                f"best trade (adjusted for sizing) {sim.best_trade_adjusted:.2%} | worst trade (adjusted for sizing) {sim.worst_trade_adjusted:.2%}"
-            )
-            sim.max_drawdown = calculate_max_drawdown(sim.capital_values)
-            print(f"max_drawdown: {sim.max_drawdown}:.2%")
+            # Calculate metrics and print the results
+            calculate_metrics(sim, capital)
+            print_metrics(sim)
 
-            # saving the result
-            result_current_dict = dict(
-                growth=sim.growth * 100,
-                win_rate=sim.win_rate * 100,
-                winning_trades_number=sim.winning_trades_number,
-                losing_trades_number=sim.losing_trades_number,
-                best_trade_adjusted=sim.best_trade_adjusted * 100,
-                worst_trade_adjusted=sim.worst_trade_adjusted * 100,
-                max_drawdown=sim.max_drawdown * 100,
-                simultaneous_positions=current_simultaneous_positions,
-                variant_group="control",
+            # Saving the result in the overall dictionary
+            results_dict = update_results_dict(
+                results_dict,
+                sim,
+                current_simultaneous_positions,
+                current_variant,
+                extra_suffix=f"_tp{current_tp_variant_name}"
             )
-            results_dict[
-                f"control_{current_simultaneous_positions}pos_{current_tp_variant_name}"
-            ] = result_current_dict
 
             # iteration done
 
