@@ -1,6 +1,5 @@
 # Simulates trading progress and results over time using a spreadsheet with various considerations
 # Will save the result to simulator_result.csv
-# One-off exercise so no need to beautify
 import libs.gsheetobj as gsheetsobj
 from libs.settings import gsheet_name
 import pandas as pd
@@ -421,8 +420,7 @@ if __name__ == "__main__":
 
     # < Finished iterating
 
-    ##### More complex implementation - various options on threshold levels # TO CLEANUP HERE
-    # Need to grab prices for all stocks involved in the period
+    # > Iterating through days and variants for the dynamic TP levels
     stock_names = [item.stock for key, item in ws.iterrows()]
     stock_prices = dict()
     suffix = get_stock_suffix(exchange)
@@ -430,9 +428,6 @@ if __name__ == "__main__":
         print(f"getting stock data for {stock}{suffix}")
         stock_info = get_stock_data(f"{stock}{suffix}")
         stock_prices[stock] = stock_info
-
-    # >>> Similar iterations like for control, but with dynamic thresholds
-    # Need to track the entry price and exit with a part of a position
 
     for current_tp_variant_name, current_tp_variant in take_profit_variants.items():
         for current_simultaneous_positions in simultaneous_positions:
@@ -508,11 +503,9 @@ if __name__ == "__main__":
                 extra_suffix=f"_tp{current_tp_variant_name}",
             )
 
-            # iteration done
+    # < Finished iterating
 
-    ## <<< Finished more complex iterations
-
-    ######### Finalisation
+    # Finalisation
     # Write the output to a dataframe and a spreadsheet
     resulting_dataframes = []
     for k, v in results_dict.items():
@@ -541,3 +534,4 @@ if __name__ == "__main__":
 
     # save to csv
     final_result.to_csv("simulator_result.csv", index=False)
+    print("results saved to simulator_result.csv")
