@@ -144,13 +144,11 @@ class simulation:
         self.thresholds_reached = dict()  # for the thresholds reached
         self.entry_prices = dict()  # for the entry prices
 
-
     def snapshot_balance(self, current_date_dt):
         self.balances[
             current_date_dt.strftime("%d/%m/%Y")
         ] = self.current_capital  # for the end date
         print("result:", self.balances)
-
 
     def remove_stock_traces(self, stock):
         sim.left_of_initial_entries.pop(stock, None)
@@ -227,11 +225,7 @@ def print_metrics(sim):
 
 
 def update_results_dict(
-    results_dict,
-    sim,
-    current_simultaneous_positions,
-    current_variant,
-    extra_suffix=''
+    results_dict, sim, current_simultaneous_positions, current_variant, extra_suffix=""
 ):
     result_current_dict = dict(
         growth=sim.growth * 100,
@@ -275,6 +269,83 @@ def add_entry_with_profit_thresholds(sim, stock, entry_price_actual):
         sim.thresholds_reached[
             stock
         ] = set()  # appropriate as each would only be there once
+
+
+def thresholds_check(sim, stock_prices, current_date_dt):
+    for position in sim.current_positions:
+        current_df = stock_prices[position][0]
+        curr_row = current_df.loc[current_df["timestamp"] == current_date_dt]
+        if not curr_row.empty:
+            print(
+                f"Current high for {position} {curr_row['high'].iloc[0]} | entry: {sim.entry_prices[position]}"
+            )
+            for each_threshold in current_tp_variant:
+                if curr_row["high"].iloc[0] > sim.entry_prices[position] * (
+                    1 + each_threshold
+                ):
+                    sim.thresholds_reached[position].add(each_threshold)
+                    print("-- reached", each_threshold)
+
+
+def add_exit_with_profit_thresholds(
+    sim, stock, entry_price_actual, exit_price_actual, control_result_percent
+):
+    if stock in sim.current_positions:
+        position = stock
+        sim.current_positions.remove(stock)
+        sim.positions_held -= 1
+
+        # check what thresholds were reached. use entry and exit price and thresholds reached
+        print(sim.thresholds_reached[position])
+        number_thresholds_total = len(current_tp_variant)
+        number_thresholds_reached = len(sim.thresholds_reached[position])
+        divisor = number_thresholds_total + 1
+        portion_not_from_thresholds = divisor - number_thresholds_reached
+
+        absolute_price_result = (
+            exit_price_actual - entry_price_actual
+        ) / entry_price_actual
+        result = absolute_price_result * portion_not_from_thresholds / divisor
+        print(f"Price change result for {position}: {result}")
+        print(
+            f"Thresholds reached ({position}): {sim.thresholds_reached[position]}: {number_thresholds_reached} of {number_thresholds_total}"
+        )
+
+        for threshold_reached in sim.thresholds_reached[position]:
+            result += threshold_reached / divisor
+
+        print(f"Result ({position}) accounting for thresholds reached: {result}")
+
+        if result >= 0:
+            sim.winning_trades_number += 1
+            sim.winning_trades.append(result)
+            if (sim.best_trade_adjusted is None) or (
+                result / current_simultaneous_positions > sim.best_trade_adjusted
+            ):
+                sim.best_trade_adjusted = result / current_simultaneous_positions
+                print(f"best_trade_adjusted is now {sim.best_trade_adjusted}")
+        elif result < 0:
+            sim.losing_trades_number += 1
+            sim.losing_trades.append(result)
+            if (sim.worst_trade_adjusted is None) or (
+                result / current_simultaneous_positions < sim.worst_trade_adjusted
+            ):
+                sim.worst_trade_adjusted = result / current_simultaneous_positions
+
+        print(
+            f"-> exit {stock} | result: {result:.2%} | positions held {sim.positions_held}"
+        )
+
+        sim.current_capital = sim.current_capital * (
+            1 + control_result_percent / current_simultaneous_positions
+        )
+        print(f"accounting for the trade price: ${commission}")
+        sim.current_capital -= commission
+        print(f"balance: ${sim.current_capital}")
+        sim.capital_values.append(sim.current_capital)
+
+        # Delete from the partial positions left, prices, thresholds for the element
+        sim.remove_stock_traces(elem["stock"])
 
 
 if __name__ == "__main__":
@@ -400,110 +471,26 @@ if __name__ == "__main__":
                 # Entries
                 day_entries = ws.loc[ws["entry_date"] == current_date_dt]
                 for key, elem in day_entries.iterrows():
-                    add_entry_with_profit_thresholds(sim, elem["stock"], elem['entry_price_actual'])
-
+                    add_entry_with_profit_thresholds(
+                        sim, elem["stock"], elem["entry_price_actual"]
+                    )
 
                 # For each day, need to check the current positions and whether the position reached a threshold
-                # Note: also need to consider the entry date
-                for position in sim.current_positions:
-                    current_df = stock_prices[position][0]
-                    curr_row = current_df.loc[
-                        current_df["timestamp"] == current_date_dt
-                    ]
-                    if not curr_row.empty:
-                        print(
-                            f"Current high for {position} {curr_row['high'].iloc[0]} | entry: {sim.entry_prices[position]}"
-                        )  # to continue here
-                        for each_threshold in current_tp_variant:
-                            # print(f"Checking the {each_threshold} threshold: {curr_row['high'].iloc[0]} vs {entry_prices[position]*(1+each_threshold)}")
-                            if curr_row["high"].iloc[0] > sim.entry_prices[position] * (
-                                1 + each_threshold
-                            ):
-                                sim.thresholds_reached[position].add(each_threshold)
-                                print("-- reached", each_threshold)
+                thresholds_check(sim, stock_prices, current_date_dt)
 
                 # Exits
                 day_exits = ws.loc[ws[f"control_exit_date"] == current_date_dt]
                 for (
                     key,
                     elem,
-                ) in (
-                    day_exits.iterrows()
-                ):  ### this needs to be modified to account for partial exits
-                    if elem["stock"] in sim.current_positions:
-                        position = elem["stock"]
-                        sim.current_positions.remove(elem["stock"])
-                        sim.positions_held -= 1
-
-                        # check what thresholds were reached. use entry and exit price and thresholds reached
-                        print(sim.thresholds_reached[position])
-                        number_thresholds_total = len(current_tp_variant)
-                        number_thresholds_reached = len(sim.thresholds_reached[position])
-                        divisor = number_thresholds_total + 1
-                        portion_not_from_thresholds = (
-                            divisor - number_thresholds_reached
-                        )
-
-                        absolute_price_result = (
-                            elem[f"exit_price_actual"] - elem[f"entry_price_actual"]
-                        ) / elem[f"entry_price_actual"]
-                        result = (
-                            absolute_price_result
-                            * portion_not_from_thresholds
-                            / divisor
-                        )
-                        print(f"Price change result for {position}: {result}")
-                        print(
-                            f"Thresholds reached ({position}): {sim.thresholds_reached[position]}: {number_thresholds_reached} of {number_thresholds_total}"
-                        )
-
-                        for threshold_reached in sim.thresholds_reached[position]:
-                            result += threshold_reached / divisor
-
-                        print(
-                            f"Result ({position}) accounting for thresholds reached: {result}"
-                        )
-
-                        if result >= 0:
-                            sim.winning_trades_number += 1
-                            sim.winning_trades.append(result)
-                            if (sim.best_trade_adjusted is None) or (
-                                result / current_simultaneous_positions
-                                > sim.best_trade_adjusted
-                            ):
-                                sim.best_trade_adjusted = (
-                                    result / current_simultaneous_positions
-                                )
-                                print(
-                                    f"best_trade_adjusted is now {sim.best_trade_adjusted}"
-                                )
-                        elif result < 0:
-                            sim.losing_trades_number += 1
-                            sim.losing_trades.append(result)
-                            if (sim.worst_trade_adjusted is None) or (
-                                result / current_simultaneous_positions
-                                < sim.worst_trade_adjusted
-                            ):
-                                sim.worst_trade_adjusted = (
-                                    result / current_simultaneous_positions
-                                )
-
-                        print(
-                            f'-> exit {elem["stock"]} | result: {result:.2%} | positions held {sim.positions_held}'
-                        )
-
-                        sim.current_capital = sim.current_capital * (
-                            1
-                            + elem[f"control_result_%"] / current_simultaneous_positions
-                        )
-                        print(f"accounting for the trade price: ${commission}")
-                        sim.current_capital -= commission
-                        print(f"balance: ${sim.current_capital}")
-                        sim.capital_values.append(sim.current_capital)
-
-                        # Delete from the partial positions left, prices, thresholds for the element
-                        sim.remove_stock_traces(elem["stock"])
-
+                ) in day_exits.iterrows():
+                    add_exit_with_profit_thresholds(
+                        sim,
+                        elem["stock"],
+                        elem[f"entry_price_actual"],
+                        elem[f"exit_price_actual"],
+                        elem[f"control_result_%"],
+                    )
 
             # Add the final balance at the end of the date
             sim.snapshot_balance(current_date_dt)
@@ -518,7 +505,7 @@ if __name__ == "__main__":
                 sim,
                 current_simultaneous_positions,
                 current_variant,
-                extra_suffix=f"_tp{current_tp_variant_name}"
+                extra_suffix=f"_tp{current_tp_variant_name}",
             )
 
             # iteration done
@@ -526,7 +513,7 @@ if __name__ == "__main__":
     ## <<< Finished more complex iterations
 
     ######### Finalisation
-    # write the output to a dataframe and a spreadsheet
+    # Write the output to a dataframe and a spreadsheet
     resulting_dataframes = []
     for k, v in results_dict.items():
         print(k, v)
