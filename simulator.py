@@ -532,6 +532,9 @@ if __name__ == "__main__":
         ]
     ]
 
+    # just an info bit
+    print(f"Take profit variants tested: {take_profit_variants}")
+
     # save to csv
     final_result.to_csv("simulator_result.csv", index=False)
     print("results saved to simulator_result.csv")
