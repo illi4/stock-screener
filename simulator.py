@@ -28,6 +28,7 @@ take_profit_variants = {
     "tp_b": [0.5, 1],
     "tp_c": [0.15, 0.5, 0.9],
     "tp_d": [0.5, 1, 1.5],
+    "tp_e": [0.25, 0.45, 0.9, 1.45],
 }
 
 # Sheet columns for the Gsheet
@@ -420,7 +421,9 @@ if __name__ == "__main__":
 
     # < Finished iterating
 
-    # > Iterating through days and variants for the dynamic TP levels
+    # > Iterating through days and take profit variants for the dynamic TP levels
+    # Only supported for control but allows to make some conclusions too
+    current_variant = "control"
     stock_names = [item.stock for key, item in ws.iterrows()]
     stock_prices = dict()
     suffix = get_stock_suffix(exchange)
@@ -538,3 +541,5 @@ if __name__ == "__main__":
     # save to csv
     final_result.to_csv("simulator_result.csv", index=False)
     print("results saved to simulator_result.csv")
+    print("NOTE: take profit levels variation is only supported for the control group")
+    print("thus, compare control vs tests and then compare various take profit levels within control")
