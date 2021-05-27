@@ -6,6 +6,8 @@ import pandas as pd
 from datetime import datetime, timedelta
 import numpy as np
 from libs.stocktools import get_stock_suffix, get_stock_data
+import argparse
+parser = argparse.ArgumentParser()
 
 # Settings
 exchange = "ASX"
@@ -65,6 +67,23 @@ sheet_columns = [
     "time_in_trade_test_d",
     "time_in_trade_test_e",
 ]
+
+
+def define_args():
+    # Take profit levels variation is only supported for the control group, thus the modes are different
+    parser.add_argument(
+        "-mode",
+        type=str,
+        required=True,
+        help="Mode to run the simulation in (main|tp). Tp mode is only applied to control.",
+        choices=["main", "tp"],
+    )
+
+    args = parser.parse_args()
+    arguments = vars(args)
+    arguments["mode"] = arguments["mode"].lower()
+
+    return arguments
 
 
 def p2f(s):
@@ -350,6 +369,8 @@ def add_exit_with_profit_thresholds(
 
 if __name__ == "__main__":
 
+    arguments = define_args()
+
     print("reading the values...")
 
     # This is working ok
@@ -361,150 +382,152 @@ if __name__ == "__main__":
     results_dict = dict()
 
     # > Iterating through days and variants for the fixed TP levels per the control & spreadsheet
-    for current_variant in variant_names:
-        for current_simultaneous_positions in simultaneous_positions:
+    if arguments["mode"] == "main":
+        for current_variant in variant_names:
+            for current_simultaneous_positions in simultaneous_positions:
 
-            # Initiate the simulation object
-            sim = simulation(capital)
+                # Initiate the simulation object
+                sim = simulation(capital)
 
-            # Starting for a variant
-            print(f"simulating {current_variant.lower()}")
-            start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
-            end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
-            current_date_dt = start_date_dt
+                # Starting for a variant
+                print(f"simulating {current_variant.lower()}")
+                start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
+                end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
+                current_date_dt = start_date_dt
 
-            # Balance for the start of the period which will then be updated
-            sim.balances[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
+                # Balance for the start of the period which will then be updated
+                sim.balances[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
 
-            # Iterating over days
-            while current_date_dt < end_date_dt:
+                # Iterating over days
+                while current_date_dt < end_date_dt:
 
-                previous_date_month = current_date_dt.strftime("%m")
-                current_date_dt = current_date_dt + timedelta(days=1)
-                current_date_month = current_date_dt.strftime("%m")
+                    previous_date_month = current_date_dt.strftime("%m")
+                    current_date_dt = current_date_dt + timedelta(days=1)
+                    current_date_month = current_date_dt.strftime("%m")
 
-                if previous_date_month != current_date_month:
-                    sim.balances[
-                        current_date_dt.strftime("%d/%m/%Y")
-                    ] = sim.current_capital
+                    if previous_date_month != current_date_month:
+                        sim.balances[
+                            current_date_dt.strftime("%d/%m/%Y")
+                        ] = sim.current_capital
 
-                print(current_date_dt, "| positions: ", sim.current_positions)
+                    print(current_date_dt, "| positions: ", sim.current_positions)
 
-                # Entries
-                day_entries = ws.loc[ws["entry_date"] == current_date_dt]
-                for key, elem in day_entries.iterrows():
-                    add_entry_no_profit_thresholds(sim, elem["stock"])
+                    # Entries
+                    day_entries = ws.loc[ws["entry_date"] == current_date_dt]
+                    for key, elem in day_entries.iterrows():
+                        add_entry_no_profit_thresholds(sim, elem["stock"])
 
-                # Exits
-                day_exits = ws.loc[
-                    ws[f"{current_variant}_exit_date"] == current_date_dt
-                ]
-                for key, elem in day_exits.iterrows():
-                    add_exit_no_profit_thresholds(
-                        sim, elem["stock"], elem[f"{current_variant}_result_%"]
-                    )
+                    # Exits
+                    day_exits = ws.loc[
+                        ws[f"{current_variant}_exit_date"] == current_date_dt
+                    ]
+                    for key, elem in day_exits.iterrows():
+                        add_exit_no_profit_thresholds(
+                            sim, elem["stock"], elem[f"{current_variant}_result_%"]
+                        )
 
-            # Add the final balance at the end of the date
-            sim.snapshot_balance(current_date_dt)
+                # Add the final balance at the end of the date
+                sim.snapshot_balance(current_date_dt)
 
-            # Calculate metrics and print the results
-            calculate_metrics(sim, capital)
-            print_metrics(sim)
+                # Calculate metrics and print the results
+                calculate_metrics(sim, capital)
+                print_metrics(sim)
 
-            # Saving the result in the overall dictionary
-            results_dict = update_results_dict(
-                results_dict,
-                sim,
-                current_simultaneous_positions,
-                current_variant,
-            )
+                # Saving the result in the overall dictionary
+                results_dict = update_results_dict(
+                    results_dict,
+                    sim,
+                    current_simultaneous_positions,
+                    current_variant,
+                )
 
     # < Finished iterating
 
     # > Iterating through days and take profit variants for the dynamic TP levels
     # Only supported for control but allows to make some conclusions too
-    current_variant = "control"
-    stock_names = [item.stock for key, item in ws.iterrows()]
-    stock_prices = dict()
-    suffix = get_stock_suffix(exchange)
-    for stock in stock_names:
-        print(f"getting stock data for {stock}{suffix}")
-        stock_info = get_stock_data(f"{stock}{suffix}")
-        stock_prices[stock] = stock_info
+    if arguments["mode"] == "tp":
+        current_variant = "control"
+        stock_names = [item.stock for key, item in ws.iterrows()]
+        stock_prices = dict()
+        suffix = get_stock_suffix(exchange)
+        for stock in stock_names:
+            print(f"getting stock data for {stock}{suffix}")
+            stock_info = get_stock_data(f"{stock}{suffix}")
+            stock_prices[stock] = stock_info
 
-    for current_tp_variant_name, current_tp_variant in take_profit_variants.items():
-        for current_simultaneous_positions in simultaneous_positions:
+        for current_tp_variant_name, current_tp_variant in take_profit_variants.items():
+            for current_simultaneous_positions in simultaneous_positions:
 
-            # Initiate the simulation object
-            sim = simulation(capital)
+                # Initiate the simulation object
+                sim = simulation(capital)
 
-            # Starting for a variant
-            print(f"simulating control with TP levels {current_tp_variant}")
-            start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
-            end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
-            current_date_dt = start_date_dt
+                # Starting for a variant
+                print(f"simulating control with TP levels {current_tp_variant}")
+                start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
+                end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
+                current_date_dt = start_date_dt
 
-            # Balance for the start of the period which will then be updated
-            balances = dict()
-            balances[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
+                # Balance for the start of the period which will then be updated
+                balances = dict()
+                balances[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
 
-            # Iterating over days
-            while current_date_dt < end_date_dt:
+                # Iterating over days
+                while current_date_dt < end_date_dt:
 
-                previous_date_month = current_date_dt.strftime("%m")
-                current_date_dt = current_date_dt + timedelta(days=1)
-                current_date_month = current_date_dt.strftime("%m")
+                    previous_date_month = current_date_dt.strftime("%m")
+                    current_date_dt = current_date_dt + timedelta(days=1)
+                    current_date_month = current_date_dt.strftime("%m")
 
-                if previous_date_month != current_date_month:
-                    balances[current_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
+                    if previous_date_month != current_date_month:
+                        balances[current_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
 
-                print(
-                    current_date_dt,
-                    "| positions: ",
-                    sim.current_positions,
-                    "| left of entries:",
-                    sim.left_of_initial_entries,
+                    print(
+                        current_date_dt,
+                        "| positions: ",
+                        sim.current_positions,
+                        "| left of entries:",
+                        sim.left_of_initial_entries,
+                    )
+
+                    # Entries
+                    day_entries = ws.loc[ws["entry_date"] == current_date_dt]
+                    for key, elem in day_entries.iterrows():
+                        add_entry_with_profit_thresholds(
+                            sim, elem["stock"], elem["entry_price_actual"]
+                        )
+
+                    # For each day, need to check the current positions and whether the position reached a threshold
+                    thresholds_check(sim, stock_prices, current_date_dt)
+
+                    # Exits
+                    day_exits = ws.loc[ws[f"control_exit_date"] == current_date_dt]
+                    for (
+                        key,
+                        elem,
+                    ) in day_exits.iterrows():
+                        add_exit_with_profit_thresholds(
+                            sim,
+                            elem["stock"],
+                            elem[f"entry_price_actual"],
+                            elem[f"exit_price_actual"],
+                            elem[f"control_result_%"],
+                        )
+
+                # Add the final balance at the end of the date
+                sim.snapshot_balance(current_date_dt)
+
+                # Calculate metrics and print the results
+                calculate_metrics(sim, capital)
+                print_metrics(sim)
+
+                # Saving the result in the overall dictionary
+                results_dict = update_results_dict(
+                    results_dict,
+                    sim,
+                    current_simultaneous_positions,
+                    current_variant,
+                    extra_suffix=f"_tp{current_tp_variant_name}",
                 )
-
-                # Entries
-                day_entries = ws.loc[ws["entry_date"] == current_date_dt]
-                for key, elem in day_entries.iterrows():
-                    add_entry_with_profit_thresholds(
-                        sim, elem["stock"], elem["entry_price_actual"]
-                    )
-
-                # For each day, need to check the current positions and whether the position reached a threshold
-                thresholds_check(sim, stock_prices, current_date_dt)
-
-                # Exits
-                day_exits = ws.loc[ws[f"control_exit_date"] == current_date_dt]
-                for (
-                    key,
-                    elem,
-                ) in day_exits.iterrows():
-                    add_exit_with_profit_thresholds(
-                        sim,
-                        elem["stock"],
-                        elem[f"entry_price_actual"],
-                        elem[f"exit_price_actual"],
-                        elem[f"control_result_%"],
-                    )
-
-            # Add the final balance at the end of the date
-            sim.snapshot_balance(current_date_dt)
-
-            # Calculate metrics and print the results
-            calculate_metrics(sim, capital)
-            print_metrics(sim)
-
-            # Saving the result in the overall dictionary
-            results_dict = update_results_dict(
-                results_dict,
-                sim,
-                current_simultaneous_positions,
-                current_variant,
-                extra_suffix=f"_tp{current_tp_variant_name}",
-            )
 
     # < Finished iterating
 
@@ -541,5 +564,3 @@ if __name__ == "__main__":
     # save to csv
     final_result.to_csv("simulator_result.csv", index=False)
     print("results saved to simulator_result.csv")
-    print("NOTE: take profit levels variation is only supported for the control group")
-    print("thus, compare control vs tests and then compare various take profit levels within control")
