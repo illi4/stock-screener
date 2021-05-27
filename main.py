@@ -21,9 +21,6 @@ from libs.settings import price_min, price_max, minimum_volume_level
 from libs.techanalysis import td_indicators, MA
 import pandas as pd
 from time import time, sleep
-import concurrent.futures
-import numpy as np
-import itertools
 
 
 def rewrite_stocks(exchange, stocks):
