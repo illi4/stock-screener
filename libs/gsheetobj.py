@@ -2,7 +2,11 @@ import gspread
 import pandas as pd
 
 # Init objects to work with the sheets
-gc = gspread.service_account(filename=".config/gspread/service_account.json")
+try:
+    gc = gspread.service_account(filename=".config/gspread/service_account.json")
+except FileNotFoundError:
+    print("Please save your Google service account credentials under .config/gspread/service_account.json")
+    exit(0)
 
 
 def sheet_to_df(book_name, sheet_name):

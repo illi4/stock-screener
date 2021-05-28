@@ -63,7 +63,11 @@ def get_stocks(exchange, price_min=None, price_max=None, min_volume=None):
 
 
 def get_update_date():
-    record = Stock.get()
-    record = arrow.get(record.date)
-    record = record.replace(tzinfo="Australia/Sydney")
-    return record
+    try:
+        record = Stock.get()
+        record = arrow.get(record.date)
+        record = record.replace(tzinfo="Australia/Sydney")
+        return record
+    except peewee.OperationalError:
+        print("Error: table not found. Update the stocks list first.")
+        exit(0)
