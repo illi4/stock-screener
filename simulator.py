@@ -20,7 +20,7 @@ commission = 10
 simultaneous_positions = [2, 3, 4, 5]
 variant_names = ["control", "test_a", "test_b", "test_c", "test_d", "test_e"]
 start_date = "2021-04-01"
-end_date = "2021-05-20"
+end_date = "2021-06-02"
 
 # Take profit level variations
 # Would be used iterating over control with simultaneous_positions variations too
@@ -157,7 +157,7 @@ class simulation:
         self.worst_trade_adjusted, self.best_trade_adjusted = 0, 0
         self.balances = dict()
         self.capital_values.append(self.current_capital)
-        self.growth, self.win_rate, self.max_drawdown = None, None, None
+        self.growth, self.win_rate, self.max_drawdown, self.mom_growth = None, None, None, None
         # For thresholds
         self.left_of_initial_entries = dict()  # list of initial entries
         self.thresholds_reached = dict()  # for the thresholds reached
@@ -167,7 +167,7 @@ class simulation:
         self.balances[
             current_date_dt.strftime("%d/%m/%Y")
         ] = self.current_capital  # for the end date
-        print("result:", self.balances)
+        print("balances:", self.balances)
 
     def remove_stock_traces(self, stock):
         sim.left_of_initial_entries.pop(stock, None)
@@ -224,12 +224,22 @@ def add_exit_no_profit_thresholds(sim, stock, result):
         sim.capital_values.append(sim.current_capital)
 
 
+def mean_mom_growth(balances):
+    balances = np.array(balances)
+    diff_list = np.diff(balances)
+    balances_shifted = balances[:-1]
+    mom_growth = diff_list/balances_shifted
+    return mom_growth.mean()
+
+
 def calculate_metrics(sim, capital):
     sim.growth = (sim.current_capital - capital) / capital
     sim.win_rate = (sim.winning_trades_number) / (
         sim.winning_trades_number + sim.losing_trades_number
     )
     sim.max_drawdown = calculate_max_drawdown(sim.capital_values)
+    balances = [v for k, v in sim.balances.items()]
+    sim.mom_growth = mean_mom_growth(balances)
 
 
 def print_metrics(sim):
@@ -254,6 +264,7 @@ def update_results_dict(
         best_trade_adjusted=sim.best_trade_adjusted * 100,
         worst_trade_adjusted=sim.worst_trade_adjusted * 100,
         max_drawdown=sim.max_drawdown * 100,
+        avg_mom_growth=sim.mom_growth * 100,
         simultaneous_positions=current_simultaneous_positions,
         variant_group=current_variant,
     )
@@ -427,7 +438,7 @@ if __name__ == "__main__":
                         )
 
                 # Add the final balance at the end of the date
-                sim.snapshot_balance(current_date_dt)
+                # sim.snapshot_balance(current_date_dt) # nope, makes mom calc convoluted
 
                 # Calculate metrics and print the results
                 calculate_metrics(sim, capital)
@@ -514,7 +525,7 @@ if __name__ == "__main__":
                         )
 
                 # Add the final balance at the end of the date
-                sim.snapshot_balance(current_date_dt)
+                # sim.snapshot_balance(current_date_dt) # nope, makes mom calc convoluted
 
                 # Calculate metrics and print the results
                 calculate_metrics(sim, capital)
@@ -553,13 +564,15 @@ if __name__ == "__main__":
             "losing_trades_number",
             "max_drawdown",
             "win_rate",
+            "avg_mom_growth",
             "winning_trades_number",
-            "worst_trade_adjusted",
+            "worst_trade_adjusted"
         ]
     ]
 
     # just an info bit
-    print(f"Take profit variants tested: {take_profit_variants}")
+    if arguments["mode"] == "tp":
+        print(f"take profit variants tested: {take_profit_variants}")
 
     # save to csv
     final_result.to_csv("simulator_result.csv", index=False)
