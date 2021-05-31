@@ -42,6 +42,7 @@ sheet_columns = [
     "entry_price_actual",
     "confidence",
     "penny_stock",
+    "higher_open",
     "control_exit_date",
     "exit_price_planned",
     "exit_price_actual",
