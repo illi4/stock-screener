@@ -27,13 +27,13 @@ end_date = "2021-06-02"
 # Take profit level variations
 # Would be used iterating over control with simultaneous_positions variations too
 take_profit_variants = {
-    "repeated_to_control": [0.25, 0.45, 0.9],  # this is just to check that I get the same result as in control if testing is needed
+    "_repeated_to_control": [0.25, 0.45, 0.9],
     "tp_a": [0.3, 0.5, 0.9],
     "tp_b": [0.5, 1],
     "tp_c": [0.15, 0.5, 0.9],
     "tp_d": [0.5, 1, 1.5],
     "tp_e": [0.25, 0.45, 0.9, 1.45],
-    "tp_f": [0.45, 0.9, 1.45, 1.75]
+    "tp_f": [0.45, 0.9, 1.45, 1.75],
 }
 
 # Sheet columns for the Gsheet
@@ -241,6 +241,8 @@ def mean_mom_growth(balances):
 
 
 def calculate_metrics(sim, capital):
+    print(f"Current capital {sim.current_capital}, starting capital {capital}")
+    print(f"Positions {current_simultaneous_positions}, tp variant {current_tp_variant_name}")
     sim.growth = (sim.current_capital - capital) / capital
     sim.win_rate = (sim.winning_trades_number) / (
         sim.winning_trades_number + sim.losing_trades_number
@@ -375,7 +377,7 @@ def add_exit_with_profit_thresholds(
         )
 
         sim.current_capital = sim.current_capital * (
-            1 + control_result_percent / current_simultaneous_positions
+            1 + result / current_simultaneous_positions
         )
         print(f"accounting for the trade price: ${commission}")
         sim.current_capital -= commission
