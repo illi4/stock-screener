@@ -403,6 +403,7 @@ if __name__ == "__main__":
     results_dict = dict()
 
     # > Iterating through days and variants for the fixed TP levels per the control & spreadsheet
+    current_tp_variant_name = None
     if arguments["mode"] == "main":
         for current_variant in variant_names:
             for current_simultaneous_positions in simultaneous_positions:
