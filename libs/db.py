@@ -25,9 +25,7 @@ def create_stock_table():
 
 
 def delete_all_stocks(exchange):
-    query = Stock.delete().where(
-        Stock.exchange == exchange
-    )
+    query = Stock.delete().where(Stock.exchange == exchange)
     query.execute()
 
 
@@ -35,7 +33,7 @@ def bulk_add_stocks(stocks_list_of_dict):
     list_length = 100
     # Workaround, see https://github.com/coleifer/peewee/issues/948
     chunks = [
-        stocks_list_of_dict[x: x + list_length]
+        stocks_list_of_dict[x : x + list_length]
         for x in range(0, len(stocks_list_of_dict), list_length)
     ]
     for chunk in chunks:
@@ -50,8 +48,10 @@ def get_stocks(exchange, price_min=None, price_max=None, min_volume=None):
 
     try:
         stocks = Stock.select().where(
-            (Stock.price >= price_min) & (Stock.price < price_max) & (Stock.volume > min_volume) & (
-                        Stock.exchange == exchange)
+            (Stock.price >= price_min)
+            & (Stock.price < price_max)
+            & (Stock.volume > min_volume)
+            & (Stock.exchange == exchange)
         )
         if len(stocks) == 0:
             print("Warning: no stocks in the database")

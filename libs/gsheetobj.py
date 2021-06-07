@@ -5,7 +5,9 @@ import pandas as pd
 try:
     gc = gspread.service_account(filename=".config/gspread/service_account.json")
 except FileNotFoundError:
-    print("Please save your Google service account credentials under .config/gspread/service_account.json")
+    print(
+        "Please save your Google service account credentials under .config/gspread/service_account.json"
+    )
     exit(0)
 
 
@@ -29,6 +31,4 @@ def sheet_to_df(book_name, sheet_name):
 def sheet_update(book_name, sheet_name, row_idx, column_idx, value):
     sh = gc.open(book_name)
     worksheet = sh.worksheet(sheet_name)
-    worksheet.update(
-        f"{column_idx}{row_idx}", value
-    )
+    worksheet.update(f"{column_idx}{row_idx}", value)

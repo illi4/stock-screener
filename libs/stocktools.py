@@ -1,26 +1,24 @@
-from selenium import webdriver
-from bs4 import BeautifulSoup
-import yfinance as yf
-from libs.exceptions_lib import exception_handler
-from libs.settings import (
-    asx_instruments_url,
-    tzinfo,
-    asx_stock_url,
-    nasdaq_instruments_url,
-)
+#from libs.exceptions_lib import exception_handler
+from libs.settings import tzinfo, eod_key
 import arrow
-import string
-import concurrent.futures
-import numpy as np
-import itertools
+import json
+import pandas as pd
+import requests
 
-options = webdriver.ChromeOptions()
+session = None  # to use in requests
 
-options.add_experimental_option(
-    "excludeSwitches", ["enable-logging"]
-)  # removes the USB warning on Windows
-options.add_argument("--headless")  # headless means that no browser window is opened
 
+# Get the starting date for reporting
+def get_data_start_date():
+    current_date = arrow.now()
+    shifted_date = current_date.shift(years=-1)
+    data_start_date = shifted_date.format("YYYY-MM-DD")
+    return data_start_date
+
+
+data_start_date = get_data_start_date()
+
+# Leaving as is, but this is not used anymore
 industry_mapping_asx = {
     "Energy": "XEJ",
     "Basic Materials": "XMJ",
@@ -57,74 +55,61 @@ def get_industry_mapping(exchange):
         return industry_mapping_asx
 
 
-def get_stocks_per_letter(letters, exchange, exchange_url):
-    driver = webdriver.Chrome(options=options)
-    stocks = []
-
-    for letter in letters:
-        url = f"{exchange_url}/{letter.upper()}.htm"
-        print(f"Processing {url}")
-        driver.get(url)
-        content = driver.page_source
-
-        soup = BeautifulSoup(content, "html.parser")
-        data = []
-        table = soup.find("table", attrs={"class": "quotes"})
-        table_body = table.find("tbody")
-
-        rows = table_body.find_all("tr")
-        for row in rows:
-            cols = row.find_all("td")
-            cols = [elem.text.strip() for elem in cols]
-            data.append(cols)
-
-        for elem in data:
-            # first one is an empty string
-            if len(elem) > 0:
-                stocks.append(
-                    dict(
-                        code=elem[0],
-                        name=elem[1],
-                        price=float(elem[4].replace(",", "")),
-                        volume=float(elem[5].replace(",", "")),
-                        exchange=exchange,
-                    )
-                )
-
-    driver.close()
-    return stocks
-
-
 def get_stock_suffix(exchange):
     # Defines stock suffix for YFinance
     if exchange == "NASDAQ":
         return ""
     elif exchange == "ASX":
-        return ".AX"
+        return ".AU"
 
 
+def get_previous_workday():
+    current_datetime = arrow.now()
+    current_dow = current_datetime.isoweekday()
+    if current_dow == 1:  # only subtract if today is Monday
+        current_datetime = current_datetime.shift(days=-3)
+    else:
+        current_datetime = current_datetime.shift(days=-1)
+    current_datetime = current_datetime.format("YYYY-MM-DD")
+    return current_datetime
+
+
+# Using proper api #HERE#
 def get_exchange_symbols(exchange):
-    all_letters = list(string.ascii_lowercase)
-
+    stocks = []
     if exchange == "NASDAQ":
-        exchange_url = nasdaq_instruments_url
+        exchange_url_part = "NASDAQ"
     elif exchange == "ASX":
-        exchange_url = asx_instruments_url
-        # ASX also has some numerical values
-        for extra_symbol in ["1", "2", "3", "4", "5", "8", "9"]:
-            all_letters.append(extra_symbol)
+        exchange_url_part = "AU"
 
-    # Threading
-    letters_groups = np.array_split(all_letters, 5)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        futures = [
-            executor.submit(get_stocks_per_letter, letter_set, exchange, exchange_url)
-            for set_counter, letter_set in enumerate(letters_groups)
-        ]
-        stocks_info = [f.result() for f in futures]
+    global session
+    if session is None:
+        session = requests.Session()
 
-    # Join list of lists into a single list
-    stocks = list(itertools.chain.from_iterable(stocks_info))
+    previous_workday = get_previous_workday()
+
+    url = f"https://eodhistoricaldata.com/api/eod-bulk-last-day/{exchange_url_part}?api_token={eod_key}&fmt=json&filter=extended&date={previous_workday}"
+    params = {"api_token": eod_key}
+    r = session.get(url, params=params)  # to speed things up
+
+    if r.status_code == 404:
+        print(f"Error: not found")
+        exit(0)
+
+    if r.status_code != requests.codes.ok:
+        print(f"Status response is not Ok: {r.status_code}")
+        exit(0)
+
+    data = json.loads(r.text)
+    for elem in data:
+        stock = dict(
+            code=elem["code"],
+            name=elem["name"],
+            price=elem["close"],
+            volume=elem["volume"],
+            exchange=exchange,
+        )
+        stocks.append(stock)
 
     return stocks
 
@@ -151,36 +136,42 @@ def ohlc_last_day_workaround(df):
     return df
 
 
-@exception_handler(handler_type="yfinance")
-def get_stock_data(symbol, start_date=None):
-    period = "300d"
-    interval = "1d"
+def get_stock_data(code):
+    global session
+    if session is None:
+        session = requests.Session()
 
-    asset = yf.Ticker(symbol)
-    hist = asset.history(
-        period=period, interval=interval, start_date=start_date
-    ).reset_index(drop=False)
+    url = f"https://eodhistoricaldata.com/api/eod/{code}?api_token={eod_key}&order=a&fmt=json&from={data_start_date}"
 
-    if hist.empty:
-        print(f"Ticker {symbol} not found on Yahoo Finance")
+    params = {"api_token": eod_key}
+    r = session.get(url, params=params)  # to speed things up
+
+    if r.status_code == 404:
+        print(f"Ticker {code} not found, skipping")
         return None, None
 
-    hist = ohlc_last_day_workaround(hist)
-    hist.columns = [
-        "timestamp",
-        "open",
-        "high",
-        "low",
-        "close",
-        "volume",
-        "div",
-        "splits",
-    ]
+    if r.status_code != requests.codes.ok:
+        print(f"Status response is not Ok: {r.status_code}")
+        exit(0)
+
+    # This may happen if the stocks list is taken from a different location
+    # if r.text == "[]":
+    #    print("No recent stock data")
+    #    exit(0)
+
+    data = json.loads(r.text)
+
+    df = pd.DataFrame.from_dict(
+        data
+    )  # question - will it give me data after 5pm on the curr day?
+    df = df[["date", "open", "high", "low", "close", "volume"]]
+    df["date"] = pd.to_datetime(df["date"])
+    df.columns = ["timestamp", "open", "high", "low", "close", "volume"]
 
     # For compatibility with the TA library
     return (
-        hist[["timestamp", "open", "high", "low", "close"]],
-        hist[["timestamp", "volume"]],
+        df[["timestamp", "open", "high", "low", "close"]],
+        df[["timestamp", "volume"]],
     )
 
 
@@ -206,68 +197,6 @@ def ohlc_daily_to_monthly(df):
     df_monthly = df_monthly.reset_index()
     df_monthly.columns = ["year", "timestamp", "open", "high", "low", "close"]
     return df_monthly
-
-
-@exception_handler(handler_type="yfinance")
-def get_industry(code, exchange):
-    # Suffix definition
-    if exchange == "ASX":
-        stock_suffix = ".AX"
-    else:
-        stock_suffix = ""
-
-    # Getting sector for a stock using YFinance
-    asset = yf.Ticker(f"{code}{stock_suffix}")
-
-    try:
-        info = asset.info
-        # May not always be present in the data
-        if "sector" in info.keys():
-            industry = info["sector"]
-        else:
-            industry = "-"
-    except ValueError:
-        print(f"Cannot get data for {code}{stock_suffix}")
-        industry = "-"
-
-    return industry
-
-
-def get_industry_from_web(code, driver):
-    # To be used in batch by get_industry_from_web_batch
-    # Works for asx only
-    driver.get(f"{asx_stock_url}/{code}")
-    content = driver.page_source
-
-    soup = BeautifulSoup(content, "html.parser")
-    data = []
-
-    h_key = soup.find("h3", string="Key Information")
-    if h_key is None:
-        return None
-
-    table = h_key.find_next("table", attrs={"class": "mi-table"})
-    table_body = table.find("tbody")
-
-    rows = table_body.find_all("tr")
-    for row in rows:
-        cols = row.find_all("td")
-        cols = [elem.text.strip() for elem in cols]
-        data.append(cols)
-
-    data = {item[0]: item[1] for item in data}
-    return data["Sector"]
-
-
-def get_industry_from_web_batch(codes):
-    # To be used instead of YFinance as this is almost twice faster
-    # Works for asx only
-    response = dict()
-    driver = webdriver.Chrome(options=options)
-    for code in codes:
-        response[code] = get_industry_from_web(code, driver)
-    driver.close()
-    return response
 
 
 def map_industry_code(industry_name):

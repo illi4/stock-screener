@@ -5,8 +5,6 @@ from libs.stocktools import (
     get_nasdaq_symbols,
     get_stock_data,
     ohlc_daily_to_weekly,
-    get_industry_mapping,
-    get_industry,
     get_exchange_symbols,
     get_stock_suffix,
 )
@@ -83,130 +81,70 @@ def generate_indicators_daily_weekly(ohlc_daily):
     return ohlc_with_indicators_daily, ohlc_with_indicators_weekly
 
 
-def get_industry_momentum(exchange):
-    print(f"Calculating industry momentum scores for {exchange}...")
-    industry_momentum, industry_score = dict(), dict()
-    industry_mapping = get_industry_mapping(exchange)
-
-    if exchange == "ASX":
-        stock_prefix = "^A"
-    else:
-        stock_prefix = ""
-
-    ma_num = 3
-
-    for name, code in industry_mapping.items():
-        ohlc_daily, volume_daily = get_stock_data(f"{stock_prefix}{code}")
-        (
-            ohlc_with_indicators_daily,
-            ohlc_with_indicators_weekly,
-        ) = generate_indicators_daily_weekly(ohlc_daily)
-
-        if ohlc_with_indicators_daily is None:
-            print(f"Cannot get industry score for {code} as there is no data")
-            industry_momentum[code], industry_score[code] = "-", "-"
-            continue  # skip to the next one
-
-        industry_momentum[code], industry_score[code] = bullish_ma_based(
-            ohlc_with_indicators_daily,
-            volume_daily,
-            ohlc_with_indicators_weekly,
-            consider_volume_spike=False,
-            output=False,
-        )
-    return industry_momentum, industry_score
+def report_on_shortlist(shortlist, industry_score, exchange):
+    print(
+        f"{len(shortlist)} shortlisted stocks (sorted by 5-day moving average volume):"
+    )
+    for stock in shortlist:
+        print(f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} volume")
 
 
-def report_on_shortlist(
-    shortlist, industry_score, exchange, report_on_industry=False, print_progress=False
-):
-    if report_on_industry:
-        # Get the sectors for shortlisted stocks only
-        print(
-            f"Getting industry data for {len(shortlist)} shortlisted stocks, hold on..."
-        )
-        # Get stock codes to collect industries
-        stock_codes = [stock[0] for stock in shortlist]
-        sectors = dict()
-        for idx, stock_code in enumerate(stock_codes):
-            if print_progress:
-                print(f"- {stock_code} ({idx + 1}/{len(stock_codes)})")
-            sectors[stock_code] = get_industry(stock_code, exchange=exchange)
-
-        industry_mapping = get_industry_mapping(exchange)
-
-        print()
-        print(f"All shortlisted stocks (sorted by 5-day moving average volume):")
-        for stock in shortlist:
-
-            # May not find a sector for a stock
-            if sectors[stock[0]] in ["-", ""]:
-                print(
-                    f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} vol | "
-                    f"Sector score unavailable"
-                )
-            else:
-                industry_code = industry_mapping[sectors[stock[0]]]
-                print(
-                    f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} volume | "
-                    f"{sectors[stock[0]]} score {industry_score[industry_code]}/5"
-                )
-    else:
-        print(f"{len(shortlist)} shortlisted stocks (sorted by 5-day moving average volume):")
-        for stock in shortlist:
-            print(f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} volume")
-
-
-def scan_stock_group(stocks, set_counter, exchange):
+def scan_stock(stocks, exchange):
     stock_suffix = get_stock_suffix(exchange)
     ma_num = 3
 
-    shortlisted_stocks = []
-    for i, stock in enumerate(stocks):
-        print(
-            f"\n{stock.code} [{stock.name}] ({i + 1}/{len(stocks)}) [thread {set_counter + 1}]"
-        )
-        ohlc_daily, volume_daily = get_stock_data(f"{stock.code}{stock_suffix}")
+    try:
+        shortlisted_stocks = []
+        for i, stock in enumerate(stocks):
+            print(f"\n{stock.code} [{stock.name}] ({i + 1}/{len(stocks)})")
+            ohlc_daily, volume_daily = get_stock_data(f"{stock.code}{stock_suffix}")
 
-        if ohlc_daily is None:
-            print("No data on the asset")
-            continue  # skip this asset if there is no data
+            if ohlc_daily is None:
+                print("No data on the asset")
+                continue  # skip this asset if there is no data
 
-        (
-            ohlc_with_indicators_daily,
-            ohlc_with_indicators_weekly,
-        ) = generate_indicators_daily_weekly(ohlc_daily)
-        if ohlc_with_indicators_daily is None or ohlc_with_indicators_weekly is None:
-            continue
+            (
+                ohlc_with_indicators_daily,
+                ohlc_with_indicators_weekly,
+            ) = generate_indicators_daily_weekly(ohlc_daily)
+            if (
+                ohlc_with_indicators_daily is None
+                or ohlc_with_indicators_weekly is None
+            ):
+                continue
 
-        confirmation, _ = bullish_ma_based(
-            ohlc_with_indicators_daily,
-            volume_daily,
-            ohlc_with_indicators_weekly,
-            consider_volume_spike=True,
-            output=True,
-            stock_name=stock.name,
-        )
-        if confirmation:
-            print(f"{stock.name} [v] meeting shortlisting conditions")
-            volume_MA_5D = last_volume_5D_MA(volume_daily)
+            confirmation, _ = bullish_ma_based(
+                ohlc_with_indicators_daily,
+                volume_daily,
+                ohlc_with_indicators_weekly,
+                consider_volume_spike=True,
+                output=True,
+                stock_name=stock.name,
+            )
+            if confirmation:
+                print(f"{stock.name} [v] meeting shortlisting conditions")
+                volume_MA_5D = last_volume_5D_MA(volume_daily)
 
-            if volume_MA_5D > minimum_volume_level:
-                print(
-                    f"\n{stock.name} [v] meeting minimum volume level conditions "
-                    f"({format_number(volume_MA_5D)} > {format_number(minimum_volume_level)})"
-                )
-                shortlisted_stocks.append((stock.code, stock.name, volume_MA_5D))
+                if volume_MA_5D > minimum_volume_level:
+                    print(
+                        f"\n{stock.name} [v] meeting minimum volume level conditions "
+                        f"({format_number(volume_MA_5D)} > {format_number(minimum_volume_level)})"
+                    )
+                    shortlisted_stocks.append((stock.code, stock.name, volume_MA_5D))
+                else:
+                    print(
+                        f"\n{stock.name} [x] not meeting minimum volume level conditions "
+                        f"({format_number(volume_MA_5D)} < {format_number(minimum_volume_level)})"
+                    )
+
             else:
-                print(
-                    f"\n{stock.name} [x] not meeting minimum volume level conditions "
-                    f"({format_number(volume_MA_5D)} < {format_number(minimum_volume_level)})"
-                )
+                print(f"\n{stock.name} [x] not meeting shortlisting conditions")
 
-        else:
-            print(f"\n{stock.name} [x] not meeting shortlisting conditions")
+        return shortlisted_stocks
 
-    return shortlisted_stocks
+    except KeyboardInterrupt:
+        print("KeyboardInterrupt: exiting")
+        exit(0)
 
 
 def scan_exchange_stocks(exchange):
@@ -232,23 +170,8 @@ def scan_exchange_stocks(exchange):
         f"and with volume of at least {format_number(minimum_volume_level)}\n"
     )
 
-    '''
-    # Split stocks on 5 parts for threading, which is much faster
-    # Issue 1: Unfortunately, this is messing with the result (is this because of same variable names?)
-    # Issue 2: KeyboardInterrupt does not work very well. Did not find a solution just yet which is ok.
-    stocks_sets = np.array_split(stocks, 5)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        futures = [
-            executor.submit(scan_stock_group, stocks_set, set_counter, exchange)
-            for set_counter, stocks_set in enumerate(stocks_sets)
-        ]
-        shortlisted_stock_collections = [f.result() for f in futures]
-    # Join list of lists into a single list
-    shortlist = list(itertools.chain.from_iterable(shortlisted_stock_collections))    
-    
-    '''
     # Back to basics because parallel run shows incorrect results for some reason
-    shortlist = scan_stock_group(stocks, 0, exchange)
+    shortlist = scan_stock(stocks, exchange)
 
     # Short the stocks by volume desc
     sorted_stocks = sorted(shortlist, key=lambda tup: tup[2], reverse=True)
