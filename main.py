@@ -5,8 +5,6 @@ from libs.stocktools import (
     get_nasdaq_symbols,
     get_stock_data,
     ohlc_daily_to_weekly,
-    get_industry_mapping,
-    get_industry,
     get_exchange_symbols,
     get_stock_suffix,
 )
@@ -82,7 +80,8 @@ def generate_indicators_daily_weekly(ohlc_daily):
 
     return ohlc_with_indicators_daily, ohlc_with_indicators_weekly
 
-
+# Not used
+'''
 def get_industry_momentum(exchange):
     print(f"Calculating industry momentum scores for {exchange}...")
     industry_momentum, industry_score = dict(), dict()
@@ -115,7 +114,7 @@ def get_industry_momentum(exchange):
             output=False,
         )
     return industry_momentum, industry_score
-
+'''
 
 def report_on_shortlist(
     shortlist, industry_score, exchange, report_on_industry=False, print_progress=False
