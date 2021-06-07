@@ -212,7 +212,7 @@ def get_stock_data(code):
     df["date"] = pd.to_datetime(df["date"])
     df.columns = ["timestamp", "open", "high", "low", "close", "volume"]
 
-    # For compatibility with the TA library
+    # For compatibility with the TA library...
     return (
         df[["timestamp", "open", "high", "low", "close"]],
         df[["timestamp", "volume"]],

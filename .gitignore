@@ -132,7 +132,7 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# Gsheets config
+# Gsheets and eodhistorical config
 /.config/
 
 # Test files
