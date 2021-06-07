@@ -3,10 +3,8 @@ from bs4 import BeautifulSoup
 import yfinance as yf
 from libs.exceptions_lib import exception_handler
 from libs.settings import (
-    asx_instruments_url,
     tzinfo,
     asx_stock_url,
-    nasdaq_instruments_url,
     eod_key
 )
 import arrow
@@ -28,14 +26,16 @@ options.add_experimental_option(
 )  # removes the USB warning on Windows
 options.add_argument("--headless")  # headless means that no browser window is opened
 
+
 # Get the starting date for reporting
-def get_start_date():
+def get_data_start_date():
     current_date = arrow.now()
     shifted_date = current_date.shift(years=-1)
     data_start_date = shifted_date.format("YYYY-MM-DD")
     return data_start_date
 
-data_start_date = get_start_date()
+
+data_start_date = get_data_start_date()
 
 # Leaving as is, but this is not used anymore
 industry_mapping_asx = {
@@ -120,6 +120,8 @@ def get_stock_suffix(exchange):
         return ".AU"
 
 
+# Using web and chromedriver
+''' 
 def get_exchange_symbols(exchange):
     all_letters = list(string.ascii_lowercase)
 
@@ -142,6 +144,52 @@ def get_exchange_symbols(exchange):
 
     # Join list of lists into a single list
     stocks = list(itertools.chain.from_iterable(stocks_info))
+
+    return stocks
+'''
+
+
+def get_previous_workday():
+    current_datetime = arrow.now()
+    current_dow = current_datetime.isoweekday()
+    if current_dow == 1:  # only subtract if today is Monday
+        current_datetime = current_datetime.shift(days=-3)
+    else:
+        current_datetime = current_datetime.shift(days=-1)
+    current_datetime = current_datetime.format("YYYY-MM-DD")
+    return current_datetime
+
+
+# Using proper api #HERE#
+def get_exchange_symbols(exchange):
+    stocks = []
+    if exchange == "NASDAQ":
+        exchange_url_part = "NASDAQ"
+    elif exchange == "ASX":
+        exchange_url_part = "AU"
+
+    global session
+    if session is None:
+        session = requests.Session()
+
+    previous_workday = get_previous_workday()
+
+    url = f"https://eodhistoricaldata.com/api/eod-bulk-last-day/{exchange_url_part}?api_token={eod_key}&fmt=json&filter=extended&date={previous_workday}"
+    params = {"api_token": eod_key}
+    r = session.get(url, params=params)  # to speed things up
+
+    if r.status_code == 404:
+        print(f"Error: not found")
+        exit(0)
+
+    if r.status_code != requests.codes.ok:
+        print(f"Status response is not Ok: {r.status_code}")
+        exit(0)
+
+    data = json.loads(r.text)
+    for elem in data:
+        stock = dict(code=elem['code'], name=elem['name'], price=elem['close'], volume=elem['volume'], exchange=exchange)
+        stocks.append(stock)
 
     return stocks
 
@@ -219,10 +267,11 @@ def get_stock_data(code):
         return None, None
 
     if r.status_code != requests.codes.ok:
-        print("Status response is not ok")
+        print(f"Status response is not Ok: {r.status_code}")
         exit(0)
 
-    #if r.text == "[]":
+    # This may happen if the stocks list is taken from a different location
+    # if r.text == "[]":
     #    print("No recent stock data")
     #    exit(0)
 

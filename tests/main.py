@@ -1,6 +1,12 @@
 import os, sys
 import arrow
 
+current_datetime = arrow.now()
+current_dow = current_datetime.isoweekday()
+if current_dow == 1:  # only subtract if today is Monday
+    current_datetime = current_datetime.shift(days=-3)
+current_datetime = current_datetime.format("YYYY-MM-DD")
+
 # TEST
 '''
 current_date = arrow.now()
