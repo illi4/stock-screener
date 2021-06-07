@@ -222,6 +222,10 @@ def get_stock_data(code):
         print("Status response is not ok")
         exit(0)
 
+    #if r.text == "[]":
+    #    print("No recent stock data")
+    #    exit(0)
+
     data = json.loads(r.text)
 
     df = pd.DataFrame.from_dict(data)  # question - will it give me data after 5pm on the curr day?
