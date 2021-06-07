@@ -17,6 +17,9 @@ import itertools
 import json
 from urllib.request import urlopen
 import pandas as pd
+import requests
+
+session = None
 
 options = webdriver.ChromeOptions()
 
@@ -165,7 +168,7 @@ def ohlc_last_day_workaround(df):
     return df
 
 
-# Using eoddata instead of yfinance
+# Using eoddata instead of yfinance. Keeping if need to roll back for some reason.
 '''
 @exception_handler(handler_type="yfinance")
 def get_stock_data(symbol, start_date=None):
@@ -202,17 +205,31 @@ def get_stock_data(symbol, start_date=None):
 
 
 def get_stock_data(code):
+    global session
+    if session is None:
+        session = requests.Session()
+
     url = f"https://eodhistoricaldata.com/api/eod/{code}?api_token={eod_key}&order=a&fmt=json&from={data_start_date}"
 
-    with urlopen(url) as response:
-        data = json.loads(response.read())
+    params = {"api_token": eod_key}
+    r = session.get(url, params=params)  # to speed things up
+
+    if r.status_code == 404:
+        print(f"Ticker {code} not found, skipping")
+        return None, None
+
+    if r.status_code != requests.codes.ok:
+        print("Status response is not ok")
+        exit(0)
+
+    data = json.loads(r.text)
 
     df = pd.DataFrame.from_dict(data)  # question - will it give me data after 5pm on the curr day?
     df = df[["date", "open", "high", "low", "close", "volume"]]
     df["date"] = pd.to_datetime(df["date"])
     df.columns = ["timestamp", "open", "high", "low", "close", "volume"]
 
-    # For compatibility with the TA library...
+    # For compatibility with the TA library
     return (
         df[["timestamp", "open", "high", "low", "close"]],
         df[["timestamp", "volume"]],

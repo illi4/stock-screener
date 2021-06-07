@@ -17,6 +17,6 @@ sys.path.append(
 
 from libs.stocktools import get_stock_data
 
-ohlc_daily, volume_daily = get_stock_data("IMU.AU")
+ohlc_daily, volume_daily = get_stock_data("CRR.AU")
 print(ohlc_daily)
 print(ohlc_daily.dtypes)
