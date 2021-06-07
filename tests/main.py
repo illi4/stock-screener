@@ -1,5 +1,15 @@
 import os, sys
-import string
+import arrow
+
+# TEST
+'''
+current_date = arrow.now()
+shifted_date = current_date.shift(years=-1)
+print(shifted_date.format("YYYY-MM-DD"))
+
+exit(0)
+'''
+# TEST
 
 sys.path.append(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -7,5 +17,6 @@ sys.path.append(
 
 from libs.stocktools import get_stock_data
 
-ohlc_daily, volume_daily = get_stock_data("XLE")
+ohlc_daily, volume_daily = get_stock_data("IMU.AU")
 print(ohlc_daily)
+print(ohlc_daily.dtypes)

@@ -56,6 +56,12 @@ See `libs/settings.py` for settings:
    
 4. Install the required libraries: `pip install -r requirements.txt`
 5. Install [ChromeDriver](https://sites.google.com/a/chromium.org/chromedriver/home)
+6. Specify your eodhistoricaldata.com key in `.config\eoddata.json` using the following syntax: 
+``` 
+{
+  "key": "XXXX.XXXXXXX"
+}
+```
 
 #### Google sheet / project configuration 
 If you want to use monitor and paperfill in addition to the screener, please create a sheet similar to [this one](https://docs.google.com/spreadsheets/d/1luuTn-wRsa2IXkaLTB-3FGlev6gJy6fnO0uQfqnHjRI/edit?usp=sharing) and configure API access, then save the credentials under `.config\gspread\service_account.json`. This is not required if you only want to use the screener (main.py).

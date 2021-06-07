@@ -10,3 +10,6 @@ tzinfo = "Australia/Sydney"
 
 # Gsheet
 gsheet_name = "Trading journal 2021"
+
+# Eoddata
+eod_key = "60421719b04b46.10272221"

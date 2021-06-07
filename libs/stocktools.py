@@ -7,12 +7,16 @@ from libs.settings import (
     tzinfo,
     asx_stock_url,
     nasdaq_instruments_url,
+    eod_key
 )
 import arrow
 import string
 import concurrent.futures
 import numpy as np
 import itertools
+import json
+from urllib.request import urlopen
+import pandas as pd
 
 options = webdriver.ChromeOptions()
 
@@ -21,6 +25,16 @@ options.add_experimental_option(
 )  # removes the USB warning on Windows
 options.add_argument("--headless")  # headless means that no browser window is opened
 
+# Get the starting date for reporting
+def get_start_date():
+    current_date = arrow.now()
+    shifted_date = current_date.shift(years=-1)
+    data_start_date = shifted_date.format("YYYY-MM-DD")
+    return data_start_date
+
+data_start_date = get_start_date()
+
+# Leaving as is, but this is not used anymore
 industry_mapping_asx = {
     "Energy": "XEJ",
     "Basic Materials": "XMJ",
@@ -100,7 +114,7 @@ def get_stock_suffix(exchange):
     if exchange == "NASDAQ":
         return ""
     elif exchange == "ASX":
-        return ".AX"
+        return ".AU"
 
 
 def get_exchange_symbols(exchange):
@@ -151,6 +165,8 @@ def ohlc_last_day_workaround(df):
     return df
 
 
+# Using eoddata instead of yfinance
+'''
 @exception_handler(handler_type="yfinance")
 def get_stock_data(symbol, start_date=None):
     period = "300d"
@@ -181,6 +197,25 @@ def get_stock_data(symbol, start_date=None):
     return (
         hist[["timestamp", "open", "high", "low", "close"]],
         hist[["timestamp", "volume"]],
+    )
+'''
+
+
+def get_stock_data(code):
+    url = f"https://eodhistoricaldata.com/api/eod/{code}?api_token={eod_key}&order=a&fmt=json&from={data_start_date}"
+
+    with urlopen(url) as response:
+        data = json.loads(response.read())
+
+    df = pd.DataFrame.from_dict(data)  # question - will it give me data after 5pm on the curr day?
+    df = df[["date", "open", "high", "low", "close", "volume"]]
+    df["date"] = pd.to_datetime(df["date"])
+    df.columns = ["timestamp", "open", "high", "low", "close", "volume"]
+
+    # For compatibility with the TA library
+    return (
+        df[["timestamp", "open", "high", "low", "close"]],
+        df[["timestamp", "volume"]],
     )
 
 
