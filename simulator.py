@@ -10,7 +10,6 @@ import argparse
 parser = argparse.ArgumentParser()
 
 # Settings
-exchange = "ASX"
 confidence_filter = [8, 9]
 penny_filter = ["Y", "N"]
 capital = 5000
@@ -82,10 +81,18 @@ def define_args():
         help="Mode to run the simulation in (main|tp). Tp mode is only applied to control.",
         choices=["main", "tp"],
     )
+    parser.add_argument(
+        "-exchange",
+        type=str,
+        required=True,
+        help="Exchange (asx|nasdaq)",
+        choices=["asx", "nasdaq"],
+    )
 
     args = parser.parse_args()
     arguments = vars(args)
     arguments["mode"] = arguments["mode"].lower()
+    arguments["exchange"] = arguments["exchange"].upper()
 
     return arguments
 
@@ -244,9 +251,12 @@ def calculate_metrics(sim, capital):
     print(f"Current capital {sim.current_capital}, starting capital {capital}")
     print(f"Positions {current_simultaneous_positions}, tp variant {current_tp_variant_name}")
     sim.growth = (sim.current_capital - capital) / capital
-    sim.win_rate = (sim.winning_trades_number) / (
-        sim.winning_trades_number + sim.losing_trades_number
-    )
+    if sim.winning_trades_number > 0:
+        sim.win_rate = (sim.winning_trades_number) / (
+            sim.winning_trades_number + sim.losing_trades_number
+        )
+    else:
+        sim.win_rate = 0
     sim.max_drawdown = calculate_max_drawdown(sim.capital_values)
     balances = [v for k, v in sim.balances.items()]
     sim.mom_growth = mean_mom_growth(balances)
@@ -395,6 +405,7 @@ if __name__ == "__main__":
     print("reading the values...")
 
     # This is working ok
+    exchange = arguments["exchange"]
     ws = gsheetsobj.sheet_to_df(gsheet_name, f"{exchange}")
     ws.columns = sheet_columns
     ws = prepare_data(ws)
