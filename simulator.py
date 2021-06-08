@@ -22,7 +22,7 @@ higher_open_filter = ["Y"]
 simultaneous_positions = [2, 3, 4, 5]
 variant_names = ["control", "test_a", "test_b", "test_c", "test_d", "test_e"]
 start_date = "2021-04-01"
-end_date = "2021-06-02"
+end_date = "2021-06-15"
 
 # Take profit level variations
 # Would be used iterating over control with simultaneous_positions variations too

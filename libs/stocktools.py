@@ -124,18 +124,6 @@ def get_asx_symbols():
     return stocks
 
 
-def ohlc_last_day_workaround(df):
-    # Need to check whether the last day is today and remove if so
-    # Due to YFinance bug - not showing the right data for the current day
-    hist_last_day = df["Date"].iloc[-1]
-    hist_last_day = arrow.get(hist_last_day)
-    hist_last_day = hist_last_day.replace(tzinfo=tzinfo)
-    current_date = arrow.now()
-    if hist_last_day.format("YYYY-MM-DD") == current_date.format("YYYY-MM-DD"):
-        df.drop(df.tail(1).index, inplace=True)
-    return df
-
-
 def get_stock_data(code):
     global session
     if session is None:
