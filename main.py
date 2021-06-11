@@ -53,7 +53,7 @@ def check_update_date():
             "Warning: Stocks list was not updated today, the volume filter could work incorrectly. "
             "Please consider running the --update first..."
         )
-        sleep(3)
+        sleep(10)
 
 
 def last_volume_5D_MA(volume_daily):
@@ -82,11 +82,16 @@ def generate_indicators_daily_weekly(ohlc_daily):
 
 
 def report_on_shortlist(shortlist, industry_score, exchange):
+    if arguments["date"] is None:
+        as_of = "today"
+    else:
+        as_of = arguments["date"].strftime("%Y-%m-%d")
+
     print(
-        f"{len(shortlist)} shortlisted stocks (sorted by 5-day moving average volume):"
+        f"{len(shortlist)} shortlisted stocks (sorted by 5-day MA vol) as of {as_of}:"
     )
     for stock in shortlist:
-        print(f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} volume")
+        print(f"{stock[0]} ({stock[1]}) | {format_number(stock[2])} volume")
 
 
 def process_data_at_date(ohlc_daily, volume_daily):
