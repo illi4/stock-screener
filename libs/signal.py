@@ -172,21 +172,13 @@ def bullish_ma_based(
     ma10 = MA(ohlc_with_indicators_daily, 10)
     ma20 = MA(ohlc_with_indicators_daily, 20)
     ma30 = MA(ohlc_with_indicators_daily, 30)
-    ma_daily_values = dict(
-        ma10=ma10,
-        ma20=ma20,
-        ma30=ma30,
-    )
+    ma_daily_values = dict(ma10=ma10, ma20=ma20, ma30=ma30,)
 
     # MA weekly
     ma10_weekly = MA(ohlc_with_indicators_weekly, 10)
     ma20_weekly = MA(ohlc_with_indicators_weekly, 20)
     ma30_weekly = MA(ohlc_with_indicators_weekly, 30)
-    ma_weekly_values = dict(
-        ma10=ma10_weekly,
-        ma20=ma20_weekly,
-        ma30=ma30_weekly,
-    )
+    ma_weekly_values = dict(ma10=ma10_weekly, ma20=ma20_weekly, ma30=ma30_weekly,)
 
     # MA30 may be None for too new stocks
     slow_ma_nan = slow_ma_inavailable(ma30)

@@ -21,6 +21,9 @@ def define_args():
         choices=["asx", "nasdaq", "all"],
     )
     parser.add_argument(
+        "-date", type=str, required=False, help="Date to run as of (YYYY-MM-DD format)"
+    )
+    parser.add_argument(
         "-num", type=int, required=False, help="Limit the number of scanned stocks"
     )
 
@@ -32,6 +35,14 @@ def define_args():
     if not arguments["scan"]:
         arguments["scan"] = False
     arguments["exchange"] = arguments["exchange"].upper()
+
+    # Process the date
+    if arguments["date"] is not None:
+        try:
+            arguments["date"] = arrow.get(arguments["date"], "YYYY-MM-DD").naive
+        except arrow.parser.ParserMatchError:
+            print("The date must be in the format YYYY-MM-DD")
+            exit(0)
 
     if True not in arguments.values():
         print("No arguments specified. Run main.py --h to show help.")

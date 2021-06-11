@@ -40,7 +40,7 @@ def update_stocks():
         rewrite_stocks(exchange, stocks)
     elif exchange == "ALL":
         for each_exchange in ["ASX", "NASDAQ"]:
-            print(f"Updating {each_exchange}")
+            print(f"Updating {each_exchange}...")
             stocks = get_exchange_symbols(each_exchange)
             rewrite_stocks(each_exchange, stocks)
 
@@ -89,19 +89,31 @@ def report_on_shortlist(shortlist, industry_score, exchange):
         print(f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} volume")
 
 
+def process_data_at_date(ohlc_daily, volume_daily):
+    # Removes most recent columns if there is an argument to look at a particular date
+    # < in the condition because we assume that at a day we only have info on the previous day close
+    if arguments["date"] is None:
+        return ohlc_daily, volume_daily
+
+    ohlc_daily_shifted = ohlc_daily[ohlc_daily["timestamp"] < arguments["date"]]
+    volume_daily_shifted = volume_daily[volume_daily["timestamp"] < arguments["date"]]
+
+    return ohlc_daily_shifted, volume_daily_shifted
+
+
 def scan_stock(stocks, exchange):
     stock_suffix = get_stock_suffix(exchange)
-    ma_num = 3
 
     try:
         shortlisted_stocks = []
         for i, stock in enumerate(stocks):
             print(f"\n{stock.code} [{stock.name}] ({i + 1}/{len(stocks)})")
             ohlc_daily, volume_daily = get_stock_data(f"{stock.code}{stock_suffix}")
-
             if ohlc_daily is None:
                 print("No data on the asset")
                 continue  # skip this asset if there is no data
+
+            ohlc_daily, volume_daily = process_data_at_date(ohlc_daily, volume_daily)
 
             (
                 ohlc_with_indicators_daily,
