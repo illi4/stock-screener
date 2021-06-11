@@ -40,7 +40,7 @@ def update_stocks():
         rewrite_stocks(exchange, stocks)
     elif exchange == "ALL":
         for each_exchange in ["ASX", "NASDAQ"]:
-            print(f"Updating {each_exchange}")
+            print(f"Updating {each_exchange}...")
             stocks = get_exchange_symbols(each_exchange)
             rewrite_stocks(each_exchange, stocks)
 
@@ -53,7 +53,7 @@ def check_update_date():
             "Warning: Stocks list was not updated today, the volume filter could work incorrectly. "
             "Please consider running the --update first..."
         )
-        sleep(3)
+        sleep(10)
 
 
 def last_volume_5D_MA(volume_daily):
@@ -82,26 +82,43 @@ def generate_indicators_daily_weekly(ohlc_daily):
 
 
 def report_on_shortlist(shortlist, industry_score, exchange):
+    if arguments["date"] is None:
+        as_of = "today"
+    else:
+        as_of = arguments["date"].strftime("%Y-%m-%d")
+
     print(
-        f"{len(shortlist)} shortlisted stocks (sorted by 5-day moving average volume):"
+        f"{len(shortlist)} shortlisted stocks (sorted by 5-day MA vol) as of {as_of}:"
     )
     for stock in shortlist:
-        print(f"- {stock[0]} ({stock[1]}) | {format_number(stock[2])} volume")
+        print(f"{stock[0]} ({stock[1]}) | {format_number(stock[2])} volume")
+
+
+def process_data_at_date(ohlc_daily, volume_daily):
+    # Removes most recent columns if there is an argument to look at a particular date
+    # < in the condition because we assume that at a day we only have info on the previous day close
+    if arguments["date"] is None:
+        return ohlc_daily, volume_daily
+
+    ohlc_daily_shifted = ohlc_daily[ohlc_daily["timestamp"] < arguments["date"]]
+    volume_daily_shifted = volume_daily[volume_daily["timestamp"] < arguments["date"]]
+
+    return ohlc_daily_shifted, volume_daily_shifted
 
 
 def scan_stock(stocks, exchange):
     stock_suffix = get_stock_suffix(exchange)
-    ma_num = 3
 
     try:
         shortlisted_stocks = []
         for i, stock in enumerate(stocks):
             print(f"\n{stock.code} [{stock.name}] ({i + 1}/{len(stocks)})")
             ohlc_daily, volume_daily = get_stock_data(f"{stock.code}{stock_suffix}")
-
             if ohlc_daily is None:
                 print("No data on the asset")
                 continue  # skip this asset if there is no data
+
+            ohlc_daily, volume_daily = process_data_at_date(ohlc_daily, volume_daily)
 
             (
                 ohlc_with_indicators_daily,

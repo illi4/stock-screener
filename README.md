@@ -18,13 +18,14 @@ Please note that the shortlist should only be used to guide your own research an
 - Run `main.py --h` to view context help 
 - To update the stocks list, run `main.py --update -exchange=all`. It is recommended to run this daily prior to scanning.  
 - To scan and shortlist, run `main.py --scan -exchange=all`.
+- To simulate scanning as of a particular date, use the `-date` parameter (the format is `YYYY-MM-DD`). 
 - Helper scripts (note: requires configuring Google credentials in order to work):  
    - `monitor.py` to run daily to check whether the exit condition was hit for active entries.
    - `paperfill.py` to run daily to fill in the values for paper trade entries automatically.
 
 #### Settings 
 See `libs/settings.py` for settings: 
-- Eoddata API key
+- Eodhistoricaldata API key
 - Price range for stocks considered on scan
 - Minimum volume threshold (500k)  
 - Overextended threshold
