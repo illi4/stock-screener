@@ -63,32 +63,20 @@ def get_stock_suffix(exchange):
         return ".AU"
 
 
-def get_previous_workday():
-    current_datetime = arrow.now()
-    current_dow = current_datetime.isoweekday()
-    if current_dow == 1:  # only subtract if today is Monday
-        current_datetime = current_datetime.shift(days=-3)
-    else:
-        current_datetime = current_datetime.shift(days=-1)
-    current_datetime = current_datetime.format("YYYY-MM-DD")
-    return current_datetime
+# Using proper api
+def get_exchange_symbols(exchange, checked_workday):
+    global session
 
-
-# Using proper api #HERE#
-def get_exchange_symbols(exchange):
     stocks = []
     if exchange == "NASDAQ":
         exchange_url_part = "NASDAQ"
     elif exchange == "ASX":
         exchange_url_part = "AU"
 
-    global session
     if session is None:
         session = requests.Session()
 
-    previous_workday = get_previous_workday()
-
-    url = f"https://eodhistoricaldata.com/api/eod-bulk-last-day/{exchange_url_part}?api_token={eod_key}&fmt=json&filter=extended&date={previous_workday}"
+    url = f"https://eodhistoricaldata.com/api/eod-bulk-last-day/{exchange_url_part}?api_token={eod_key}&fmt=json&filter=extended&date={checked_workday}"
     params = {"api_token": eod_key}
     r = session.get(url, params=params)  # to speed things up
 
@@ -114,13 +102,13 @@ def get_exchange_symbols(exchange):
     return stocks
 
 
-def get_nasdaq_symbols():
-    stocks = get_exchange_symbols("NASDAQ")
+def get_nasdaq_symbols(checked_workday):
+    stocks = get_exchange_symbols("NASDAQ", checked_workday)
     return stocks
 
 
-def get_asx_symbols():
-    stocks = get_exchange_symbols("ASX")
+def get_asx_symbols(checked_workday):
+    stocks = get_exchange_symbols("ASX", checked_workday)
     return stocks
 
 

@@ -1,4 +1,4 @@
-from libs.helpers import define_args, dates_diff, format_number, get_test_stocks
+from libs.helpers import define_args, dates_diff, format_number, get_previous_workday, get_test_stocks
 from libs.signal import bullish_ma_based
 from libs.stocktools import (
     get_asx_symbols,
@@ -32,16 +32,22 @@ def rewrite_stocks(exchange, stocks):
 
 def update_stocks():
     exchange = arguments["exchange"]
+
+    if arguments["date"] is None:
+        checked_workday = get_previous_workday()
+    else:
+        checked_workday = arguments["date"].strftime("%Y-%m-%d")
+
     if exchange == "ASX":
-        stocks = get_asx_symbols()
+        stocks = get_asx_symbols(checked_workday)
         rewrite_stocks(exchange, stocks)
     elif exchange == "NASDAQ":
-        stocks = get_nasdaq_symbols()
+        stocks = get_nasdaq_symbols(checked_workday)
         rewrite_stocks(exchange, stocks)
     elif exchange == "ALL":
         for each_exchange in ["ASX", "NASDAQ"]:
             print(f"Updating {each_exchange}...")
-            stocks = get_exchange_symbols(each_exchange)
+            stocks = get_exchange_symbols(each_exchange, checked_workday)
             rewrite_stocks(each_exchange, stocks)
 
 
