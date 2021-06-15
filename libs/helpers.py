@@ -4,6 +4,18 @@ import arrow
 parser = argparse.ArgumentParser()
 
 
+def get_data_start_date(input_date=None):
+    if input_date is None:
+        current_date = arrow.now()
+    else:
+        current_date = arrow.get(input_date.strftime("%Y-%m-%d"), "YYYY-MM-DD")
+
+    shifted_date = current_date.shift(months=-12)
+    data_start_date = shifted_date.format("YYYY-MM-DD")
+
+    return data_start_date
+
+
 def get_previous_workday():
     current_datetime = arrow.now()
     current_dow = current_datetime.isoweekday()
@@ -32,7 +44,10 @@ def define_args():
         choices=["asx", "nasdaq", "all"],
     )
     parser.add_argument(
-        "-date", type=str, required=False, help="Date to run as of (YYYY-MM-DD format) for update or scan"
+        "-date",
+        type=str,
+        required=False,
+        help="Date to run as of (YYYY-MM-DD format) for update or scan",
     )
     parser.add_argument(
         "-num", type=int, required=False, help="Limit the number of scanned stocks"
@@ -90,6 +105,6 @@ def get_test_stocks():
         code, name = None, None
 
     test_stock = Stk()
-    test_stock.code = "WAM"
-    test_stock.name = "WAM"
+    test_stock.code = "ARU"
+    test_stock.name = "ARU"
     return [test_stock]

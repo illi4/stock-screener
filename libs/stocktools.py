@@ -1,22 +1,10 @@
 # from libs.exceptions_lib import exception_handler
-from libs.settings import tzinfo, eod_key
-import arrow
+from libs.settings import eod_key
 import json
 import pandas as pd
 import requests
 
 session = None  # to use in requests
-
-
-# Get the starting date for reporting
-def get_data_start_date():
-    current_date = arrow.now()
-    shifted_date = current_date.shift(years=-2)
-    data_start_date = shifted_date.format("YYYY-MM-DD")
-    return data_start_date
-
-
-data_start_date = get_data_start_date()
 
 # Leaving as is, but this is not used anymore
 industry_mapping_asx = {
@@ -112,12 +100,12 @@ def get_asx_symbols(checked_workday):
     return stocks
 
 
-def get_stock_data(code):
+def get_stock_data(code, reporting_date_start):
     global session
     if session is None:
         session = requests.Session()
 
-    url = f"https://eodhistoricaldata.com/api/eod/{code}?api_token={eod_key}&order=a&fmt=json&from={data_start_date}"
+    url = f"https://eodhistoricaldata.com/api/eod/{code}?api_token={eod_key}&order=a&fmt=json&from={reporting_date_start}"
 
     params = {"api_token": eod_key}
     r = session.get(url, params=params)  # to speed things up

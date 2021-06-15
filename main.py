@@ -1,4 +1,11 @@
-from libs.helpers import define_args, dates_diff, format_number, get_previous_workday, get_test_stocks
+from libs.helpers import (
+    define_args,
+    dates_diff,
+    format_number,
+    get_previous_workday,
+    get_test_stocks,
+    get_data_start_date,
+)
 from libs.signal import bullish_ma_based
 from libs.stocktools import (
     get_asx_symbols,
@@ -121,7 +128,9 @@ def scan_stock(stocks, exchange):
         shortlisted_stocks = []
         for i, stock in enumerate(stocks):
             print(f"\n{stock.code} [{stock.name}] ({i + 1}/{len(stocks)})")
-            ohlc_daily, volume_daily = get_stock_data(f"{stock.code}{stock_suffix}")
+            ohlc_daily, volume_daily = get_stock_data(
+                f"{stock.code}{stock_suffix}", reporting_date_start
+            )
             if ohlc_daily is None:
                 print("No data on the asset")
                 continue  # skip this asset if there is no data
@@ -244,6 +253,8 @@ if __name__ == "__main__":
     start_time = time()
 
     arguments = define_args()
+    reporting_date_start = get_data_start_date(arguments["date"])
+
     if arguments["update"]:
         update_stocks()
 
