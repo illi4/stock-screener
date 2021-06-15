@@ -4,7 +4,7 @@ from libs.helpers import (
     format_number,
     get_previous_workday,
     get_test_stocks,
-    get_data_start_date
+    get_data_start_date,
 )
 from libs.signal import bullish_ma_based
 from libs.stocktools import (
@@ -128,7 +128,9 @@ def scan_stock(stocks, exchange):
         shortlisted_stocks = []
         for i, stock in enumerate(stocks):
             print(f"\n{stock.code} [{stock.name}] ({i + 1}/{len(stocks)})")
-            ohlc_daily, volume_daily = get_stock_data(f"{stock.code}{stock_suffix}", reporting_date_start)
+            ohlc_daily, volume_daily = get_stock_data(
+                f"{stock.code}{stock_suffix}", reporting_date_start
+            )
             if ohlc_daily is None:
                 print("No data on the asset")
                 continue  # skip this asset if there is no data

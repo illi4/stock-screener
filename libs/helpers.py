@@ -44,7 +44,10 @@ def define_args():
         choices=["asx", "nasdaq", "all"],
     )
     parser.add_argument(
-        "-date", type=str, required=False, help="Date to run as of (YYYY-MM-DD format) for update or scan"
+        "-date",
+        type=str,
+        required=False,
+        help="Date to run as of (YYYY-MM-DD format) for update or scan",
     )
     parser.add_argument(
         "-num", type=int, required=False, help="Limit the number of scanned stocks"
