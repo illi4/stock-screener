@@ -1,9 +1,11 @@
 # Fills in the missing prices for paper entries where applicable
 import libs.gsheetobj as gsheetsobj
+from libs.helpers import get_data_start_date
 from libs.stocktools import get_stock_data, get_stock_suffix
 from libs.settings import gsheet_name
 import arrow
 
+reporting_date_start = get_data_start_date()
 
 def fill_prices():
     for exchange in ["ASX", "NASDAQ"]:
@@ -23,7 +25,7 @@ def fill_prices():
                 entry_date_value = row["Entry date"]
                 entry_date = arrow.get(entry_date_value, "DD/MM/YY").datetime.date()
                 ohlc_daily, volume_daily = get_stock_data(
-                    f"{stock_code}{stock_suffix}"
+                    f"{stock_code}{stock_suffix}", reporting_date_start
                 )
 
                 ohlc_daily["timestamp"] = ohlc_daily["timestamp"].dt.date
