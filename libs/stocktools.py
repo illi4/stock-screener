@@ -11,7 +11,7 @@ session = None  # to use in requests
 # Get the starting date for reporting
 def get_data_start_date():
     current_date = arrow.now()
-    shifted_date = current_date.shift(years=-1)
+    shifted_date = current_date.shift(years=-3)
     data_start_date = shifted_date.format("YYYY-MM-DD")
     return data_start_date
 
