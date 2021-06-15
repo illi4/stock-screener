@@ -38,6 +38,8 @@ def update_stocks():
     else:
         checked_workday = arguments["date"].strftime("%Y-%m-%d")
 
+    print(f"Updating info on traded stocks as of {checked_workday}")
+
     if exchange == "ASX":
         stocks = get_asx_symbols(checked_workday)
         rewrite_stocks(exchange, stocks)
@@ -46,7 +48,7 @@ def update_stocks():
         rewrite_stocks(exchange, stocks)
     elif exchange == "ALL":
         for each_exchange in ["ASX", "NASDAQ"]:
-            print(f"Updating {each_exchange}...")
+            print(f"Processing {each_exchange}...")
             stocks = get_exchange_symbols(each_exchange, checked_workday)
             rewrite_stocks(each_exchange, stocks)
 
@@ -243,9 +245,6 @@ if __name__ == "__main__":
 
     arguments = define_args()
     if arguments["update"]:
-        print(
-            f"Updating the stocks list (exchange: {arguments['exchange'].capitalize()})"
-        )
         update_stocks()
 
     if arguments["scan"]:
