@@ -4,6 +4,17 @@ import arrow
 parser = argparse.ArgumentParser()
 
 
+def get_previous_workday():
+    current_datetime = arrow.now()
+    current_dow = current_datetime.isoweekday()
+    if current_dow == 1:  # only subtract if today is Monday
+        current_datetime = current_datetime.shift(days=-3)
+    else:
+        current_datetime = current_datetime.shift(days=-1)
+    current_datetime = current_datetime.format("YYYY-MM-DD")
+    return current_datetime
+
+
 def define_args():
     parser.add_argument(
         "--update",
@@ -21,7 +32,7 @@ def define_args():
         choices=["asx", "nasdaq", "all"],
     )
     parser.add_argument(
-        "-date", type=str, required=False, help="Date to run as of (YYYY-MM-DD format)"
+        "-date", type=str, required=False, help="Date to run as of (YYYY-MM-DD format) for update or scan"
     )
     parser.add_argument(
         "-num", type=int, required=False, help="Limit the number of scanned stocks"
