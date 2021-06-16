@@ -22,6 +22,7 @@ simultaneous_positions = [2, 3, 4, 5]
 variant_names = ["control", "test_a", "test_b", "test_c", "test_d", "test_e"]
 start_date = "2021-04-01"
 end_date = "2021-06-15"
+reporting_start_date = "2019-05-01"  # -2 years ago is ok
 
 # Take profit level variations
 # Would be used iterating over control with simultaneous_positions variations too
@@ -485,7 +486,7 @@ if __name__ == "__main__":
         suffix = get_stock_suffix(exchange)
         for stock in stock_names:
             print(f"getting stock data for {stock}{suffix}")
-            stock_info = get_stock_data(f"{stock}{suffix}")
+            stock_info = get_stock_data(f"{stock}{suffix}", reporting_start_date)
             stock_prices[stock] = stock_info
 
         for current_tp_variant_name, current_tp_variant in take_profit_variants.items():
