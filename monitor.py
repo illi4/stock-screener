@@ -6,7 +6,9 @@ from libs.techanalysis import MA
 from libs.settings import gsheet_name
 import arrow
 from datetime import timedelta
+from libs.helpers import get_data_start_date
 
+reporting_date_start = get_data_start_date()
 
 def get_first_true_idx(list):
     filtr = lambda x: x == True
@@ -32,7 +34,7 @@ def check_positions():
                 entry_date_value = row["Entry date"]
                 entry_date = arrow.get(entry_date_value, "DD/MM/YY").datetime.date()
                 ohlc_daily, volume_daily = get_stock_data(
-                    f"{stock_code}{stock_suffix}"
+                    f"{stock_code}{stock_suffix}", reporting_date_start
                 )
                 ma10 = MA(ohlc_daily, 10)
 
