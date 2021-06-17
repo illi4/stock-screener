@@ -15,7 +15,7 @@ penny_filter = ["Y", "N"]
 capital = 5000
 commission = 10
 apply_higher_open_filter = True
-higher_open_filter = ["Y"]
+higher_or_equal_open_filter = ["Y"]
 
 # Variations to go through
 simultaneous_positions = [2, 3, 4, 5]
@@ -140,7 +140,7 @@ def prepare_data(ws):
     ws = ws.loc[ws["penny_stock"].isin(penny_filter)]
 
     if apply_higher_open_filter:
-        ws = ws.loc[ws["higher_open"].isin(higher_open_filter)]
+        ws = ws.loc[ws["higher_open"].isin(higher_or_equal_open_filter)]
 
     ws["max_level_reached"] = ws["max_level_reached"].apply(p2f)
 
