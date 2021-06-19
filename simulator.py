@@ -142,6 +142,8 @@ def prepare_data(ws):
         "entry_price_actual",
         "exit_price_planned",
         "control_price",
+        "test_c_price",
+        "test_d_price",
     ]
     ws[num_cols] = ws[num_cols].apply(pd.to_numeric, errors="coerce")
     ws = ws.loc[ws["confidence"].isin(confidence_filter)]
