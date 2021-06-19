@@ -25,7 +25,8 @@ variant_names = ["control", "test_a", "test_b", "test_c", "test_d", "test_e"]
 start_date = "2021-02-01"
 end_date = "2021-07-01"
 reporting_start_date = "2019-05-01"  # -2 years ago is ok
-tp_base_variant = "control"  # for the take profit levels calculation, which base variant to use
+tp_base_variant = "control"  # NOTE: it will not work with other variants because
+# the calc is using exit_price_actual... to fix later on - TODO
 
 # Take profit level variations
 # Would be used iterating over control with simultaneous_positions variations too
