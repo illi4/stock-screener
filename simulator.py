@@ -8,6 +8,7 @@ import numpy as np
 from libs.stocktools import get_stock_suffix, get_stock_data
 import argparse
 parser = argparse.ArgumentParser()
+import matplotlib.pyplot as plt
 
 # Settings
 confidence_filter = [8, 9]
@@ -97,11 +98,16 @@ def define_args():
         help="Exchange (asx|nasdaq)",
         choices=["asx", "nasdaq"],
     )
+    parser.add_argument(
+        "--plot", action="store_true", help="Plot the latest simulation"
+    )
 
     args = parser.parse_args()
     arguments = vars(args)
     arguments["mode"] = arguments["mode"].lower()
     arguments["exchange"] = arguments["exchange"].upper()
+    if not arguments["plot"]:
+        arguments["plot"] = False
 
     return arguments
 
@@ -189,6 +195,8 @@ class simulation:
         self.left_of_initial_entries = dict()  # list of initial entries
         self.thresholds_reached = dict()  # for the thresholds reached
         self.entry_prices = dict()  # for the entry prices
+        # Another dict for capital values and dates detailed
+        self.detailed_capital_values = dict()
 
     def snapshot_balance(self, current_date_dt):
         self.balances[
@@ -410,6 +418,23 @@ def add_exit_with_profit_thresholds(
         sim.remove_stock_traces(elem["stock"])
 
 
+# plotting
+def plot_latest_sim():
+    x, y = [], []
+    for key, value in sim.detailed_capital_values.items():
+        x.append(key)
+        y.append(value)
+    _ = plt.plot(x, y)
+    ax = plt.gca()
+    plt.xticks(fontsize=7)
+    lst = list(range(1000))
+    lst = lst[0::20]
+    for index, label in enumerate(ax.get_xaxis().get_ticklabels()):
+        if index not in lst:
+            label.set_visible(False)
+    plt.show()
+
+
 if __name__ == "__main__":
 
     arguments = define_args()
@@ -442,6 +467,7 @@ if __name__ == "__main__":
 
                 # Balance for the start of the period which will then be updated
                 sim.balances[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
+                sim.detailed_capital_values[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
 
                 # Iterating over days
                 while current_date_dt < end_date_dt:
@@ -454,6 +480,7 @@ if __name__ == "__main__":
                         sim.balances[
                             current_date_dt.strftime("%d/%m/%Y")
                         ] = sim.current_capital
+                    sim.detailed_capital_values[current_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
 
                     print(current_date_dt, "| positions: ", sim.current_positions)
 
@@ -514,6 +541,7 @@ if __name__ == "__main__":
 
                 # Balance for the start of the period which will then be updated
                 sim.balances[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
+                sim.detailed_capital_values[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
 
                 # Iterating over days
                 while current_date_dt < end_date_dt:
@@ -524,6 +552,7 @@ if __name__ == "__main__":
 
                     if previous_date_month != current_date_month:
                         sim.balances[current_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
+                    sim.detailed_capital_values[current_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
 
                     print(
                         current_date_dt,
@@ -610,3 +639,7 @@ if __name__ == "__main__":
     # save to csv
     final_result.to_csv("simulator_result.csv", index=False)
     print("results saved to simulator_result.csv")
+
+    # plotting
+    if arguments["plot"]:
+        plot_latest_sim()
