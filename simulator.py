@@ -14,14 +14,14 @@ confidence_filter = [8, 9]
 penny_filter = ["Y", "N"]
 capital = 5000
 commission = 10
-apply_higher_open_filter = True
+apply_higher_or_equal_open_filter = True
 higher_or_equal_open_filter = ["Y"]
 
 # Variations to go through
 simultaneous_positions = [2, 3, 4, 5]
 variant_names = ["control", "test_a", "test_b", "test_c", "test_d", "test_e"]
-start_date = "2021-04-01"
-end_date = "2021-06-15"
+start_date = "2021-02-01"
+end_date = "2021-07-01"
 reporting_start_date = "2019-05-01"  # -2 years ago is ok
 
 # Take profit level variations
@@ -46,6 +46,9 @@ sheet_columns = [
     "confidence",
     "penny_stock",
     "higher_open",
+    "higher_strictly_open",
+    "pullback_under_ma",
+    "long_consolidation",
     "control_exit_date",
     "exit_price_planned",
     "exit_price_actual",
@@ -139,7 +142,7 @@ def prepare_data(ws):
     ws = ws.loc[ws["confidence"].isin(confidence_filter)]
     ws = ws.loc[ws["penny_stock"].isin(penny_filter)]
 
-    if apply_higher_open_filter:
+    if apply_higher_or_equal_open_filter:
         ws = ws.loc[ws["higher_open"].isin(higher_or_equal_open_filter)]
 
     ws["max_level_reached"] = ws["max_level_reached"].apply(p2f)
