@@ -25,6 +25,7 @@ variant_names = ["control", "test_a", "test_b", "test_c", "test_d", "test_e"]
 start_date = "2021-02-01"
 end_date = "2021-07-01"
 reporting_start_date = "2019-05-01"  # -2 years ago is ok
+tp_base_variant = "control"  # for the take profit levels calculation, which base variant to use
 
 # Take profit level variations
 # Would be used iterating over control with simultaneous_positions variations too
@@ -487,7 +488,7 @@ if __name__ == "__main__":
     # > Iterating through days and take profit variants for the dynamic TP levels
     # Only supported for control but allows to make some conclusions too
     if arguments["mode"] == "tp":
-        current_variant = "control"
+        current_variant = tp_base_variant
         stock_names = [item.stock for key, item in ws.iterrows()]
         stock_prices = dict()
         suffix = get_stock_suffix(exchange)
@@ -540,7 +541,7 @@ if __name__ == "__main__":
                     thresholds_check(sim, stock_prices, current_date_dt)
 
                     # Exits
-                    day_exits = ws.loc[ws[f"control_exit_date"] == current_date_dt]
+                    day_exits = ws.loc[ws[f"{current_variant}_exit_date"] == current_date_dt]
                     for (
                         key,
                         elem,
@@ -550,7 +551,7 @@ if __name__ == "__main__":
                             elem["stock"],
                             elem[f"entry_price_actual"],
                             elem[f"exit_price_actual"],
-                            elem[f"control_result_%"],
+                            elem[f"{current_variant}_result_%"],
                         )
 
                 # Add the final balance at the end of the date
