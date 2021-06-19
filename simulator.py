@@ -14,7 +14,7 @@ confidence_filter = [8, 9]
 penny_filter = ["Y", "N"]
 capital = 5000
 commission = 10
-higher_or_equal_open_filter = ["Y"]
+higher_or_equal_open_filter = ["Y"] #, "N"]
 higher_strictly_open_filter = ["Y", "N"]
 pullback_under_ma_filter = ["Y", "N"]
 long_consolidation_filter = ["Y", "N"]
@@ -63,8 +63,8 @@ sheet_columns = [
     "test_a_result_%",
     "test_b_exit_date",
     "test_b_result_%",
-    "test_c_price",
     "test_c_exit_date",
+    "test_c_price",
     "test_c_result_%",
     "test_d_price",
     "test_d_exit_date",
