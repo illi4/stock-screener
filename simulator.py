@@ -56,13 +56,14 @@ sheet_columns = [
     "long_consolidation",
     "control_exit_date",
     "exit_price_planned",
-    "exit_price_actual",
+    "control_price",
     "outcome",
     "control_result_%",
     "test_a_exit_date",
     "test_a_result_%",
     "test_b_exit_date",
     "test_b_result_%",
+    "test_c_price",
     "test_c_exit_date",
     "test_c_result_%",
     "test_d_price",
@@ -141,7 +142,7 @@ def prepare_data(ws):
         "entry_price_planned",
         "entry_price_actual",
         "exit_price_planned",
-        "exit_price_actual",
+        "control_price",
     ]
     ws[num_cols] = ws[num_cols].apply(pd.to_numeric, errors="coerce")
     ws = ws.loc[ws["confidence"].isin(confidence_filter)]
@@ -551,7 +552,7 @@ if __name__ == "__main__":
                             sim,
                             elem["stock"],
                             elem[f"entry_price_actual"],
-                            elem[f"exit_price_actual"],
+                            elem[f"{current_variant}_price"],
                             elem[f"{current_variant}_result_%"],
                         )
 
