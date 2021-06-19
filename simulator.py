@@ -32,10 +32,11 @@ take_profit_variants = {
     "_repeated_to_control": [0.25, 0.45, 0.9],
     "tp_a": [0.3, 0.5, 0.9],
     "tp_b": [0.5, 1],
-    "tp_c": [0.15, 0.5, 0.9],
+    "tp_c": [0.15, 0.5, 0.9, 1.75],
     "tp_d": [0.5, 1, 1.5],
     "tp_e": [0.25, 0.45, 0.9, 1.45],
     "tp_f": [0.45, 0.9, 1.45, 1.75],
+    "tp_g": [0.25, 0.9, 1.45, 1.75],
 }
 
 # Sheet columns for the Gsheet
@@ -508,8 +509,7 @@ if __name__ == "__main__":
                 current_date_dt = start_date_dt
 
                 # Balance for the start of the period which will then be updated
-                balances = dict()
-                balances[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
+                sim.balances[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
 
                 # Iterating over days
                 while current_date_dt < end_date_dt:
@@ -519,7 +519,7 @@ if __name__ == "__main__":
                     current_date_month = current_date_dt.strftime("%m")
 
                     if previous_date_month != current_date_month:
-                        balances[current_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
+                        sim.balances[current_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
 
                     print(
                         current_date_dt,
