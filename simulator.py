@@ -14,8 +14,10 @@ confidence_filter = [8, 9]
 penny_filter = ["Y", "N"]
 capital = 5000
 commission = 10
-apply_higher_or_equal_open_filter = True
 higher_or_equal_open_filter = ["Y"]
+higher_strictly_open_filter = ["Y", "N"]
+pullback_under_ma_filter = ["Y", "N"]
+long_consolidation_filter = ["Y", "N"]
 
 # Variations to go through
 simultaneous_positions = [2, 3, 4, 5]
@@ -141,9 +143,10 @@ def prepare_data(ws):
     ws[num_cols] = ws[num_cols].apply(pd.to_numeric, errors="coerce")
     ws = ws.loc[ws["confidence"].isin(confidence_filter)]
     ws = ws.loc[ws["penny_stock"].isin(penny_filter)]
-
-    if apply_higher_or_equal_open_filter:
-        ws = ws.loc[ws["higher_open"].isin(higher_or_equal_open_filter)]
+    ws = ws.loc[ws["higher_open"].isin(higher_or_equal_open_filter)]
+    ws = ws.loc[ws["higher_strictly_open"].isin(higher_strictly_open_filter)]
+    ws = ws.loc[ws["pullback_under_ma"].isin(pullback_under_ma_filter)]
+    ws = ws.loc[ws["long_consolidation"].isin(long_consolidation_filter)]
 
     ws["max_level_reached"] = ws["max_level_reached"].apply(p2f)
 
