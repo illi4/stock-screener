@@ -81,7 +81,11 @@ def volume_spike(volume_daily):
     mergedDf["volume_above_average"] = mergedDf["volume"].ge(
         mergedDf["ma20"]
     )  # GE is greater or equal
-    volume_condition = bool(mergedDf["volume_above_average"].iloc[-1])
+    try:
+        volume_condition = bool(mergedDf["volume_above_average"].iloc[-1])
+    except IndexError:
+        print("Issue indexing volume")
+        volume_condition = False
     return volume_condition
 
 
