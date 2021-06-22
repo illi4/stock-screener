@@ -68,7 +68,7 @@ def check_update_date():
             "Warning: Stocks list was not updated today, the volume filter could work incorrectly. "
             "Please consider running the --update first..."
         )
-        sleep(10)
+        sleep(3)
 
 
 def last_volume_5D_MA(volume_daily):
