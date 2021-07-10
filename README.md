@@ -10,7 +10,7 @@ Stock shortlisting and industry score estimates incorporate the following condit
 - Moving averages (10, 20, 30 day) rising
 - 2 most recent weekly candles closing above weekly moving averages (10/20/30 week)
 - Close for the last week is not exceeding 200% when compared to 4 weeks ago
-- Volume spike in the last day compared to the 20-day moving average  
+- Volume spike in the last day compared to the 20-day moving average (should be 10% higher at least)  
 
 Please note that the shortlist should only be used to guide your own research and should not be interpreted as 'signals'. 
 
