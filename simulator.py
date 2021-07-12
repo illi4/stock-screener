@@ -1,5 +1,7 @@
 # Simulates trading progress and results over time using a spreadsheet with various considerations
 # Will save the result to simulator_result.csv
+# Use example: python simulator.py -mode=main -exchange=asx -start=2021-02-01 -end=2021-07-01
+
 import libs.gsheetobj as gsheetsobj
 from libs.settings import gsheet_name
 import pandas as pd
@@ -23,9 +25,6 @@ long_consolidation_filter = ["Y", "N"]
 # Variations to go through
 simultaneous_positions = [2, 3, 4, 5]
 variant_names = ["control", "test_a", "test_b", "test_c", "test_d", "test_e"]
-start_date = "2021-02-01"
-end_date = "2021-07-01"
-reporting_start_date = "2019-05-01"  # -2 years ago is ok
 tp_base_variant = "control"  # NOTE: works with control and test_c currently (need to have the price column)
 
 # Take profit level variations
@@ -101,6 +100,20 @@ def define_args():
     )
     parser.add_argument(
         "--plot", action="store_true", help="Plot the latest simulation"
+    )
+
+    # Adding the dates
+    parser.add_argument(
+        "-start",
+        type=str,
+        required=True,
+        help="Start date to run for (YYYY-MM-DD format)",
+    )
+    parser.add_argument(
+        "-end",
+        type=str,
+        required=True,
+        help="End date to run for (YYYY-MM-DD format)",
     )
 
     args = parser.parse_args()
@@ -436,6 +449,17 @@ def plot_latest_sim():
     plt.show()
 
 
+def get_dates(start_date, end_date):
+    try:
+        start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
+    except ValueError:
+        print("the date must be in the format YYYY-MM-DD")
+        exit(0)
+    current_date_dt = start_date_dt
+    return start_date_dt, end_date_dt, current_date_dt
+
+
 if __name__ == "__main__":
 
     arguments = define_args()
@@ -451,6 +475,13 @@ if __name__ == "__main__":
     # Dict to hold all the results
     results_dict = dict()
 
+    # Dates
+    start_date = arguments["start"]
+    end_date = arguments["end"]
+    reporting_start_date =  datetime.strptime(start_date, "%Y-%m-%d") - timedelta(days=2*365)
+    # ^^^ -2 years ago from start is ok
+    reporting_start_date = reporting_start_date.strftime("%Y-%m-%d")
+
     # > Iterating through days and variants for the fixed TP levels per the control & spreadsheet
     current_tp_variant_name = None
     if arguments["mode"] == "main":
@@ -461,10 +492,7 @@ if __name__ == "__main__":
                 sim = simulation(capital)
 
                 # Starting for a variant
-                print(f"simulating {current_variant.lower()}")
-                start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
-                end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
-                current_date_dt = start_date_dt
+                start_date_dt, end_date_dt, current_date_dt = get_dates(start_date, end_date)
 
                 # Balance for the start of the period which will then be updated
                 sim.balances[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
@@ -535,10 +563,7 @@ if __name__ == "__main__":
                 sim = simulation(capital)
 
                 # Starting for a variant
-                print(f"simulating control with TP levels {current_tp_variant}")
-                start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
-                end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
-                current_date_dt = start_date_dt
+                start_date_dt, end_date_dt, current_date_dt = get_dates(start_date, end_date)
 
                 # Balance for the start of the period which will then be updated
                 sim.balances[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
