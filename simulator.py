@@ -24,7 +24,7 @@ long_consolidation_filter = ["Y", "N"]
 
 # Variations to go through
 simultaneous_positions = [2, 3, 4, 5]
-variant_names = ["control", "test_a", "test_b", "test_c", "test_d", "test_e"]
+variant_names = ["control", "test_a", "test_b", "test_c", "test_e"]
 tp_base_variant = "control"  # NOTE: works with control and test_c currently (need to have the price column)
 
 # Take profit level variations
@@ -54,6 +54,8 @@ sheet_columns = [
     "higher_strictly_open",
     "pullback_under_ma",
     "long_consolidation",
+    "market_state_weekly",
+    "market_daily_below_ma10",
     "control_exit_date",
     "exit_price_planned",
     "control_price",
@@ -66,9 +68,6 @@ sheet_columns = [
     "test_c_exit_date",
     "test_c_price",
     "test_c_result_%",
-    "test_d_price",
-    "test_d_exit_date",
-    "test_d_result_%",
     "test_e_exit_date",
     "test_e_result_%",
     "max_level_reached",
@@ -77,7 +76,6 @@ sheet_columns = [
     "time_in_trade_test_a",
     "time_in_trade_test_b",
     "time_in_trade_test_c",
-    "time_in_trade_test_d",
     "time_in_trade_test_e",
 ]
 
@@ -163,7 +161,6 @@ def prepare_data(ws):
         "exit_price_planned",
         "control_price",
         "test_c_price",
-        "test_d_price",
     ]
     ws[num_cols] = ws[num_cols].apply(pd.to_numeric, errors="coerce")
     ws = ws.loc[ws["confidence"].isin(confidence_filter)]
