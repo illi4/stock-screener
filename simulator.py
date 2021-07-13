@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 confidence_filter = [8, 9]
 penny_filter = ["Y", "N"]
 capital = 5000
-commission = 10
+commission = 20
 higher_or_equal_open_filter = ["Y", "N"]
 higher_strictly_open_filter = ["Y", "N"]
 pullback_under_ma_filter = ["Y", "N"]
