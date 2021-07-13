@@ -16,15 +16,17 @@ import matplotlib.pyplot as plt
 confidence_filter = [8, 9]
 penny_filter = ["Y", "N"]
 capital = 5000
-commission = 10
+commission = 20
 higher_or_equal_open_filter = ["Y", "N"]
 higher_strictly_open_filter = ["Y", "N"]
 pullback_under_ma_filter = ["Y", "N"]
 long_consolidation_filter = ["Y", "N"]
+market_daily_below_ma10_filter = ["Y", "N"]
+lowest_market_state_weekly_filter = -5
 
 # Variations to go through
 simultaneous_positions = [2, 3, 4, 5]
-variant_names = ["control", "test_a", "test_b", "test_c", "test_d", "test_e"]
+variant_names = ["control", "test_a", "test_b", "test_c", "test_e"]
 tp_base_variant = "control"  # NOTE: works with control and test_c currently (need to have the price column)
 
 # Take profit level variations
@@ -54,6 +56,8 @@ sheet_columns = [
     "higher_strictly_open",
     "pullback_under_ma",
     "long_consolidation",
+    "market_state_weekly",
+    "market_daily_below_ma10",
     "control_exit_date",
     "exit_price_planned",
     "control_price",
@@ -66,9 +70,6 @@ sheet_columns = [
     "test_c_exit_date",
     "test_c_price",
     "test_c_result_%",
-    "test_d_price",
-    "test_d_exit_date",
-    "test_d_result_%",
     "test_e_exit_date",
     "test_e_result_%",
     "max_level_reached",
@@ -77,7 +78,6 @@ sheet_columns = [
     "time_in_trade_test_a",
     "time_in_trade_test_b",
     "time_in_trade_test_c",
-    "time_in_trade_test_d",
     "time_in_trade_test_e",
 ]
 
@@ -163,15 +163,19 @@ def prepare_data(ws):
         "exit_price_planned",
         "control_price",
         "test_c_price",
-        "test_d_price",
+        "market_state_weekly"
     ]
     ws[num_cols] = ws[num_cols].apply(pd.to_numeric, errors="coerce")
+
+    # Apply filters
     ws = ws.loc[ws["confidence"].isin(confidence_filter)]
     ws = ws.loc[ws["penny_stock"].isin(penny_filter)]
     ws = ws.loc[ws["higher_open"].isin(higher_or_equal_open_filter)]
     ws = ws.loc[ws["higher_strictly_open"].isin(higher_strictly_open_filter)]
     ws = ws.loc[ws["pullback_under_ma"].isin(pullback_under_ma_filter)]
     ws = ws.loc[ws["long_consolidation"].isin(long_consolidation_filter)]
+    ws = ws.loc[ws["market_daily_below_ma10"].isin(market_daily_below_ma10_filter)]
+    ws = ws.loc[ws["market_state_weekly"].ge(lowest_market_state_weekly_filter)]
 
     ws["max_level_reached"] = ws["max_level_reached"].apply(p2f)
 
