@@ -79,8 +79,8 @@ def volume_spike(volume_daily):
     mergedDf = volume_daily.merge(volume_ma_20, left_index=True, right_index=True)
     mergedDf.dropna(inplace=True, how="any")
     mergedDf["volume_above_average"] = mergedDf["volume"].ge(
-        mergedDf["ma20"]*1.1
-    )  # GE is greater or equal, than averaged 20d volume plus 10 percent
+        mergedDf["ma20"]*1.3
+    )  # GE is greater or equal, than averaged 20d volume plus 30 percent
     try:
         volume_condition = bool(mergedDf["volume_above_average"].iloc[-1])
     except IndexError:
