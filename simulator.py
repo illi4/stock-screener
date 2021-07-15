@@ -19,8 +19,6 @@ capital = 5000
 commission = 20
 higher_or_equal_open_filter = ["Y"] # , "N"]
 higher_strictly_open_filter = ["Y", "N"]
-candles_in_consolidation_filter_enabled = False
-candles_in_consolidation_filter_min = 1
 
 # Variations to go through
 simultaneous_positions = [2, 3, 4, 5]
@@ -54,7 +52,6 @@ sheet_columns = [
     "penny_stock",
     "higher_open",
     "higher_strictly_open",
-    "candles_in_consolidation",
     "control_exit_date",
     "exit_price_planned",
     "control_price",
@@ -160,7 +157,6 @@ def prepare_data(ws):
         "exit_price_planned",
         "control_price",
         "test_c_price",
-        "candles_in_consolidation"
     ]
     ws[num_cols] = ws[num_cols].apply(pd.to_numeric, errors="coerce")
 
@@ -169,8 +165,6 @@ def prepare_data(ws):
     ws = ws.loc[ws["penny_stock"].isin(penny_filter)]
     ws = ws.loc[ws["higher_open"].isin(higher_or_equal_open_filter)]
     ws = ws.loc[ws["higher_strictly_open"].isin(higher_strictly_open_filter)]
-    if candles_in_consolidation_filter_enabled:
-        ws = ws.loc[ws["higher_strictly_open"].ge(candles_in_consolidation_filter_min)]
 
     ws["max_level_reached"] = ws["max_level_reached"].apply(p2f)
 
