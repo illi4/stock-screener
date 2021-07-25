@@ -21,12 +21,12 @@ higher_or_equal_open_filter = ["Y"] # , "N"]
 higher_strictly_open_filter = ["Y", "N"]
 
 # Variations to go through
-simultaneous_positions = [4] # [2, 3, 4, 5]
+simultaneous_positions = [2, 3, 4, 5]
 variant_names = ["control", "test_a", "test_b", "test_c", "test_e"]
 tp_base_variant = "control"  # NOTE: works with control and test_c currently (need to have the price column)
 
 # Extra additions - use hard stop when something reached a threshold
-hard_stop_enabled = True
+hard_stop_enabled = False
 hard_stop_after = 0.2  # after something reaches this %
 hard_stop_level = 0.05  # after reaching the hard_stop_after, stop when something is now at this level
 
@@ -437,9 +437,6 @@ def add_exit_with_profit_thresholds(
             result += threshold_reached / divisor
 
         print(f"Result ({position}) accounting for thresholds reached: {result}")
-
-        if use_hard_stop_in_calc:
-            exit(0) ## TEST #HERE, CONTINUE. WORKS FINE. REMEMBER TO ADD COLUMNS BACK TO SPREADSHEET
 
         if result >= 0:
             sim.winning_trades_number += 1
