@@ -392,7 +392,7 @@ def hard_stop_process(sim, stock_prices, current_date_dt):
         if not curr_row.empty:
             if position in sim.hard_stop_reached:
                 if sim.hard_stop_reached[position] and curr_row["low"].iloc[0] < sim.entry_prices[position] * (1 + hard_stop_level):
-                    sim.hard_stop_hit_level[position] = curr_row["low"].iloc[0] # sim.entry_prices[position] * (1 + hard_stop_level)
+                    sim.hard_stop_hit_level[position] = sim.entry_prices[position] * (1 + hard_stop_level)  # as the best case
 
 
 def add_exit_with_profit_thresholds(
@@ -636,7 +636,6 @@ if __name__ == "__main__":
                     # For each day, need to check the current positions and whether the position reached a threshold
                     thresholds_check(sim, stock_prices, current_date_dt)
 
-                    #HERE, checking for hard stop
                     if hard_stop_enabled:
                         hard_stop_check(sim, stock_prices, current_date_dt)
                         hard_stop_process(sim, stock_prices, current_date_dt)
