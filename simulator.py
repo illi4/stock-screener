@@ -18,7 +18,7 @@ confidence_filter = [8, 9]
 penny_filter = ["Y", "N"]
 capital = 5000
 commission = 10  # this is brokerage (per entry / per exit)
-higher_or_equal_open_filter = ["Y"]  # , "N"]
+higher_or_equal_open_filter = ["Y", "N"]
 higher_strictly_open_filter = ["Y", "N"]
 
 # Variations to go through
