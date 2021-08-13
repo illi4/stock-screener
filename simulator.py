@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 import numpy as np
 from libs.stocktools import get_stock_suffix, get_stock_data
 import argparse
+
 parser = argparse.ArgumentParser()
 import matplotlib.pyplot as plt
 
@@ -16,8 +17,8 @@ import matplotlib.pyplot as plt
 confidence_filter = [8, 9]
 penny_filter = ["Y", "N"]
 capital = 5000
-commission = 20
-higher_or_equal_open_filter = ["Y"] # , "N"]
+commission = 10  # this is brokerage (per entry / per exit)
+higher_or_equal_open_filter = ["Y"]  # , "N"]
 higher_strictly_open_filter = ["Y", "N"]
 
 # Variations to go through
@@ -28,22 +29,22 @@ tp_base_variant = "control"  # NOTE: works with control and test_c currently (ne
 # Extra additions - use hard stop when something reached a threshold
 hard_stop_enabled = False
 hard_stop_after = 0.2  # after something reaches this %
-hard_stop_level = 0.05  # after reaching the hard_stop_after, stop when something is now at this level
+hard_stop_level = (
+    0.05  # after reaching the hard_stop_after, stop when something is now at this level
+)
 
 # Take profit level variations
 # Would be used iterating over control with simultaneous_positions variations too
 take_profit_variants = {
     "_repeated_to_control": [0.25, 0.45, 0.9],
-    "tp_a": [0.3, 0.5, 0.9],
     "tp_b": [0.5, 1],
     "tp_c": [0.15, 0.5, 0.9, 1.75],
     "tp_d": [0.5, 1, 1.5],
     "tp_e": [0.25, 0.45, 0.9, 1.45],
-    "tp_f": [0.45, 0.9, 1.45, 1.75],
     "tp_g": [0.25, 0.9, 1.45, 1.75],
     "tp_h": [1.45, 1.75, 1.95],
-    "tp_k": [0.9, 1.45, 1.75],
-    "tp_l": [0.45, 0.9, 1.45],
+    "tp_k1": [0.45, 1.75, 1.95],
+    "tp_l1": [0.45, 1.45, 1.75, 1.95],
 }
 
 # Sheet columns for the Gsheet
@@ -153,6 +154,12 @@ def calculate_max_drawdown(capital_change_values):
     return np.max(drawdowns)
 
 
+def data_filter_by_dates(ws, start_date, end_date):
+    ws = ws.loc[ws["entry_date"] >= start_date]
+    ws = ws.loc[ws["entry_date"] <= end_date]
+    return ws
+
+
 def prepare_data(ws):
     # Convert types
     num_cols = [
@@ -202,17 +209,23 @@ class simulation:
         self.worst_trade_adjusted, self.best_trade_adjusted = 0, 0
         self.balances = dict()
         self.capital_values.append(self.current_capital)
-        self.growth, self.win_rate, self.max_drawdown, self.mom_growth = None, None, None, None
+        self.growth, self.win_rate, self.max_drawdown, self.mom_growth = (
+            None,
+            None,
+            None,
+            None,
+        )
+        # We need to have capital part 'snapshot' as of the time of position entry
+        self.capital_per_position = dict()
         # For thresholds
         self.left_of_initial_entries = dict()  # list of initial entries
         self.thresholds_reached = dict()  # for the thresholds reached
         self.entry_prices = dict()  # for the entry prices
         # Another dict for capital values and dates detailed
         self.detailed_capital_values = dict()
-
+        # For the hard stops thresholds
         self.hard_stop_reached = dict()
         self.hard_stop_hit_level = dict()
-
 
     def snapshot_balance(self, current_date_dt):
         self.balances[
@@ -224,6 +237,7 @@ class simulation:
         sim.left_of_initial_entries.pop(stock, None)
         sim.thresholds_reached.pop(stock, None)
         sim.entry_prices.pop(stock, None)
+        sim.capital_per_position.pop(stock)
         sim.thresholds_reached[stock] = []
 
 
@@ -233,14 +247,20 @@ def add_entry_no_profit_thresholds(sim, stock):
     else:
         sim.positions_held += 1
         sim.current_positions.add(stock)
+        sim.capital_per_position[stock] = (
+            sim.current_capital / current_simultaneous_positions
+        )
         print(
             "-> entry",
             stock,
             "| positions held",
             sim.positions_held,
         )
-        print(f"accounting for the trade price: ${commission}")
+        print(f"accounting for the brokerage: ${commission}")
         sim.current_capital -= commission
+        print(
+            f"current_capital: ${sim.current_capital}, allocated to the position: ${sim.capital_per_position[stock]}"
+        )
 
 
 def add_exit_no_profit_thresholds(sim, stock, result):
@@ -266,26 +286,35 @@ def add_exit_no_profit_thresholds(sim, stock, result):
         print(
             f"-> exit {stock} | result: {result:.2%} | positions held {sim.positions_held}"
         )
-        sim.current_capital = sim.current_capital * (
-            1 + elem[f"{current_variant}_result_%"] / current_simultaneous_positions
-        )
-        print(f"accounting for the trade price: ${commission}")
+        position_size = sim.capital_per_position[stock]
+        print(f"allocated to the position originally: ${position_size}")
+
+        capital_gain = position_size * result
+        print(f"capital gain/loss: ${capital_gain}".replace("$-", "-$"))
+        print(f"capital state pre exit: ${sim.current_capital}")
+
+        sim.current_capital = sim.current_capital + capital_gain
+        print(f"accounting for the brokerage: ${commission}")
         sim.current_capital -= commission
         print(f"balance: ${sim.current_capital}")
+
         sim.capital_values.append(sim.current_capital)
+        sim.capital_per_position.pop(stock)
 
 
 def mean_mom_growth(balances):
     balances = np.array(balances)
     diff_list = np.diff(balances)
     balances_shifted = balances[:-1]
-    mom_growth = diff_list/balances_shifted
+    mom_growth = diff_list / balances_shifted
     return mom_growth.mean()
 
 
 def calculate_metrics(sim, capital):
     print(f"Current capital {sim.current_capital}, starting capital {capital}")
-    print(f"Positions {current_simultaneous_positions}, tp variant {current_tp_variant_name}")
+    print(
+        f"Positions {current_simultaneous_positions}, tp variant {current_tp_variant_name}"
+    )
     sim.growth = (sim.current_capital - capital) / capital
     if sim.winning_trades_number > 0:
         sim.win_rate = (sim.winning_trades_number) / (
@@ -306,7 +335,7 @@ def print_metrics(sim):
     print(
         f"best trade (adjusted for sizing) {sim.best_trade_adjusted:.2%} | worst trade (adjusted for sizing) {sim.worst_trade_adjusted:.2%}"
     )
-    print(f"max_drawdown: {sim.max_drawdown}:.2%")
+    print(f"max_drawdown: {sim.max_drawdown:.2%}")
 
 
 def update_results_dict(
@@ -336,6 +365,10 @@ def add_entry_with_profit_thresholds(sim, stock, entry_price_actual):
     else:
         sim.positions_held += 1
         sim.current_positions.add(stock)
+        sim.capital_per_position[stock] = (
+            sim.current_capital / current_simultaneous_positions
+        )
+
         print(
             "-> entry",
             stock,
@@ -343,8 +376,11 @@ def add_entry_with_profit_thresholds(sim, stock, entry_price_actual):
             sim.positions_held,
         )
         print(f"-> entry price: {entry_price_actual}")
-        print(f"accounting for the trade price: ${commission}")
+        print(f"accounting for the brokerage: ${commission}")
         sim.current_capital -= commission
+        print(
+            f"current_capital: ${sim.current_capital}, allocated to the position: ${sim.capital_per_position[stock]}"
+        )
 
         # on the entry, we have the full position
         sim.left_of_initial_entries[stock] = 1
@@ -369,8 +405,14 @@ def thresholds_check(sim, stock_prices, current_date_dt):
                 if curr_row["high"].iloc[0] > sim.entry_prices[position] * (
                     1 + each_threshold
                 ):
+                    # Decrease the residual
+                    if each_threshold not in sim.thresholds_reached[position]:
+                        sim.left_of_initial_entries[position] -= (
+                            1 / current_simultaneous_positions
+                        )
+                    # Add the threshold
                     sim.thresholds_reached[position].add(each_threshold)
-                    print("-- reached", each_threshold)
+                    print(f"-- {position} reached {each_threshold:.2%}")
 
 
 def hard_stop_check(sim, stock_prices, current_date_dt):
@@ -382,7 +424,7 @@ def hard_stop_check(sim, stock_prices, current_date_dt):
                 1 + hard_stop_after
             ):
                 sim.hard_stop_reached[position] = True
-                print("-- reached hard stop level")
+                print(f"-- {position} reached hard stop level")
 
 
 def hard_stop_process(sim, stock_prices, current_date_dt):
@@ -391,8 +433,12 @@ def hard_stop_process(sim, stock_prices, current_date_dt):
         curr_row = current_df.loc[current_df["timestamp"] == current_date_dt]
         if not curr_row.empty:
             if position in sim.hard_stop_reached:
-                if sim.hard_stop_reached[position] and curr_row["low"].iloc[0] < sim.entry_prices[position] * (1 + hard_stop_level):
-                    sim.hard_stop_hit_level[position] = sim.entry_prices[position] * (1 + hard_stop_level)  # as the best case
+                if sim.hard_stop_reached[position] and curr_row["low"].iloc[
+                    0
+                ] < sim.entry_prices[position] * (1 + hard_stop_level):
+                    sim.hard_stop_hit_level[position] = sim.entry_prices[position] * (
+                        1 + hard_stop_level
+                    )  # as the best case
 
 
 def add_exit_with_profit_thresholds(
@@ -411,7 +457,9 @@ def add_exit_with_profit_thresholds(
         portion_not_from_thresholds = divisor - number_thresholds_reached
 
         # Check which logic to use
-        if (position in sim.hard_stop_reached.keys()) and (position in sim.hard_stop_hit_level.keys()):
+        if (position in sim.hard_stop_reached.keys()) and (
+            position in sim.hard_stop_hit_level.keys()
+        ):
             use_hard_stop_in_calc = True
         else:
             use_hard_stop_in_calc = False
@@ -421,22 +469,29 @@ def add_exit_with_profit_thresholds(
             exit_price_in_calc = sim.hard_stop_hit_level[position]
         else:
             exit_price_in_calc = exit_price_actual
-        print(f"Exit price used: {exit_price_in_calc}, entry price: {entry_price_actual}")
+        print(
+            f"Exit price used for {position}: {exit_price_in_calc}, entry price: {entry_price_actual}"
+        )
 
         absolute_price_result = (
             exit_price_in_calc - entry_price_actual
         ) / entry_price_actual
         result = absolute_price_result * portion_not_from_thresholds / divisor
-        print(f"Price change result for {position}: {result}, multiplier: {portion_not_from_thresholds}/{divisor}")
+        print(
+            f"Price change result for {position}: {result:.2%}, multiplier (considering thresholds): {portion_not_from_thresholds}/{divisor}"
+        )
         print(
             f"Thresholds reached ({position}): {sim.thresholds_reached[position]}: {number_thresholds_reached} of {number_thresholds_total}"
         )
+
+        # Correct brokerage
+        number_brokerage_commissions_paid = number_thresholds_reached + 1
 
         for threshold_reached in sim.thresholds_reached[position]:
             print(f"--- calc: extra result += {threshold_reached}/{divisor}")
             result += threshold_reached / divisor
 
-        print(f"Result ({position}) accounting for thresholds reached: {result}")
+        print(f"Result ({position}) accounting for thresholds reached: {result:.2%}")
 
         if result >= 0:
             sim.winning_trades_number += 1
@@ -458,11 +513,17 @@ def add_exit_with_profit_thresholds(
             f"-> exit {stock} | result: {result:.2%} | positions held {sim.positions_held}"
         )
 
-        sim.current_capital = sim.current_capital * (
-            1 + result / current_simultaneous_positions
+        position_size = sim.capital_per_position[stock]
+        print(f"allocated to the position originally: ${position_size}")
+        capital_gain = position_size * result
+        print(f"capital gain/loss: ${capital_gain}".replace("$-", "-$"))
+        print(f"capital state pre exit: ${sim.current_capital}")
+
+        sim.current_capital = sim.current_capital + capital_gain
+        print(
+            f"accounting for the brokerage: ${commission*number_brokerage_commissions_paid} ({commission}x{number_brokerage_commissions_paid})"
         )
-        print(f"accounting for the trade price: ${commission}")
-        sim.current_capital -= commission
+        sim.current_capital -= commission * number_brokerage_commissions_paid
         print(f"balance: ${sim.current_capital}")
         sim.capital_values.append(sim.current_capital)
 
@@ -504,6 +565,15 @@ if __name__ == "__main__":
 
     print("reading the values...")
 
+    # Dates
+    start_date = arguments["start"]
+    end_date = arguments["end"]
+    reporting_start_date = datetime.strptime(start_date, "%Y-%m-%d") - timedelta(
+        days=2 * 365
+    )
+    # ^^^ -2 years ago from start is ok
+    reporting_start_date = reporting_start_date.strftime("%Y-%m-%d")
+
     # This is working ok
     exchange = arguments["exchange"]
     ws = gsheetsobj.sheet_to_df(gsheet_name, f"{exchange}")
@@ -513,28 +583,32 @@ if __name__ == "__main__":
     # Dict to hold all the results
     results_dict = dict()
 
-    # Dates
-    start_date = arguments["start"]
-    end_date = arguments["end"]
-    reporting_start_date =  datetime.strptime(start_date, "%Y-%m-%d") - timedelta(days=2*365)
-    # ^^^ -2 years ago from start is ok
-    reporting_start_date = reporting_start_date.strftime("%Y-%m-%d")
+    # Dates filtering for the dataset
+    start_date_dt, end_date_dt, current_date_dt = get_dates(start_date, end_date)
+    ws = data_filter_by_dates(ws, start_date_dt, end_date_dt)
 
     # > Iterating through days and variants for the fixed TP levels per the control & spreadsheet
     current_tp_variant_name = None
     if arguments["mode"] == "main":
         for current_variant in variant_names:
+
+            print(f">> starting the variant {current_variant}")
+
             for current_simultaneous_positions in simultaneous_positions:
 
                 # Initiate the simulation object
                 sim = simulation(capital)
 
                 # Starting for a variant
-                start_date_dt, end_date_dt, current_date_dt = get_dates(start_date, end_date)
+                start_date_dt, end_date_dt, current_date_dt = get_dates(
+                    start_date, end_date
+                )
 
                 # Balance for the start of the period which will then be updated
                 sim.balances[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
-                sim.detailed_capital_values[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
+                sim.detailed_capital_values[
+                    start_date_dt.strftime("%d/%m/%Y")
+                ] = sim.current_capital
 
                 # Iterating over days
                 while current_date_dt < end_date_dt:
@@ -547,7 +621,9 @@ if __name__ == "__main__":
                         sim.balances[
                             current_date_dt.strftime("%d/%m/%Y")
                         ] = sim.current_capital
-                    sim.detailed_capital_values[current_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
+                    sim.detailed_capital_values[
+                        current_date_dt.strftime("%d/%m/%Y")
+                    ] = sim.current_capital
 
                     print(current_date_dt, "| positions: ", sim.current_positions)
 
@@ -580,6 +656,8 @@ if __name__ == "__main__":
                     current_variant,
                 )
 
+            print(f">> finished the variant {current_variant}")
+
     # < Finished iterating
 
     # > Iterating through days and take profit variants for the dynamic TP levels
@@ -595,17 +673,26 @@ if __name__ == "__main__":
             stock_prices[stock] = stock_info
 
         for current_tp_variant_name, current_tp_variant in take_profit_variants.items():
+
+            print(
+                f">> starting the variant {current_tp_variant_name}-{current_tp_variant}"
+            )
+
             for current_simultaneous_positions in simultaneous_positions:
 
                 # Initiate the simulation object
                 sim = simulation(capital)
 
                 # Starting for a variant
-                start_date_dt, end_date_dt, current_date_dt = get_dates(start_date, end_date)
+                start_date_dt, end_date_dt, current_date_dt = get_dates(
+                    start_date, end_date
+                )
 
                 # Balance for the start of the period which will then be updated
                 sim.balances[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
-                sim.detailed_capital_values[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
+                sim.detailed_capital_values[
+                    start_date_dt.strftime("%d/%m/%Y")
+                ] = sim.current_capital
 
                 # Iterating over days
                 while current_date_dt < end_date_dt:
@@ -615,8 +702,12 @@ if __name__ == "__main__":
                     current_date_month = current_date_dt.strftime("%m")
 
                     if previous_date_month != current_date_month:
-                        sim.balances[current_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
-                    sim.detailed_capital_values[current_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
+                        sim.balances[
+                            current_date_dt.strftime("%d/%m/%Y")
+                        ] = sim.current_capital
+                    sim.detailed_capital_values[
+                        current_date_dt.strftime("%d/%m/%Y")
+                    ] = sim.current_capital
 
                     print(
                         current_date_dt,
@@ -641,7 +732,9 @@ if __name__ == "__main__":
                         hard_stop_process(sim, stock_prices, current_date_dt)
 
                     # Exits
-                    day_exits = ws.loc[ws[f"{current_variant}_exit_date"] == current_date_dt]
+                    day_exits = ws.loc[
+                        ws[f"{current_variant}_exit_date"] == current_date_dt
+                    ]
                     for (
                         key,
                         elem,
@@ -670,6 +763,10 @@ if __name__ == "__main__":
                     extra_suffix=f"_tp{current_tp_variant_name}",
                 )
 
+            print(
+                f">> finished the variant {current_tp_variant_name}-{current_tp_variant}"
+            )
+
     # < Finished iterating
 
     # Finalisation
@@ -696,7 +793,7 @@ if __name__ == "__main__":
             "win_rate",
             "avg_mom_growth",
             "winning_trades_number",
-            "worst_trade_adjusted"
+            "worst_trade_adjusted",
         ]
     ]
 
