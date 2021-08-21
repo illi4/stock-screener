@@ -32,7 +32,13 @@ def check_positions():
 
                 stock_code = row["Stock"]
                 entry_date_value = row["Entry date"]
-                entry_date = arrow.get(entry_date_value, "DD/MM/YY").datetime.date()
+
+                try:
+                    entry_date = arrow.get(entry_date_value, "DD/MM/YY").datetime.date()
+                except arrow.parser.ParserMatchError:
+                    print("Skipping blank entry date lines")
+                    continue  # continue with the next iteration in the for cycle
+
                 ohlc_daily, volume_daily = get_stock_data(
                     f"{stock_code}{stock_suffix}", reporting_date_start
                 )
