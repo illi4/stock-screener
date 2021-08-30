@@ -61,7 +61,11 @@ def update_stocks():
 
 
 def check_update_date():
-    last_update_date = get_update_date()
+    exchange = arguments["exchange"]
+    if exchange == "ALL":
+        exchange = "ASX"  # just to simplify
+
+    last_update_date = get_update_date(exchange)
     diff = dates_diff(last_update_date)
     if diff > 1:
         print(

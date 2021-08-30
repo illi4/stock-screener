@@ -62,9 +62,9 @@ def get_stocks(exchange, price_min=None, price_max=None, min_volume=None):
     return stocks
 
 
-def get_update_date():
+def get_update_date(exchange):
     try:
-        record = Stock.get()
+        record = Stock.select().where(Stock.exchange == exchange).first()
         record = arrow.get(record.date)
         record = record.replace(tzinfo="Australia/Sydney")
         return record
