@@ -22,16 +22,9 @@ higher_or_equal_open_filter = ["Y", "N"]
 higher_strictly_open_filter = ["Y", "N"]
 
 # Variations to go through
-simultaneous_positions = [2, 3, 4, 5]
+simultaneous_positions = [3, 4, 5]
 variant_names = ["control", "test_a", "test_b", "test_c", "test_e"]
 tp_base_variant = "control"  # NOTE: works with control and test_c currently (need to have the price column)
-
-# Extra additions - use hard stop when something reached a threshold
-hard_stop_enabled = False
-hard_stop_after = 0.2  # after something reaches this %
-hard_stop_level = (
-    0.05  # after reaching the hard_stop_after, stop when something is now at this level
-)
 
 # Take profit level variations
 # Would be used iterating over control with simultaneous_positions variations too
@@ -223,9 +216,7 @@ class simulation:
         self.entry_prices = dict()  # for the entry prices
         # Another dict for capital values and dates detailed
         self.detailed_capital_values = dict()
-        # For the hard stops thresholds
-        self.hard_stop_reached = dict()
-        self.hard_stop_hit_level = dict()
+
 
     def snapshot_balance(self, current_date_dt):
         self.balances[
@@ -415,32 +406,6 @@ def thresholds_check(sim, stock_prices, current_date_dt):
                     print(f"-- {position} reached {each_threshold:.2%}")
 
 
-def hard_stop_check(sim, stock_prices, current_date_dt):
-    for position in sim.current_positions:
-        current_df = stock_prices[position][0]
-        curr_row = current_df.loc[current_df["timestamp"] == current_date_dt]
-        if not curr_row.empty:
-            if curr_row["high"].iloc[0] > sim.entry_prices[position] * (
-                1 + hard_stop_after
-            ):
-                sim.hard_stop_reached[position] = True
-                print(f"-- {position} reached hard stop level")
-
-
-def hard_stop_process(sim, stock_prices, current_date_dt):
-    for position in sim.current_positions:
-        current_df = stock_prices[position][0]
-        curr_row = current_df.loc[current_df["timestamp"] == current_date_dt]
-        if not curr_row.empty:
-            if position in sim.hard_stop_reached:
-                if sim.hard_stop_reached[position] and curr_row["low"].iloc[
-                    0
-                ] < sim.entry_prices[position] * (1 + hard_stop_level):
-                    sim.hard_stop_hit_level[position] = sim.entry_prices[position] * (
-                        1 + hard_stop_level
-                    )  # as the best case
-
-
 def add_exit_with_profit_thresholds(
     sim, stock, entry_price_actual, exit_price_actual, control_result_percent
 ):
@@ -456,19 +421,7 @@ def add_exit_with_profit_thresholds(
         divisor = number_thresholds_total + 1
         portion_not_from_thresholds = divisor - number_thresholds_reached
 
-        # Check which logic to use
-        if (position in sim.hard_stop_reached.keys()) and (
-            position in sim.hard_stop_hit_level.keys()
-        ):
-            use_hard_stop_in_calc = True
-        else:
-            use_hard_stop_in_calc = False
-
-        # Price to exit would be different if using hard stop
-        if use_hard_stop_in_calc:
-            exit_price_in_calc = sim.hard_stop_hit_level[position]
-        else:
-            exit_price_in_calc = exit_price_actual
+        exit_price_in_calc = exit_price_actual
         print(
             f"Exit price used for {position}: {exit_price_in_calc}, entry price: {entry_price_actual}"
         )
@@ -727,10 +680,6 @@ if __name__ == "__main__":
                     # For each day, need to check the current positions and whether the position reached a threshold
                     thresholds_check(sim, stock_prices, current_date_dt)
 
-                    if hard_stop_enabled:
-                        hard_stop_check(sim, stock_prices, current_date_dt)
-                        hard_stop_process(sim, stock_prices, current_date_dt)
-
                     # Exits
                     day_exits = ws.loc[
                         ws[f"{current_variant}_exit_date"] == current_date_dt
@@ -746,9 +695,6 @@ if __name__ == "__main__":
                             elem[f"{current_variant}_price"],
                             elem[f"{current_variant}_result_%"],
                         )
-
-                # Add the final balance at the end of the date
-                # sim.snapshot_balance(current_date_dt) # nope, makes month on month calc convoluted
 
                 # Calculate metrics and print the results
                 calculate_metrics(sim, capital)
