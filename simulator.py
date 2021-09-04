@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 import numpy as np
 from libs.stocktools import get_stock_suffix, get_stock_data
 import argparse
+from itertools import groupby
 
 parser = argparse.ArgumentParser()
 import matplotlib.pyplot as plt
@@ -199,10 +200,12 @@ class simulation:
         self.capital_values = []
         self.winning_trades_number, self.losing_trades_number = 0, 0
         self.winning_trades, self.losing_trades = [], []
+        self.all_trades = []  # to derive further metrics
         self.worst_trade_adjusted, self.best_trade_adjusted = 0, 0
         self.balances = dict()
         self.capital_values.append(self.current_capital)
-        self.growth, self.win_rate, self.max_drawdown, self.mom_growth = (
+        self.growth, self.win_rate, self.max_drawdown, self.mom_growth, self.max_negative_strike = (
+            None,
             None,
             None,
             None,
@@ -274,6 +277,9 @@ def add_exit_no_profit_thresholds(sim, stock, result):
             ):
                 sim.worst_trade_adjusted = result / current_simultaneous_positions
 
+        # Add to all trades
+        sim.all_trades.append(result)
+
         print(
             f"-> exit {stock} | result: {result:.2%} | positions held {sim.positions_held}"
         )
@@ -301,6 +307,17 @@ def mean_mom_growth(balances):
     return mom_growth.mean()
 
 
+def longest_negative_strike(arr):
+    # Function to return the longest strike of negative numbers
+    max_negative_strike = 0
+    for g,k in groupby(arr, key=lambda x: x < 0):
+        vals = list(k)
+        negative_strike_length = len(vals)
+        if g and negative_strike_length > max_negative_strike:
+            max_negative_strike = negative_strike_length
+    return max_negative_strike
+
+
 def calculate_metrics(sim, capital):
     print(f"Current capital {sim.current_capital}, starting capital {capital}")
     print(
@@ -316,6 +333,7 @@ def calculate_metrics(sim, capital):
     sim.max_drawdown = calculate_max_drawdown(sim.capital_values)
     balances = [v for k, v in sim.balances.items()]
     sim.mom_growth = mean_mom_growth(balances)
+    sim.max_negative_strike = longest_negative_strike(sim.all_trades)
 
 
 def print_metrics(sim):
@@ -327,6 +345,7 @@ def print_metrics(sim):
         f"best trade (adjusted for sizing) {sim.best_trade_adjusted:.2%} | worst trade (adjusted for sizing) {sim.worst_trade_adjusted:.2%}"
     )
     print(f"max_drawdown: {sim.max_drawdown:.2%}")
+    print(f"max_negative_strike: {sim.max_negative_strike}")
 
 
 def update_results_dict(
@@ -340,6 +359,7 @@ def update_results_dict(
         best_trade_adjusted=sim.best_trade_adjusted * 100,
         worst_trade_adjusted=sim.worst_trade_adjusted * 100,
         max_drawdown=sim.max_drawdown * 100,
+        max_negative_strike=sim.max_negative_strike,
         avg_mom_growth=sim.mom_growth * 100,
         simultaneous_positions=current_simultaneous_positions,
         variant_group=current_variant,
@@ -461,6 +481,9 @@ def add_exit_with_profit_thresholds(
                 result / current_simultaneous_positions < sim.worst_trade_adjusted
             ):
                 sim.worst_trade_adjusted = result / current_simultaneous_positions
+
+        # Add to all trades
+        sim.all_trades.append(result)
 
         print(
             f"-> exit {stock} | result: {result:.2%} | positions held {sim.positions_held}"
@@ -736,6 +759,7 @@ if __name__ == "__main__":
             "growth",
             "losing_trades_number",
             "max_drawdown",
+            "max_negative_strike",
             "win_rate",
             "avg_mom_growth",
             "winning_trades_number",
