@@ -78,7 +78,9 @@ def check_positions():
 
                     exit_date = hit_date + timedelta(days=1)
                     wanted_price = mergedDf["close"].values[hit_idx]
-                    entry_day_low_result = (mergedDf["low"].values[0] - mergedDf["open"].values[0])/(mergedDf["open"].values[0])
+                    ed_low = mergedDf["low"].values[0]
+                    ed_open = mergedDf["open"].values[0]
+                    entry_day_low_result = (ed_low - ed_open)/ed_open - 0.005 # minus 0.5% roughly
 
                     try:
                         opened_price = mergedDf["open"].values[hit_idx + 1]
