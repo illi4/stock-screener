@@ -299,12 +299,12 @@ def add_exit_no_profit_thresholds(sim, stock, result):
         sim.capital_per_position.pop(stock)
 
 
-def mean_mom_growth(balances):
+def median_mom_growth(balances):
     balances = np.array(balances)
     diff_list = np.diff(balances)
     balances_shifted = balances[:-1]
     mom_growth = diff_list / balances_shifted
-    return mom_growth.mean()
+    return np.median(mom_growth)
 
 
 def longest_negative_strike(arr):
@@ -332,7 +332,7 @@ def calculate_metrics(sim, capital):
         sim.win_rate = 0
     sim.max_drawdown = calculate_max_drawdown(sim.capital_values)
     balances = [v for k, v in sim.balances.items()]
-    sim.mom_growth = mean_mom_growth(balances)
+    sim.mom_growth = median_mom_growth(balances)
     sim.max_negative_strike = longest_negative_strike(sim.all_trades)
 
 
@@ -360,7 +360,7 @@ def update_results_dict(
         worst_trade_adjusted=sim.worst_trade_adjusted * 100,
         max_drawdown=sim.max_drawdown * 100,
         max_negative_strike=sim.max_negative_strike,
-        avg_mom_growth=sim.mom_growth * 100,
+        median_mom_growth=sim.mom_growth * 100,
         simultaneous_positions=current_simultaneous_positions,
         variant_group=current_variant,
     )
@@ -761,7 +761,7 @@ if __name__ == "__main__":
             "max_drawdown",
             "max_negative_strike",
             "win_rate",
-            "avg_mom_growth",
+            "median_mom_growth",
             "winning_trades_number",
             "worst_trade_adjusted",
         ]
