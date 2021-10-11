@@ -14,13 +14,12 @@ from itertools import groupby
 parser = argparse.ArgumentParser()
 import matplotlib.pyplot as plt
 
-# Settings
+# Settings (default)
 confidence_filter = [8, 9]
 penny_filter = ["Y", "N"]
 capital = 5000
 commission = 10  # this is brokerage (per entry / per exit)
-higher_or_equal_open_filter = ["Y", "N"]
-higher_strictly_open_filter = ["Y", "N"]
+# higher_or_equal_open_filter and higher_strictly_open_filter are defined in a function
 
 # Variations to go through
 simultaneous_positions = [3, 4, 5]
@@ -110,6 +109,18 @@ def define_args():
         help="End date to run for (YYYY-MM-DD format)",
     )
 
+    # Arguments to overwrite default settings for filtering
+    parser.add_argument(
+        "--nofilter", action="store_true", help="No filters on the launch"
+    )
+    parser.add_argument(
+        "--he", action="store_true", help="Higher or equal opens only"
+    )
+    parser.add_argument(
+        "--ho", action="store_true", help="Higher opens only"
+    )
+
+
     args = parser.parse_args()
     arguments = vars(args)
     arguments["mode"] = arguments["mode"].lower()
@@ -118,6 +129,19 @@ def define_args():
         arguments["plot"] = False
 
     return arguments
+
+
+def process_filter_args():
+    if arguments["nofilter"]:
+        higher_or_equal_open_filter = ["Y", "N"]
+        higher_strictly_open_filter = ["Y", "N"]
+    if arguments["he"]:
+        higher_or_equal_open_filter = ["Y"]
+        higher_strictly_open_filter = ["Y", "N"]
+    if arguments["ho"]:
+        higher_or_equal_open_filter = ["Y"]
+        higher_strictly_open_filter = ["Y"]
+    return higher_or_equal_open_filter, higher_strictly_open_filter
 
 
 def p2f(s):
@@ -538,6 +562,7 @@ def get_dates(start_date, end_date):
 if __name__ == "__main__":
 
     arguments = define_args()
+    higher_or_equal_open_filter, higher_strictly_open_filter = process_filter_args()
 
     print("reading the values...")
 
