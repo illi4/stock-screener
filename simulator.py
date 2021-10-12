@@ -38,6 +38,8 @@ take_profit_variants = {
     "tp_h": [1.45, 1.75, 1.95],
     "tp_k1": [0.45, 1.75, 1.95],
     "tp_l1": [0.45, 1.45, 1.75, 1.95],
+    "tp_x": [0.1, 1.45, 1.75],
+    "tp_y": [0.1, 1.75, 1.95]
 }
 
 # Sheet columns for the Gsheet
