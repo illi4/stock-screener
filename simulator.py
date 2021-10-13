@@ -23,7 +23,7 @@ commission = 10  # this is brokerage (per entry / per exit)
 # higher_or_equal_open_filter and higher_strictly_open_filter are defined in a function
 
 # Variations to go through
-simultaneous_positions = [5] # [3, 4, 5]
+simultaneous_positions = [5] # [3, 4, 5] #
 variant_names = ["control", "test_a", "test_b", "test_c", "test_e"]
 tp_base_variant = "control"  # NOTE: works with control and test_c currently (need to have the price column)
 
@@ -268,12 +268,12 @@ class simulation:
         print("balances:", self.balances)
 
     def remove_stock_traces(self, stock):
-        sim.left_of_initial_entries.pop(stock, None)
-        sim.thresholds_reached.pop(stock, None)
-        sim.entry_prices.pop(stock, None)
-        sim.capital_per_position.pop(stock)
-        sim.thresholds_reached[stock] = []
-        sim.failed_entry_day_stocks.pop(stock, None)
+        self.left_of_initial_entries.pop(stock, None)
+        self.thresholds_reached.pop(stock, None)
+        self.entry_prices.pop(stock, None)
+        self.capital_per_position.pop(stock)
+        self.thresholds_reached[stock] = []
+        self.failed_entry_day_stocks.pop(stock, None)
 
 
 def add_entry_no_profit_thresholds(sim, stock):
@@ -566,7 +566,7 @@ def plot_latest_sim():
     plt.show()
 
 
-def failed_entry_day_check(stock_prices, stock_name, current_date_dt):
+def failed_entry_day_check(sim, stock_prices, stock_name, current_date_dt):
     if red_entry_day_exit:
         stock_prices_df = stock_prices[stock_name][0]
         stock_volume_df = stock_prices[stock_name][1]
@@ -577,7 +577,7 @@ def failed_entry_day_check(stock_prices, stock_name, current_date_dt):
             sim.failed_entry_day_stocks[stock_name] = True
 
 
-def failed_entry_day_process(stock_prices, current_date_dt):
+def failed_entry_day_process(sim, stock_prices, current_date_dt):
     failed_entry_day_stocks_to_iterate = sim.failed_entry_day_stocks.copy()
     for stock_name, elem in failed_entry_day_stocks_to_iterate.items():
         print(f"Failed entry day for {stock_name}, exiting")
@@ -605,6 +605,156 @@ def get_dates(start_date, end_date):
         exit(0)
     current_date_dt = start_date_dt
     return start_date_dt, end_date_dt, current_date_dt
+
+
+def interate_over_variant_main_mode(results_dict):
+    # Initiate the simulation object
+    sim = simulation(capital)
+
+    # Starting for a variant
+    start_date_dt, end_date_dt, current_date_dt = get_dates(
+        start_date, end_date
+    )
+
+    # Balance for the start of the period which will then be updated
+    sim.balances[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
+    sim.detailed_capital_values[
+        start_date_dt.strftime("%d/%m/%Y")
+    ] = sim.current_capital
+
+    # Iterating over days
+    while current_date_dt < end_date_dt:
+
+        previous_date_month = current_date_dt.strftime("%m")
+        current_date_dt = current_date_dt + timedelta(days=1)
+        current_date_month = current_date_dt.strftime("%m")
+
+        if previous_date_month != current_date_month:
+            sim.balances[
+                current_date_dt.strftime("%d/%m/%Y")
+            ] = sim.current_capital
+        sim.detailed_capital_values[
+            current_date_dt.strftime("%d/%m/%Y")
+        ] = sim.current_capital
+
+        print(current_date_dt, "| positions: ", sim.current_positions)
+
+        # Entries
+        day_entries = ws.loc[ws["entry_date"] == current_date_dt]
+        for key, elem in day_entries.iterrows():
+            add_entry_no_profit_thresholds(sim, elem["stock"])
+
+        # Exits
+        day_exits = ws.loc[
+            ws[f"{current_variant}_exit_date"] == current_date_dt
+            ]
+        for key, elem in day_exits.iterrows():
+            add_exit_no_profit_thresholds(
+                sim, elem["stock"], elem[f"{current_variant}_result_%"]
+            )
+
+    # Add the final balance at the end of the date
+    # sim.snapshot_balance(current_date_dt) # nope, makes mom calc convoluted
+
+    # Calculate metrics and print the results
+    calculate_metrics(sim, capital)
+    print_metrics(sim)
+
+    # Saving the result in the overall dictionary
+    results_dict = update_results_dict(
+        results_dict,
+        sim,
+        current_simultaneous_positions,
+        current_variant,
+    )
+    return results_dict
+
+
+def iterate_over_variant_tp_mode(results_dict):
+    # Initiate the simulation object
+    sim = simulation(capital)
+
+    # Starting for a variant
+    start_date_dt, end_date_dt, current_date_dt = get_dates(
+        start_date, end_date
+    )
+
+    # Balance for the start of the period which will then be updated
+    sim.balances[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
+    sim.detailed_capital_values[
+        start_date_dt.strftime("%d/%m/%Y")
+    ] = sim.current_capital
+
+    # Iterating over days
+    while current_date_dt < end_date_dt:
+
+        previous_date_month = current_date_dt.strftime("%m")
+        current_date_dt = current_date_dt + timedelta(days=1)
+        current_date_month = current_date_dt.strftime("%m")
+
+        if previous_date_month != current_date_month:
+            sim.balances[
+                current_date_dt.strftime("%d/%m/%Y")
+            ] = sim.current_capital
+        sim.detailed_capital_values[
+            current_date_dt.strftime("%d/%m/%Y")
+        ] = sim.current_capital
+
+        print(
+            current_date_dt,
+            "| positions: ",
+            sim.current_positions,
+            "| left of entries:",
+            sim.left_of_initial_entries,
+        )
+
+        # Prior to looking at entries, process failed entry day stocks
+        failed_entry_day_process(sim, stock_prices, current_date_dt)
+
+        # Entries
+        day_entries = ws.loc[ws["entry_date"] == current_date_dt]
+        for key, elem in day_entries.iterrows():
+            add_entry_with_profit_thresholds(
+                sim, elem["stock"], elem["entry_price_actual"], elem["entry_date"]
+            )
+
+            # On the entry day, check whether the stock is ok or not as this could be used further
+            # Note: if the day is red, we should flag that it should be exited on the next
+            # In the cycle above, exits from the red closing days should be processed before the entries
+            failed_entry_day_check(sim, stock_prices, elem["stock"], current_date_dt)
+
+        # For each day, need to check the current positions and whether the position reached a threshold
+        thresholds_check(sim, stock_prices, current_date_dt)
+
+        # Exits
+        day_exits = ws.loc[
+            ws[f"{current_variant}_exit_date"] == current_date_dt
+            ]
+        for (
+                key,
+                elem,
+        ) in day_exits.iterrows():
+            add_exit_with_profit_thresholds(
+                sim,
+                elem["stock"],
+                elem[f"entry_price_actual"],
+                elem[f"{current_variant}_price"],
+                elem[f"{current_variant}_result_%"],
+            )
+
+    # Calculate metrics and print the results
+    calculate_metrics(sim, capital)
+    print_metrics(sim)
+
+    # Saving the result in the overall dictionary
+    results_dict = update_results_dict(
+        results_dict,
+        sim,
+        current_simultaneous_positions,
+        current_variant,
+        extra_suffix=f"_tp{current_tp_variant_name}",
+    )
+    return results_dict
 
 
 if __name__ == "__main__":
@@ -644,66 +794,7 @@ if __name__ == "__main__":
             print(f">> starting the variant {current_variant}")
 
             for current_simultaneous_positions in simultaneous_positions:
-
-                # Initiate the simulation object
-                sim = simulation(capital)
-
-                # Starting for a variant
-                start_date_dt, end_date_dt, current_date_dt = get_dates(
-                    start_date, end_date
-                )
-
-                # Balance for the start of the period which will then be updated
-                sim.balances[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
-                sim.detailed_capital_values[
-                    start_date_dt.strftime("%d/%m/%Y")
-                ] = sim.current_capital
-
-                # Iterating over days
-                while current_date_dt < end_date_dt:
-
-                    previous_date_month = current_date_dt.strftime("%m")
-                    current_date_dt = current_date_dt + timedelta(days=1)
-                    current_date_month = current_date_dt.strftime("%m")
-
-                    if previous_date_month != current_date_month:
-                        sim.balances[
-                            current_date_dt.strftime("%d/%m/%Y")
-                        ] = sim.current_capital
-                    sim.detailed_capital_values[
-                        current_date_dt.strftime("%d/%m/%Y")
-                    ] = sim.current_capital
-
-                    print(current_date_dt, "| positions: ", sim.current_positions)
-
-                    # Entries
-                    day_entries = ws.loc[ws["entry_date"] == current_date_dt]
-                    for key, elem in day_entries.iterrows():
-                        add_entry_no_profit_thresholds(sim, elem["stock"])
-
-                    # Exits
-                    day_exits = ws.loc[
-                        ws[f"{current_variant}_exit_date"] == current_date_dt
-                    ]
-                    for key, elem in day_exits.iterrows():
-                        add_exit_no_profit_thresholds(
-                            sim, elem["stock"], elem[f"{current_variant}_result_%"]
-                        )
-
-                # Add the final balance at the end of the date
-                # sim.snapshot_balance(current_date_dt) # nope, makes mom calc convoluted
-
-                # Calculate metrics and print the results
-                calculate_metrics(sim, capital)
-                print_metrics(sim)
-
-                # Saving the result in the overall dictionary
-                results_dict = update_results_dict(
-                    results_dict,
-                    sim,
-                    current_simultaneous_positions,
-                    current_variant,
-                )
+                results_dict = interate_over_variant_main_mode(results_dict)
 
             print(f">> finished the variant {current_variant}")
 
@@ -722,96 +813,12 @@ if __name__ == "__main__":
             stock_prices[stock] = stock_info
 
         for current_tp_variant_name, current_tp_variant in take_profit_variants.items():
-
             print(
                 f">> starting the variant {current_tp_variant_name}-{current_tp_variant}"
             )
 
             for current_simultaneous_positions in simultaneous_positions:
-
-                # Initiate the simulation object
-                sim = simulation(capital)
-
-                # Starting for a variant
-                start_date_dt, end_date_dt, current_date_dt = get_dates(
-                    start_date, end_date
-                )
-
-                # Balance for the start of the period which will then be updated
-                sim.balances[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
-                sim.detailed_capital_values[
-                    start_date_dt.strftime("%d/%m/%Y")
-                ] = sim.current_capital
-
-                # Iterating over days
-                while current_date_dt < end_date_dt:
-
-                    previous_date_month = current_date_dt.strftime("%m")
-                    current_date_dt = current_date_dt + timedelta(days=1)
-                    current_date_month = current_date_dt.strftime("%m")
-
-                    if previous_date_month != current_date_month:
-                        sim.balances[
-                            current_date_dt.strftime("%d/%m/%Y")
-                        ] = sim.current_capital
-                    sim.detailed_capital_values[
-                        current_date_dt.strftime("%d/%m/%Y")
-                    ] = sim.current_capital
-
-                    print(
-                        current_date_dt,
-                        "| positions: ",
-                        sim.current_positions,
-                        "| left of entries:",
-                        sim.left_of_initial_entries,
-                    )
-
-                    # Prior to looking at entries, process failed entry day stocks
-                    failed_entry_day_process(stock_prices, current_date_dt)
-
-                    # Entries
-                    day_entries = ws.loc[ws["entry_date"] == current_date_dt]
-                    for key, elem in day_entries.iterrows():
-                        add_entry_with_profit_thresholds(
-                            sim, elem["stock"], elem["entry_price_actual"], elem["entry_date"]
-                        )
-
-                        # On the entry day, check whether the stock is ok or not as this could be used further
-                        # Note: if the day is red, we should flag that it should be exited on the next
-                        # In the cycle above, exits from the red closing days should be processed before the entries
-                        failed_entry_day_check(stock_prices, elem["stock"], current_date_dt)
-
-                    # For each day, need to check the current positions and whether the position reached a threshold
-                    thresholds_check(sim, stock_prices, current_date_dt)
-
-                    # Exits
-                    day_exits = ws.loc[
-                        ws[f"{current_variant}_exit_date"] == current_date_dt
-                    ]
-                    for (
-                        key,
-                        elem,
-                    ) in day_exits.iterrows():
-                        add_exit_with_profit_thresholds(
-                            sim,
-                            elem["stock"],
-                            elem[f"entry_price_actual"],
-                            elem[f"{current_variant}_price"],
-                            elem[f"{current_variant}_result_%"],
-                        )
-
-                # Calculate metrics and print the results
-                calculate_metrics(sim, capital)
-                print_metrics(sim)
-
-                # Saving the result in the overall dictionary
-                results_dict = update_results_dict(
-                    results_dict,
-                    sim,
-                    current_simultaneous_positions,
-                    current_variant,
-                    extra_suffix=f"_tp{current_tp_variant_name}",
-                )
+                results_dict = iterate_over_variant_tp_mode(results_dict)
 
             print(
                 f">> finished the variant {current_tp_variant_name}-{current_tp_variant}"
