@@ -23,7 +23,7 @@ commission = 10  # this is brokerage (per entry / per exit)
 # higher_or_equal_open_filter and higher_strictly_open_filter are defined in a function
 
 # Variations to go through
-simultaneous_positions = [5] # [3, 4, 5] #
+simultaneous_positions = [5]  # [3, 4, 5] #
 variant_names = ["control", "test_a", "test_b", "test_c", "test_e"]
 tp_base_variant = "control"  # NOTE: works with control and test_c currently (need to have the price column)
 
@@ -33,17 +33,17 @@ tp_base_variant = "control"  # NOTE: works with control and test_c currently (ne
 # Take profit level variations
 # Would be used iterating over control with simultaneous_positions variations too
 take_profit_variants = {
-    #"_repeated_to_control": [0.25, 0.45, 0.9],
-    #"tp_b": [0.5, 1],
-    #"tp_c": [0.15, 0.5, 0.9, 1.75],
-    #"tp_d": [0.5, 1, 1.5],
-    #"tp_e": [0.25, 0.45, 0.9, 1.45],
-    #"tp_g": [0.25, 0.9, 1.45, 1.75],
-    #"tp_h": [1.45, 1.75, 1.95],
-    #"tp_k1": [0.45, 1.75, 1.95],
+    # "_repeated_to_control": [0.25, 0.45, 0.9],
+    # "tp_b": [0.5, 1],
+    # "tp_c": [0.15, 0.5, 0.9, 1.75],
+    # "tp_d": [0.5, 1, 1.5],
+    # "tp_e": [0.25, 0.45, 0.9, 1.45],
+    # "tp_g": [0.25, 0.9, 1.45, 1.75],
+    # "tp_h": [1.45, 1.75, 1.95],
+    # "tp_k1": [0.45, 1.75, 1.95],
     "tp_l1": [0.45, 1.45, 1.75, 1.95],
-    #"tp_x": [0.1, 1.45, 1.75],
-    #"tp_y": [0.1, 1.75, 1.95]
+    # "tp_x": [0.1, 1.45, 1.75],
+    # "tp_y": [0.1, 1.75, 1.95]
 }
 
 # Sheet columns for the Gsheet
@@ -119,14 +119,12 @@ def define_args():
     parser.add_argument(
         "--nofilter", action="store_true", help="No filters on the launch"
     )
+    parser.add_argument("--he", action="store_true", help="Higher or equal opens only")
+    parser.add_argument("--ho", action="store_true", help="Higher opens only")
     parser.add_argument(
-        "--he", action="store_true", help="Higher or equal opens only"
-    )
-    parser.add_argument(
-        "--ho", action="store_true", help="Higher opens only"
-    )
-    parser.add_argument(
-        "--red_day_exit", action="store_true", help="Exit when entry day is red (in tp mode only)"
+        "--red_day_exit",
+        action="store_true",
+        help="Exit when entry day is red (in tp mode only)",
     )
 
     args = parser.parse_args()
@@ -241,7 +239,13 @@ class simulation:
         self.worst_trade_adjusted, self.best_trade_adjusted = 0, 0
         self.balances = dict()
         self.capital_values.append(self.current_capital)
-        self.growth, self.win_rate, self.max_drawdown, self.mom_growth, self.max_negative_strike = (
+        (
+            self.growth,
+            self.win_rate,
+            self.max_drawdown,
+            self.mom_growth,
+            self.max_negative_strike,
+        ) = (
             None,
             None,
             None,
@@ -259,7 +263,6 @@ class simulation:
         self.detailed_capital_values = dict()
         # A dict for failed entry days whatever the condition is
         self.failed_entry_day_stocks = dict()
-
 
     def snapshot_balance(self, current_date_dt):
         self.balances[
@@ -351,7 +354,7 @@ def median_mom_growth(balances):
 def longest_negative_strike(arr):
     # Function to return the longest strike of negative numbers
     max_negative_strike = 0
-    for g,k in groupby(arr, key=lambda x: x < 0):
+    for g, k in groupby(arr, key=lambda x: x < 0):
         vals = list(k)
         negative_strike_length = len(vals)
         if g and negative_strike_length > max_negative_strike:
@@ -570,9 +573,15 @@ def failed_entry_day_check(sim, stock_prices, stock_name, current_date_dt):
     if red_entry_day_exit:
         stock_prices_df = stock_prices[stock_name][0]
         stock_volume_df = stock_prices[stock_name][1]
-        curr_state_price = stock_prices_df.loc[stock_prices_df["timestamp"] <= current_date_dt]
-        curr_state_volume = stock_volume_df.loc[stock_volume_df["timestamp"] <= current_date_dt]
-        warning, _ = red_day_on_volume(curr_state_price, curr_state_volume, output=True, stock_name=stock_name)
+        curr_state_price = stock_prices_df.loc[
+            stock_prices_df["timestamp"] <= current_date_dt
+        ]
+        curr_state_volume = stock_volume_df.loc[
+            stock_volume_df["timestamp"] <= current_date_dt
+        ]
+        warning, _ = red_day_on_volume(
+            curr_state_price, curr_state_volume, output=True, stock_name=stock_name
+        )
         if warning:
             sim.failed_entry_day_stocks[stock_name] = True
 
@@ -584,14 +593,12 @@ def failed_entry_day_process(sim, stock_prices, current_date_dt):
         current_df = stock_prices[stock_name][0]
         curr_row = current_df.loc[current_df["timestamp"] == current_date_dt]
         if not curr_row.empty:
-            print(
-                f"Current open for {stock_name}: {curr_row['open'].iloc[0]}"
-            )
+            print(f"Current open for {stock_name}: {curr_row['open'].iloc[0]}")
         add_exit_with_profit_thresholds(
             sim,
             stock_name,
             sim.entry_prices[stock_name],
-            curr_row['open'].iloc[0],
+            curr_row["open"].iloc[0],
             None,
         )
 
@@ -612,9 +619,7 @@ def interate_over_variant_main_mode(results_dict):
     sim = simulation(capital)
 
     # Starting for a variant
-    start_date_dt, end_date_dt, current_date_dt = get_dates(
-        start_date, end_date
-    )
+    start_date_dt, end_date_dt, current_date_dt = get_dates(start_date, end_date)
 
     # Balance for the start of the period which will then be updated
     sim.balances[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
@@ -630,9 +635,7 @@ def interate_over_variant_main_mode(results_dict):
         current_date_month = current_date_dt.strftime("%m")
 
         if previous_date_month != current_date_month:
-            sim.balances[
-                current_date_dt.strftime("%d/%m/%Y")
-            ] = sim.current_capital
+            sim.balances[current_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
         sim.detailed_capital_values[
             current_date_dt.strftime("%d/%m/%Y")
         ] = sim.current_capital
@@ -645,9 +648,7 @@ def interate_over_variant_main_mode(results_dict):
             add_entry_no_profit_thresholds(sim, elem["stock"])
 
         # Exits
-        day_exits = ws.loc[
-            ws[f"{current_variant}_exit_date"] == current_date_dt
-            ]
+        day_exits = ws.loc[ws[f"{current_variant}_exit_date"] == current_date_dt]
         for key, elem in day_exits.iterrows():
             add_exit_no_profit_thresholds(
                 sim, elem["stock"], elem[f"{current_variant}_result_%"]
@@ -675,9 +676,7 @@ def iterate_over_variant_tp_mode(results_dict):
     sim = simulation(capital)
 
     # Starting for a variant
-    start_date_dt, end_date_dt, current_date_dt = get_dates(
-        start_date, end_date
-    )
+    start_date_dt, end_date_dt, current_date_dt = get_dates(start_date, end_date)
 
     # Balance for the start of the period which will then be updated
     sim.balances[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
@@ -693,9 +692,7 @@ def iterate_over_variant_tp_mode(results_dict):
         current_date_month = current_date_dt.strftime("%m")
 
         if previous_date_month != current_date_month:
-            sim.balances[
-                current_date_dt.strftime("%d/%m/%Y")
-            ] = sim.current_capital
+            sim.balances[current_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
         sim.detailed_capital_values[
             current_date_dt.strftime("%d/%m/%Y")
         ] = sim.current_capital
@@ -727,12 +724,10 @@ def iterate_over_variant_tp_mode(results_dict):
         thresholds_check(sim, stock_prices, current_date_dt)
 
         # Exits
-        day_exits = ws.loc[
-            ws[f"{current_variant}_exit_date"] == current_date_dt
-            ]
+        day_exits = ws.loc[ws[f"{current_variant}_exit_date"] == current_date_dt]
         for (
-                key,
-                elem,
+            key,
+            elem,
         ) in day_exits.iterrows():
             add_exit_with_profit_thresholds(
                 sim,
@@ -760,7 +755,11 @@ def iterate_over_variant_tp_mode(results_dict):
 if __name__ == "__main__":
 
     arguments = define_args()
-    higher_or_equal_open_filter, higher_strictly_open_filter, red_entry_day_exit = process_filter_args()
+    (
+        higher_or_equal_open_filter,
+        higher_strictly_open_filter,
+        red_entry_day_exit,
+    ) = process_filter_args()
 
     print("reading the values...")
 
