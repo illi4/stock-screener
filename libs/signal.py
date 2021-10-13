@@ -242,3 +242,53 @@ def bullish_ma_based(
     result = False not in confirmation
 
     return result, numerical_score
+
+
+def red_day_on_volume(
+    ohlc_with_indicators_daily,
+    volume_daily,
+    output=False,
+    stock_name="",
+):
+    """
+    :param ohlc_with_indicators_daily: daily OHLC with indicators (pandas df)
+    :param volume_daily: volume values (pandas df)
+    :param ohlc_with_indicators_weekly: weekly OHLC with indicators (pandas df)
+    :param consider_volume_spike: is the volume spike condition considered
+    :param output: should the output be printed
+    :param stock_name: name of a stock
+    :return:
+    """
+    daily_red_close = (
+        ohlc_with_indicators_daily["close"].iloc[-1]
+        < ohlc_with_indicators_daily["open"].iloc[-2]
+    )
+
+    volume_ma_20 = MA(volume_daily, 20, colname="volume")
+
+    mergedDf = volume_daily.merge(volume_ma_20, left_index=True, right_index=True)
+    mergedDf.dropna(inplace=True, how="any")
+    mergedDf["volume_above_ma"] = mergedDf["volume"].ge(
+        mergedDf["ma20"]
+    )  # GE is greater or equal, than averaged 20d volume plus 30 percent
+    try:
+        volume_condition = bool(mergedDf["volume_above_ma"].iloc[-1])
+    except IndexError:
+        print("Issue indexing volume")
+        volume_condition = False
+
+    if output:
+        print(
+            f"- {stock_name} Red day close: [{daily_red_close}] / volume_condition [{volume_condition}]"
+        )
+
+    confirmation = [
+        daily_red_close,
+        volume_condition
+    ]
+    numerical_score = round(
+        5 * sum(confirmation) / len(confirmation), 0
+    )  # score X (of 5)
+    result = False not in confirmation
+
+    return result, numerical_score

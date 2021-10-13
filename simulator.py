@@ -4,6 +4,7 @@
 
 import libs.gsheetobj as gsheetsobj
 from libs.settings import gsheet_name
+from libs.signal import red_day_on_volume
 import pandas as pd
 from datetime import datetime, timedelta
 import numpy as np
@@ -22,24 +23,27 @@ commission = 10  # this is brokerage (per entry / per exit)
 # higher_or_equal_open_filter and higher_strictly_open_filter are defined in a function
 
 # Variations to go through
-simultaneous_positions = [3, 4, 5]
+simultaneous_positions = [5] # [3, 4, 5]
 variant_names = ["control", "test_a", "test_b", "test_c", "test_e"]
 tp_base_variant = "control"  # NOTE: works with control and test_c currently (need to have the price column)
+
+# Red entry day on volume check
+# red_entry_day_exit = True # is defined in a function
 
 # Take profit level variations
 # Would be used iterating over control with simultaneous_positions variations too
 take_profit_variants = {
-    "_repeated_to_control": [0.25, 0.45, 0.9],
-    "tp_b": [0.5, 1],
-    "tp_c": [0.15, 0.5, 0.9, 1.75],
-    "tp_d": [0.5, 1, 1.5],
-    "tp_e": [0.25, 0.45, 0.9, 1.45],
-    "tp_g": [0.25, 0.9, 1.45, 1.75],
-    "tp_h": [1.45, 1.75, 1.95],
-    "tp_k1": [0.45, 1.75, 1.95],
+    #"_repeated_to_control": [0.25, 0.45, 0.9],
+    #"tp_b": [0.5, 1],
+    #"tp_c": [0.15, 0.5, 0.9, 1.75],
+    #"tp_d": [0.5, 1, 1.5],
+    #"tp_e": [0.25, 0.45, 0.9, 1.45],
+    #"tp_g": [0.25, 0.9, 1.45, 1.75],
+    #"tp_h": [1.45, 1.75, 1.95],
+    #"tp_k1": [0.45, 1.75, 1.95],
     "tp_l1": [0.45, 1.45, 1.75, 1.95],
-    "tp_x": [0.1, 1.45, 1.75],
-    "tp_y": [0.1, 1.75, 1.95]
+    #"tp_x": [0.1, 1.45, 1.75],
+    #"tp_y": [0.1, 1.75, 1.95]
 }
 
 # Sheet columns for the Gsheet
@@ -121,7 +125,9 @@ def define_args():
     parser.add_argument(
         "--ho", action="store_true", help="Higher opens only"
     )
-
+    parser.add_argument(
+        "--red_day_exit", action="store_true", help="Exit when entry day is red (in tp mode only)"
+    )
 
     args = parser.parse_args()
     arguments = vars(args)
@@ -143,7 +149,12 @@ def process_filter_args():
     if arguments["ho"]:
         higher_or_equal_open_filter = ["Y"]
         higher_strictly_open_filter = ["Y"]
-    return higher_or_equal_open_filter, higher_strictly_open_filter
+    if arguments["red_day_exit"]:
+        red_entry_day_exit = True
+    else:
+        red_entry_day_exit = False
+
+    return higher_or_equal_open_filter, higher_strictly_open_filter, red_entry_day_exit
 
 
 def p2f(s):
@@ -243,8 +254,11 @@ class simulation:
         self.left_of_initial_entries = dict()  # list of initial entries
         self.thresholds_reached = dict()  # for the thresholds reached
         self.entry_prices = dict()  # for the entry prices
+        self.entry_dates = dict()  # for the entry dates
         # Another dict for capital values and dates detailed
         self.detailed_capital_values = dict()
+        # A dict for failed entry days whatever the condition is
+        self.failed_entry_day_stocks = dict()
 
 
     def snapshot_balance(self, current_date_dt):
@@ -259,6 +273,7 @@ class simulation:
         sim.entry_prices.pop(stock, None)
         sim.capital_per_position.pop(stock)
         sim.thresholds_reached[stock] = []
+        sim.failed_entry_day_stocks.pop(stock, None)
 
 
 def add_entry_no_profit_thresholds(sim, stock):
@@ -396,7 +411,7 @@ def update_results_dict(
     return results_dict
 
 
-def add_entry_with_profit_thresholds(sim, stock, entry_price_actual):
+def add_entry_with_profit_thresholds(sim, stock, entry_price_actual, entry_date_actual):
     if len(sim.current_positions) + 1 > current_simultaneous_positions:
         print(f"max possible positions held, skipping {stock}")
     else:
@@ -422,6 +437,7 @@ def add_entry_with_profit_thresholds(sim, stock, entry_price_actual):
         # on the entry, we have the full position
         sim.left_of_initial_entries[stock] = 1
         sim.entry_prices[stock] = entry_price_actual
+        sim.entry_dates[stock] = entry_date_actual
 
         # also, on the entry we initiate the dict of thresholds hit for the item
         # they will then be populated with like (0.25, ...)
@@ -530,7 +546,7 @@ def add_exit_with_profit_thresholds(
         sim.capital_values.append(sim.current_capital)
 
         # Delete from the partial positions left, prices, thresholds for the element
-        sim.remove_stock_traces(elem["stock"])
+        sim.remove_stock_traces(stock)
 
 
 # plotting
@@ -550,6 +566,36 @@ def plot_latest_sim():
     plt.show()
 
 
+def failed_entry_day_check(stock_prices, stock_name, current_date_dt):
+    if red_entry_day_exit:
+        stock_prices_df = stock_prices[stock_name][0]
+        stock_volume_df = stock_prices[stock_name][1]
+        curr_state_price = stock_prices_df.loc[stock_prices_df["timestamp"] <= current_date_dt]
+        curr_state_volume = stock_volume_df.loc[stock_volume_df["timestamp"] <= current_date_dt]
+        warning, _ = red_day_on_volume(curr_state_price, curr_state_volume, output=True, stock_name=stock_name)
+        if warning:
+            sim.failed_entry_day_stocks[stock_name] = True
+
+
+def failed_entry_day_process(stock_prices, current_date_dt):
+    failed_entry_day_stocks_to_iterate = sim.failed_entry_day_stocks.copy()
+    for stock_name, elem in failed_entry_day_stocks_to_iterate.items():
+        print(f"Failed entry day for {stock_name}, exiting")
+        current_df = stock_prices[stock_name][0]
+        curr_row = current_df.loc[current_df["timestamp"] == current_date_dt]
+        if not curr_row.empty:
+            print(
+                f"Current open for {stock_name}: {curr_row['open'].iloc[0]}"
+            )
+        add_exit_with_profit_thresholds(
+            sim,
+            stock_name,
+            sim.entry_prices[stock_name],
+            curr_row['open'].iloc[0],
+            None,
+        )
+
+
 def get_dates(start_date, end_date):
     try:
         start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
@@ -564,7 +610,7 @@ def get_dates(start_date, end_date):
 if __name__ == "__main__":
 
     arguments = define_args()
-    higher_or_equal_open_filter, higher_strictly_open_filter = process_filter_args()
+    higher_or_equal_open_filter, higher_strictly_open_filter, red_entry_day_exit = process_filter_args()
 
     print("reading the values...")
 
@@ -720,12 +766,20 @@ if __name__ == "__main__":
                         sim.left_of_initial_entries,
                     )
 
+                    # Prior to looking at entries, process failed entry day stocks
+                    failed_entry_day_process(stock_prices, current_date_dt)
+
                     # Entries
                     day_entries = ws.loc[ws["entry_date"] == current_date_dt]
                     for key, elem in day_entries.iterrows():
                         add_entry_with_profit_thresholds(
-                            sim, elem["stock"], elem["entry_price_actual"]
+                            sim, elem["stock"], elem["entry_price_actual"], elem["entry_date"]
                         )
+
+                        # On the entry day, check whether the stock is ok or not as this could be used further
+                        # Note: if the day is red, we should flag that it should be exited on the next
+                        # In the cycle above, exits from the red closing days should be processed before the entries
+                        failed_entry_day_check(stock_prices, elem["stock"], current_date_dt)
 
                     # For each day, need to check the current positions and whether the position reached a threshold
                     thresholds_check(sim, stock_prices, current_date_dt)
