@@ -23,7 +23,7 @@ commission = 10  # this is brokerage (per entry / per exit)
 # higher_or_equal_open_filter and higher_strictly_open_filter are defined in a function
 
 # Variations to go through
-simultaneous_positions = [5]  # [3, 4, 5] #
+simultaneous_positions = [3, 4, 5]
 variant_names = ["control", "test_a", "test_b", "test_c", "test_e"]
 tp_base_variant = "control"  # NOTE: works with control and test_c currently (need to have the price column)
 
@@ -33,17 +33,17 @@ tp_base_variant = "control"  # NOTE: works with control and test_c currently (ne
 # Take profit level variations
 # Would be used iterating over control with simultaneous_positions variations too
 take_profit_variants = {
-    # "_repeated_to_control": [0.25, 0.45, 0.9],
-    # "tp_b": [0.5, 1],
-    # "tp_c": [0.15, 0.5, 0.9, 1.75],
-    # "tp_d": [0.5, 1, 1.5],
-    # "tp_e": [0.25, 0.45, 0.9, 1.45],
-    # "tp_g": [0.25, 0.9, 1.45, 1.75],
-    # "tp_h": [1.45, 1.75, 1.95],
-    # "tp_k1": [0.45, 1.75, 1.95],
+    "_repeated_to_control": [0.25, 0.45, 0.9],
+    "tp_b": [0.5, 1],
+    "tp_c": [0.15, 0.5, 0.9, 1.75],
+    "tp_d": [0.5, 1, 1.5],
+    "tp_e": [0.25, 0.45, 0.9, 1.45],
+    "tp_g": [0.25, 0.9, 1.45, 1.75],
+    "tp_h": [1.45, 1.75, 1.95],
+    "tp_k1": [0.45, 1.75, 1.95],
     "tp_l1": [0.45, 1.45, 1.75, 1.95],
-    # "tp_x": [0.1, 1.45, 1.75],
-    # "tp_y": [0.1, 1.75, 1.95]
+    "tp_x": [0.1, 1.45, 1.75],
+    "tp_y": [0.1, 1.75, 1.95]
 }
 
 # Sheet columns for the Gsheet
