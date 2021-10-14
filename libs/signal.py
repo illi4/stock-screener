@@ -261,7 +261,7 @@ def red_day_on_volume(
     """
     daily_red_close = (
         ohlc_with_indicators_daily["close"].iloc[-1]
-        < ohlc_with_indicators_daily["open"].iloc[-2]
+        < ohlc_with_indicators_daily["open"].iloc[-1]
     )
 
     volume_ma_20 = MA(volume_daily, 20, colname="volume")
