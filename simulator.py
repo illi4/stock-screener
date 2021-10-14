@@ -553,9 +553,9 @@ def add_exit_with_profit_thresholds(
 
 
 # plotting
-def plot_latest_sim():
+def plot_latest_sim(latest_sim):
     x, y = [], []
-    for key, value in sim.detailed_capital_values.items():
+    for key, value in latest_sim.detailed_capital_values.items():
         x.append(key)
         y.append(value)
     _ = plt.plot(x, y)
@@ -668,7 +668,7 @@ def interate_over_variant_main_mode(results_dict):
         current_simultaneous_positions,
         current_variant,
     )
-    return results_dict
+    return results_dict, sim
 
 
 def iterate_over_variant_tp_mode(results_dict):
@@ -749,7 +749,7 @@ def iterate_over_variant_tp_mode(results_dict):
         current_variant,
         extra_suffix=f"_tp{current_tp_variant_name}",
     )
-    return results_dict
+    return results_dict, sim
 
 
 if __name__ == "__main__":
@@ -793,7 +793,7 @@ if __name__ == "__main__":
             print(f">> starting the variant {current_variant}")
 
             for current_simultaneous_positions in simultaneous_positions:
-                results_dict = interate_over_variant_main_mode(results_dict)
+                results_dict, latest_sim = interate_over_variant_main_mode(results_dict)
 
             print(f">> finished the variant {current_variant}")
 
@@ -817,7 +817,7 @@ if __name__ == "__main__":
             )
 
             for current_simultaneous_positions in simultaneous_positions:
-                results_dict = iterate_over_variant_tp_mode(results_dict)
+                results_dict, latest_sim = iterate_over_variant_tp_mode(results_dict)
 
             print(
                 f">> finished the variant {current_tp_variant_name}-{current_tp_variant}"
@@ -864,4 +864,4 @@ if __name__ == "__main__":
 
     # plotting
     if arguments["plot"]:
-        plot_latest_sim()
+        plot_latest_sim(latest_sim)
