@@ -597,13 +597,13 @@ def failed_entry_day_process(sim, stock_prices, current_date_dt):
         curr_row = current_df.loc[current_df["timestamp"] == current_date_dt]
         if not curr_row.empty:
             print(f"Current open for {stock_name}: {curr_row['open'].iloc[0]}")
-        add_exit_with_profit_thresholds(
-            sim,
-            stock_name,
-            sim.entry_prices[stock_name],
-            curr_row["open"].iloc[0],
-            None,
-        )
+            add_exit_with_profit_thresholds(
+                sim,
+                stock_name,
+                sim.entry_prices[stock_name],
+                curr_row["open"].iloc[0],
+                None,
+            )
 
 
 def get_dates(start_date, end_date):
