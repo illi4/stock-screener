@@ -570,20 +570,23 @@ def plot_latest_sim(latest_sim):
 
 
 def failed_entry_day_check(sim, stock_prices, stock_name, current_date_dt):
-    if red_entry_day_exit:
-        stock_prices_df = stock_prices[stock_name][0]
-        stock_volume_df = stock_prices[stock_name][1]
-        curr_state_price = stock_prices_df.loc[
-            stock_prices_df["timestamp"] <= current_date_dt
-        ]
-        curr_state_volume = stock_volume_df.loc[
-            stock_volume_df["timestamp"] <= current_date_dt
-        ]
-        warning, _ = red_day_on_volume(
-            curr_state_price, curr_state_volume, output=True, stock_name=stock_name
-        )
-        if warning:
-            sim.failed_entry_day_stocks[stock_name] = True
+    if len(sim.current_positions) + 1 > current_simultaneous_positions:
+        print(f"max possible positions held, skipping {stock_name}")
+    else:
+        if red_entry_day_exit:
+            stock_prices_df = stock_prices[stock_name][0]
+            stock_volume_df = stock_prices[stock_name][1]
+            curr_state_price = stock_prices_df.loc[
+                stock_prices_df["timestamp"] <= current_date_dt
+            ]
+            curr_state_volume = stock_volume_df.loc[
+                stock_volume_df["timestamp"] <= current_date_dt
+            ]
+            warning, _ = red_day_on_volume(
+                curr_state_price, curr_state_volume, output=True, stock_name=stock_name
+            )
+            if warning:
+                sim.failed_entry_day_stocks[stock_name] = True
 
 
 def failed_entry_day_process(sim, stock_prices, current_date_dt):
