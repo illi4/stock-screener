@@ -457,7 +457,7 @@ def thresholds_check(sim, stock_prices, current_date_dt):
         curr_row = current_df.loc[current_df["timestamp"] == current_date_dt]
         if not curr_row.empty:
             print(
-                f"Current high for {position} {curr_row['high'].iloc[0]} | entry: {sim.entry_prices[position]}"
+                f"current high for {position} {curr_row['high'].iloc[0]} | entry: {sim.entry_prices[position]}"
             )
             for each_threshold in current_tp_variant:
                 if curr_row["high"].iloc[0] > sim.entry_prices[position] * (
@@ -482,7 +482,6 @@ def add_exit_with_profit_thresholds(
         sim.positions_held -= 1
 
         # check what thresholds were reached. use entry and exit price and thresholds reached
-        print(sim.thresholds_reached[position])
         number_thresholds_total = len(current_tp_variant)
         number_thresholds_reached = len(sim.thresholds_reached[position])
         divisor = number_thresholds_total + 1
@@ -490,7 +489,7 @@ def add_exit_with_profit_thresholds(
 
         exit_price_in_calc = exit_price_actual
         print(
-            f"Exit price used for {position}: {exit_price_in_calc}, entry price: {entry_price_actual}"
+            f"exit price used for {position}: {exit_price_in_calc}, entry price: {entry_price_actual}"
         )
 
         absolute_price_result = (
@@ -498,10 +497,14 @@ def add_exit_with_profit_thresholds(
         ) / entry_price_actual
         result = absolute_price_result * portion_not_from_thresholds / divisor
         print(
-            f"Price change result for {position}: {result:.2%}, multiplier (considering thresholds): {portion_not_from_thresholds}/{divisor}"
+            f"absolute price change result for {position}: {absolute_price_result:.2%} | "
+            f"multiplier (considering thresholds): {portion_not_from_thresholds}/{divisor}"
         )
         print(
-            f"Thresholds reached ({position}): {sim.thresholds_reached[position]}: {number_thresholds_reached} of {number_thresholds_total}"
+            f"relative price change result for {position}: {result:.2%}"
+        )
+        print(
+            f"thresholds reached ({position}): {sim.thresholds_reached[position]}: {number_thresholds_reached} of {number_thresholds_total}"
         )
 
         # Correct brokerage
@@ -511,7 +514,7 @@ def add_exit_with_profit_thresholds(
             print(f"--- calc: extra result += {threshold_reached}/{divisor}")
             result += threshold_reached / divisor
 
-        print(f"Result ({position}) accounting for thresholds reached: {result:.2%}")
+        print(f"result ({position}) accounting for thresholds reached: {result:.2%}")
 
         if result >= 0:
             sim.winning_trades_number += 1
