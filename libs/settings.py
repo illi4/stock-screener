@@ -6,7 +6,7 @@ minimum_volume_level = 500000
 tzinfo = "Australia/Sydney"
 
 # Gsheet
-gsheet_name = "Trading journal R&D 2021"
+gsheet_name = "Trading journal 2022"
 
 # Eoddata
 eod_key = "60421719b04b46.10272221"
