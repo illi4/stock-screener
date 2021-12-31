@@ -24,7 +24,7 @@ capital = 5000
 commission = 10  # this is brokerage (per entry / per exit)
 
 # Variations to go through
-simultaneous_positions = [4]  # [3, 4, 5]
+simultaneous_positions = [3, 4, 5]
 
 # Take profit level variations
 # Would be used iterating over control with simultaneous_positions variations too
