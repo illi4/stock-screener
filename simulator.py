@@ -15,7 +15,7 @@ from itertools import groupby
 parser = argparse.ArgumentParser()
 import matplotlib.pyplot as plt
 
-pd.set_option('display.max_columns', None)
+pd.set_option("display.max_columns", None)
 
 # Settings (default)
 # higher_or_equal_open_filter, higher_strictly_open_filter, and red_entry_day_exit
@@ -62,7 +62,7 @@ sheet_columns = [
     "threshold_3_level",
     "threshold_3_exit_portion",
     "max_level_reached",
-    "comments"
+    "comments",
 ]
 
 
@@ -169,7 +169,7 @@ def prepare_data(ws):
         "entry_price_planned",
         "entry_price_actual",
         "exit_price_planned",
-        "control_price"
+        "control_price",
     ]
     ws[num_cols] = ws[num_cols].apply(pd.to_numeric, errors="coerce")
 
@@ -191,7 +191,7 @@ def prepare_data(ws):
         "threshold_2_exit_portion",
         "threshold_3_level",
         "threshold_3_exit_portion",
-        "max_level_reached"
+        "max_level_reached",
     ]:
         ws[column] = ws[column].apply(p2f)
 
@@ -258,7 +258,7 @@ def add_entry_no_profit_thresholds(sim, stock):
         sim.positions_held += 1
         sim.current_positions.add(stock)
         sim.capital_per_position[stock] = (
-                sim.current_capital / current_simultaneous_positions
+            sim.current_capital / current_simultaneous_positions
         )
         print(
             "-> entry",
@@ -279,24 +279,28 @@ def add_exit_no_profit_thresholds(sim, stock, elem):  # HERE#
         sim.positions_held -= 1
 
         # Calculate result based on thresholds
-        main_part_result = (elem["control_price"] - elem["entry_price_actual"])/elem["entry_price_actual"]
-        result = main_part_result * elem["exit_price_portion"] + elem[
-            "threshold_1_level"] * elem["threshold_1_exit_portion"] + elem[
-                "threshold_2_level"] * elem["threshold_2_exit_portion"] + elem[
-                     "threshold_3_level"] * elem["threshold_3_exit_portion"]
+        main_part_result = (elem["control_price"] - elem["entry_price_actual"]) / elem[
+            "entry_price_actual"
+        ]
+        result = (
+            main_part_result * elem["exit_price_portion"]
+            + elem["threshold_1_level"] * elem["threshold_1_exit_portion"]
+            + elem["threshold_2_level"] * elem["threshold_2_exit_portion"]
+            + elem["threshold_3_level"] * elem["threshold_3_exit_portion"]
+        )
 
         if result >= 0:
             sim.winning_trades_number += 1
             sim.winning_trades.append(result)
             if (sim.best_trade_adjusted is None) or (
-                    result / current_simultaneous_positions > sim.best_trade_adjusted
+                result / current_simultaneous_positions > sim.best_trade_adjusted
             ):
                 sim.best_trade_adjusted = result / current_simultaneous_positions
         elif result < 0:
             sim.losing_trades_number += 1
             sim.losing_trades.append(result)
             if (sim.worst_trade_adjusted is None) or (
-                    result / current_simultaneous_positions < sim.worst_trade_adjusted
+                result / current_simultaneous_positions < sim.worst_trade_adjusted
             ):
                 sim.worst_trade_adjusted = result / current_simultaneous_positions
 
@@ -349,7 +353,7 @@ def calculate_metrics(sim, capital):
     sim.growth = (sim.current_capital - capital) / capital
     if sim.winning_trades_number > 0:
         sim.win_rate = (sim.winning_trades_number) / (
-                sim.winning_trades_number + sim.losing_trades_number
+            sim.winning_trades_number + sim.losing_trades_number
         )
     else:
         sim.win_rate = 0
@@ -372,7 +376,11 @@ def print_metrics(sim):
 
 
 def update_results_dict(
-        results_dict, sim, current_simultaneous_positions, current_variant="control", extra_suffix=""
+    results_dict,
+    sim,
+    current_simultaneous_positions,
+    current_variant="control",
+    extra_suffix="",
 ):
     result_current_dict = dict(
         growth=sim.growth * 100,
@@ -400,7 +408,7 @@ def add_entry_with_profit_thresholds(sim, stock, entry_price_actual, entry_date_
         sim.positions_held += 1
         sim.current_positions.add(stock)
         sim.capital_per_position[stock] = (
-                sim.current_capital / current_simultaneous_positions
+            sim.current_capital / current_simultaneous_positions
         )
 
         print(
@@ -438,12 +446,12 @@ def thresholds_check(sim, stock_prices, current_date_dt):
             )
             for each_threshold in current_tp_variant:
                 if curr_row["high"].iloc[0] > sim.entry_prices[position] * (
-                        1 + each_threshold
+                    1 + each_threshold
                 ):
                     # Decrease the residual
                     if each_threshold not in sim.thresholds_reached[position]:
                         sim.left_of_initial_entries[position] -= (
-                                1 / current_simultaneous_positions
+                            1 / current_simultaneous_positions
                         )
                     # Add the threshold
                     sim.thresholds_reached[position].add(each_threshold)
@@ -451,7 +459,7 @@ def thresholds_check(sim, stock_prices, current_date_dt):
 
 
 def add_exit_with_profit_thresholds(
-        sim, stock, entry_price_actual, exit_price_actual, control_result_percent
+    sim, stock, entry_price_actual, exit_price_actual, control_result_percent
 ):
     if stock in sim.current_positions:
         position = stock
@@ -470,16 +478,14 @@ def add_exit_with_profit_thresholds(
         )
 
         absolute_price_result = (
-                                        exit_price_in_calc - entry_price_actual
-                                ) / entry_price_actual
+            exit_price_in_calc - entry_price_actual
+        ) / entry_price_actual
         result = absolute_price_result * portion_not_from_thresholds / divisor
         print(
             f"absolute price change result for {position}: {absolute_price_result:.2%} | "
             f"multiplier (considering thresholds): {portion_not_from_thresholds}/{divisor}"
         )
-        print(
-            f"relative price change result for {position}: {result:.2%}"
-        )
+        print(f"relative price change result for {position}: {result:.2%}")
         print(
             f"thresholds reached ({position}): {sim.thresholds_reached[position]}: {number_thresholds_reached} of {number_thresholds_total}"
         )
@@ -497,7 +503,7 @@ def add_exit_with_profit_thresholds(
             sim.winning_trades_number += 1
             sim.winning_trades.append(result)
             if (sim.best_trade_adjusted is None) or (
-                    result / current_simultaneous_positions > sim.best_trade_adjusted
+                result / current_simultaneous_positions > sim.best_trade_adjusted
             ):
                 sim.best_trade_adjusted = result / current_simultaneous_positions
                 print(f"best_trade_adjusted is now {sim.best_trade_adjusted}")
@@ -505,7 +511,7 @@ def add_exit_with_profit_thresholds(
             sim.losing_trades_number += 1
             sim.losing_trades.append(result)
             if (sim.worst_trade_adjusted is None) or (
-                    result / current_simultaneous_positions < sim.worst_trade_adjusted
+                result / current_simultaneous_positions < sim.worst_trade_adjusted
             ):
                 sim.worst_trade_adjusted = result / current_simultaneous_positions
 
@@ -560,10 +566,10 @@ def failed_entry_day_check(sim, stock_prices, stock_name, current_date_dt):
             stock_volume_df = stock_prices[stock_name][1]
             curr_state_price = stock_prices_df.loc[
                 stock_prices_df["timestamp"] <= current_date_dt
-                ]
+            ]
             curr_state_volume = stock_volume_df.loc[
                 stock_volume_df["timestamp"] <= current_date_dt
-                ]
+            ]
             warning, _ = red_day_on_volume(
                 curr_state_price, curr_state_volume, output=True, stock_name=stock_name
             )
@@ -635,9 +641,7 @@ def interate_over_variant_main_mode(results_dict):
         # Exits
         day_exits = ws.loc[ws[f"control_exit_date"] == current_date_dt]
         for key, elem in day_exits.iterrows():
-            add_exit_no_profit_thresholds(
-                sim, elem["stock"], elem
-            )
+            add_exit_no_profit_thresholds(sim, elem["stock"], elem)
 
     # Add the final balance at the end of the date
     # sim.snapshot_balance(current_date_dt) # nope, makes mom calc convoluted
@@ -648,9 +652,7 @@ def interate_over_variant_main_mode(results_dict):
 
     # Saving the result in the overall dictionary
     results_dict = update_results_dict(
-        results_dict,
-        sim,
-        current_simultaneous_positions
+        results_dict, sim, current_simultaneous_positions
     )
     return results_dict, sim
 
@@ -710,8 +712,8 @@ def iterate_over_variant_tp_mode(results_dict):
         # Exits
         day_exits = ws.loc[ws[f"{current_variant}_exit_date"] == current_date_dt]
         for (
-                key,
-                elem,
+            key,
+            elem,
         ) in day_exits.iterrows():
             add_exit_with_profit_thresholds(
                 sim,
@@ -769,7 +771,9 @@ if __name__ == "__main__":
     current_tp_variant_name = None
     if arguments["mode"] == "main":
         for current_simultaneous_positions in simultaneous_positions:
-            results_dict, latest_sim = interate_over_variant_main_mode(results_dict)  # here#
+            results_dict, latest_sim = interate_over_variant_main_mode(
+                results_dict
+            )  # here#
 
     # < Finished iterating
 
