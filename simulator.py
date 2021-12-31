@@ -51,7 +51,7 @@ sheet_columns = [
     "entry_price_actual",
     "control_exit_date",
     "exit_price_planned",
-    "control_price",
+    "main_exit_price",
     "outcome",
     "control_result_%",
     "exit_price_portion",
@@ -169,7 +169,7 @@ def prepare_data(ws):
         "entry_price_planned",
         "entry_price_actual",
         "exit_price_planned",
-        "control_price",
+        "main_exit_price",
     ]
     ws[num_cols] = ws[num_cols].apply(pd.to_numeric, errors="coerce")
 
@@ -279,7 +279,7 @@ def add_exit_no_profit_thresholds(sim, stock, elem):  # HERE#
         sim.positions_held -= 1
 
         # Calculate result based on thresholds
-        main_part_result = (elem["control_price"] - elem["entry_price_actual"]) / elem[
+        main_part_result = (elem["main_exit_price"] - elem["entry_price_actual"]) / elem[
             "entry_price_actual"
         ]
         result = (
@@ -718,9 +718,9 @@ def iterate_over_variant_tp_mode(results_dict):
             add_exit_with_profit_thresholds(
                 sim,
                 elem["stock"],
-                elem[f"entry_price_actual"],
-                elem[f"{current_variant}_price"],
-                elem[f"{current_variant}_result_%"],
+                elem["entry_price_actual"],
+                elem["main_exit_price"],
+                elem[f"control_result_%"],
             )
 
     # Calculate metrics and print the results
