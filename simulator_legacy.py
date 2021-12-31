@@ -1,3 +1,4 @@
+### Note: works with the R&D spreadsheet format (Trading journal R&D 2021)
 # Simulates trading progress and results over time using a spreadsheet with various considerations
 # Will save the result to simulator_result.csv
 # Use example: python simulator.py -mode=main -exchange=asx -start=2021-02-01 -end=2021-07-01
@@ -15,16 +16,22 @@ from itertools import groupby
 parser = argparse.ArgumentParser()
 import matplotlib.pyplot as plt
 
-pd.set_option("display.max_columns", None)
-
 # Settings (default)
-# higher_or_equal_open_filter, higher_strictly_open_filter, and red_entry_day_exit
-# are returned from process_filter_args()
+confidence_filter = [8, 9]
+penny_filter = ["Y", "N"]
 capital = 5000
 commission = 10  # this is brokerage (per entry / per exit)
+'''
+higher_or_equal_open_filter, higher_strictly_open_filter, and red_entry_day_exit are defined in a function
+'''
 
 # Variations to go through
 simultaneous_positions = [3, 4, 5]
+variant_names = ["control", "test_a", "test_b", "test_c", "test_e"]
+tp_base_variant = "control"  # NOTE: works with control and test_c currently (need to have the price column)
+
+# Red entry day on volume check
+# red_entry_day_exit = True # is defined in a function
 
 # Take profit level variations
 # Would be used iterating over control with simultaneous_positions variations too
@@ -35,11 +42,11 @@ take_profit_variants = {
     "tp_d": [0.5, 1, 1.5],
     "tp_e": [0.25, 0.45, 0.9, 1.45],
     "tp_g": [0.25, 0.9, 1.45, 1.75],
-    # "tp_h": [1.45, 1.75, 1.95],
-    # "tp_k1": [0.45, 1.75, 1.95],
-    # "tp_l1": [0.45, 1.45, 1.75, 1.95],
-    # "tp_x": [0.1, 1.45, 1.75],
-    # "tp_y": [0.1, 1.75, 1.95]
+    "tp_h": [1.45, 1.75, 1.95],
+    "tp_k1": [0.45, 1.75, 1.95],
+    "tp_l1": [0.45, 1.45, 1.75, 1.95],
+    "tp_x": [0.1, 1.45, 1.75],
+    "tp_y": [0.1, 1.75, 1.95]
 }
 
 # Sheet columns for the Gsheet
@@ -49,20 +56,31 @@ sheet_columns = [
     "entry_date",
     "entry_price_planned",
     "entry_price_actual",
+    "confidence",
+    "penny_stock",
+    "higher_open",
+    "higher_strictly_open",
     "control_exit_date",
     "exit_price_planned",
-    "main_exit_price",
+    "control_price",
     "outcome",
     "control_result_%",
-    "exit_price_portion",
-    "threshold_1_level",
-    "threshold_1_exit_portion",
-    "threshold_2_level",
-    "threshold_2_exit_portion",
-    "threshold_3_level",
-    "threshold_3_exit_portion",
+    "test_a_exit_date",
+    "test_a_result_%",
+    "test_b_exit_date",
+    "test_b_result_%",
+    "test_c_exit_date",
+    "test_c_price",
+    "test_c_result_%",
+    "test_e_exit_date",
+    "test_e_result_%",
     "max_level_reached",
     "comments",
+    "time_in_trade_control",
+    "time_in_trade_test_a",
+    "time_in_trade_test_b",
+    "time_in_trade_test_c",
+    "time_in_trade_test_e",
 ]
 
 
@@ -72,7 +90,7 @@ def define_args():
         "-mode",
         type=str,
         required=True,
-        help="Mode to run the simulation in (main|tp). Main mode means taking profit as per the spreadsheet setup.",
+        help="Mode to run the simulation in (main|tp). Tp mode is only applied to control.",
         choices=["main", "tp"],
     )
     parser.add_argument(
@@ -102,6 +120,11 @@ def define_args():
 
     # Arguments to overwrite default settings for filtering
     parser.add_argument(
+        "--nofilter", action="store_true", help="No filters on the launch"
+    )
+    parser.add_argument("--he", action="store_true", help="Higher or equal opens only")
+    parser.add_argument("--ho", action="store_true", help="Higher opens only")
+    parser.add_argument(
         "--red_day_exit",
         action="store_true",
         help="Exit when entry day is red (in tp mode only)",
@@ -118,23 +141,29 @@ def define_args():
 
 
 def process_filter_args():
+    if arguments["nofilter"]:
+        higher_or_equal_open_filter = ["Y", "N"]
+        higher_strictly_open_filter = ["Y", "N"]
+    if arguments["he"]:
+        higher_or_equal_open_filter = ["Y"]
+        higher_strictly_open_filter = ["Y", "N"]
+    if arguments["ho"]:
+        higher_or_equal_open_filter = ["Y"]
+        higher_strictly_open_filter = ["Y"]
     if arguments["red_day_exit"]:
         red_entry_day_exit = True
     else:
         red_entry_day_exit = False
 
-    return red_entry_day_exit
+    return higher_or_equal_open_filter, higher_strictly_open_filter, red_entry_day_exit
 
 
 def p2f(s):
-    try:
-        stripped_s = s.strip("%")
-        if stripped_s == "":
-            return
-        else:
-            return float(stripped_s) / 100
-    except AttributeError:
-        return s
+    stripped_s = s.strip("%")
+    if stripped_s == "":
+        return
+    else:
+        return float(stripped_s) / 100
 
 
 def calculate_max_drawdown(capital_change_values):
@@ -166,34 +195,36 @@ def data_filter_by_dates(ws, start_date, end_date):
 def prepare_data(ws):
     # Convert types
     num_cols = [
+        "confidence",
         "entry_price_planned",
         "entry_price_actual",
         "exit_price_planned",
-        "main_exit_price",
+        "control_price",
+        "test_c_price",
     ]
     ws[num_cols] = ws[num_cols].apply(pd.to_numeric, errors="coerce")
 
+    # Apply filters
+    ws = ws.loc[ws["confidence"].isin(confidence_filter)]
+    ws = ws.loc[ws["penny_stock"].isin(penny_filter)]
+    ws = ws.loc[ws["higher_open"].isin(higher_or_equal_open_filter)]
+    ws = ws.loc[ws["higher_strictly_open"].isin(higher_strictly_open_filter)]
+
     ws["max_level_reached"] = ws["max_level_reached"].apply(p2f)
+
     ws["entry_date"] = pd.to_datetime(
         ws["entry_date"], format="%d/%m/%y", errors="coerce"
     )
-    ws["control_exit_date"] = pd.to_datetime(
-        ws["control_exit_date"], format="%d/%m/%y", errors="coerce"
-    )
 
-    # Not needed in the new format
-    for column in [
-        "control_result_%",
-        "exit_price_portion",
-        "threshold_1_level",
-        "threshold_1_exit_portion",
-        "threshold_2_level",
-        "threshold_2_exit_portion",
-        "threshold_3_level",
-        "threshold_3_exit_portion",
-        "max_level_reached",
-    ]:
-        ws[column] = ws[column].apply(p2f)
+    for variant_name in variant_names:
+        ws[[f"time_in_trade_{variant_name}"]] = ws[
+            [f"time_in_trade_{variant_name}"]
+        ].apply(pd.to_numeric, errors="coerce")
+
+        ws[f"{variant_name}_exit_date"] = pd.to_datetime(
+            ws[f"{variant_name}_exit_date"], format="%d/%m/%y", errors="coerce"
+        )
+        ws[f"{variant_name}_result_%"] = ws[f"{variant_name}_result_%"].apply(p2f)
 
     return ws
 
@@ -273,21 +304,10 @@ def add_entry_no_profit_thresholds(sim, stock):
         )
 
 
-def add_exit_no_profit_thresholds(sim, stock, elem):  # HERE#
+def add_exit_no_profit_thresholds(sim, stock, result):
     if stock in sim.current_positions:
         sim.current_positions.remove(stock)
         sim.positions_held -= 1
-
-        # Calculate result based on thresholds
-        main_part_result = (elem["main_exit_price"] - elem["entry_price_actual"]) / elem[
-            "entry_price_actual"
-        ]
-        result = (
-            main_part_result * elem["exit_price_portion"]
-            + elem["threshold_1_level"] * elem["threshold_1_exit_portion"]
-            + elem["threshold_2_level"] * elem["threshold_2_exit_portion"]
-            + elem["threshold_3_level"] * elem["threshold_3_exit_portion"]
-        )
 
         if result >= 0:
             sim.winning_trades_number += 1
@@ -376,11 +396,7 @@ def print_metrics(sim):
 
 
 def update_results_dict(
-    results_dict,
-    sim,
-    current_simultaneous_positions,
-    current_variant="control",
-    extra_suffix="",
+    results_dict, sim, current_simultaneous_positions, current_variant, extra_suffix=""
 ):
     result_current_dict = dict(
         growth=sim.growth * 100,
@@ -485,7 +501,9 @@ def add_exit_with_profit_thresholds(
             f"absolute price change result for {position}: {absolute_price_result:.2%} | "
             f"multiplier (considering thresholds): {portion_not_from_thresholds}/{divisor}"
         )
-        print(f"relative price change result for {position}: {result:.2%}")
+        print(
+            f"relative price change result for {position}: {result:.2%}"
+        )
         print(
             f"thresholds reached ({position}): {sim.thresholds_reached[position]}: {number_thresholds_reached} of {number_thresholds_total}"
         )
@@ -530,7 +548,7 @@ def add_exit_with_profit_thresholds(
 
         sim.current_capital = sim.current_capital + capital_gain
         print(
-            f"accounting for the brokerage: ${commission * number_brokerage_commissions_paid} ({commission}x{number_brokerage_commissions_paid})"
+            f"accounting for the brokerage: ${commission*number_brokerage_commissions_paid} ({commission}x{number_brokerage_commissions_paid})"
         )
         sim.current_capital -= commission * number_brokerage_commissions_paid
         print(f"balance: ${sim.current_capital}")
@@ -639,9 +657,11 @@ def interate_over_variant_main_mode(results_dict):
             add_entry_no_profit_thresholds(sim, elem["stock"])
 
         # Exits
-        day_exits = ws.loc[ws[f"control_exit_date"] == current_date_dt]
+        day_exits = ws.loc[ws[f"{current_variant}_exit_date"] == current_date_dt]
         for key, elem in day_exits.iterrows():
-            add_exit_no_profit_thresholds(sim, elem["stock"], elem)
+            add_exit_no_profit_thresholds(
+                sim, elem["stock"], elem[f"{current_variant}_result_%"]
+            )
 
     # Add the final balance at the end of the date
     # sim.snapshot_balance(current_date_dt) # nope, makes mom calc convoluted
@@ -652,7 +672,10 @@ def interate_over_variant_main_mode(results_dict):
 
     # Saving the result in the overall dictionary
     results_dict = update_results_dict(
-        results_dict, sim, current_simultaneous_positions
+        results_dict,
+        sim,
+        current_simultaneous_positions,
+        current_variant,
     )
     return results_dict, sim
 
@@ -718,9 +741,9 @@ def iterate_over_variant_tp_mode(results_dict):
             add_exit_with_profit_thresholds(
                 sim,
                 elem["stock"],
-                elem["entry_price_actual"],
-                elem["main_exit_price"],
-                elem[f"control_result_%"],
+                elem[f"entry_price_actual"],
+                elem[f"{current_variant}_price"],
+                elem[f"{current_variant}_result_%"],
             )
 
     # Calculate metrics and print the results
@@ -741,7 +764,11 @@ def iterate_over_variant_tp_mode(results_dict):
 if __name__ == "__main__":
 
     arguments = define_args()
-    red_entry_day_exit = process_filter_args()
+    (
+        higher_or_equal_open_filter,
+        higher_strictly_open_filter,
+        red_entry_day_exit,
+    ) = process_filter_args()
 
     print("reading the values...")
 
@@ -770,17 +797,21 @@ if __name__ == "__main__":
     # > Iterating through days and variants for the fixed TP levels per the control & spreadsheet
     current_tp_variant_name = None
     if arguments["mode"] == "main":
-        for current_simultaneous_positions in simultaneous_positions:
-            results_dict, latest_sim = interate_over_variant_main_mode(
-                results_dict
-            )  # here#
+        for current_variant in variant_names:
+
+            print(f">> starting the variant {current_variant}")
+
+            for current_simultaneous_positions in simultaneous_positions:
+                results_dict, latest_sim = interate_over_variant_main_mode(results_dict)
+
+            print(f">> finished the variant {current_variant}")
 
     # < Finished iterating
 
     # > Iterating through days and take profit variants for the dynamic TP levels
     # Only supported for control but allows to make some conclusions too
     if arguments["mode"] == "tp":
-        current_variant = "control"
+        current_variant = tp_base_variant
         stock_names = [item.stock for key, item in ws.iterrows()]
         stock_prices = dict()
         suffix = get_stock_suffix(exchange)
