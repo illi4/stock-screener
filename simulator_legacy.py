@@ -4,7 +4,6 @@
 # Use example: python simulator.py -mode=main -exchange=asx -start=2021-02-01 -end=2021-07-01
 
 import libs.gsheetobj as gsheetsobj
-from libs.settings import gsheet_name
 from libs.signal import red_day_on_volume
 import pandas as pd
 from datetime import datetime, timedelta
@@ -20,10 +19,12 @@ import matplotlib.pyplot as plt
 confidence_filter = [8, 9]
 penny_filter = ["Y", "N"]
 capital = 5000
-commission = 10  # this is brokerage (per entry / per exit)
+commission = 3  # this is brokerage (per entry / per exit)
 '''
 higher_or_equal_open_filter, higher_strictly_open_filter, and red_entry_day_exit are defined in a function
 '''
+
+gsheet_name = 'Trading journal R&D 2021'  # hardcoded legacy name
 
 # Variations to go through
 simultaneous_positions = [3, 4, 5]
