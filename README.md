@@ -16,12 +16,13 @@ Please note that the shortlist should only be used to guide your own research an
 
 #### Usage  
 - Run `main.py --h` to view context help 
-- To update the stocks list, run `main.py --update -exchange=all`. It is recommended to run this daily prior to scanning.  
-- To scan and shortlist, run `main.py --scan -exchange=all`.
+- To update the stocks list, run `main.py --update -exchange=all`. It is recommended to run this daily prior to scanning. For asx, run `main.py --update -exchange=asx`
+- To scan and shortlist, run `main.py --scan -exchange=all` (replace with asx if needed). 
 - To simulate scanning as of a particular date, use the `-date` parameter (the format is `YYYY-MM-DD`). 
-- Helper scripts (note: requires configuring Google credentials in order to work):  
+- Helper scripts (note: requires configuring Google credentials in order to work, not updated to the new format yet):  
    - `monitor.py` to run daily to check whether the exit condition was hit for active entries.
    - `paperfill.py` to run daily to fill in the values for paper trade entries automatically.
+   - `simulator.py` simulates outcomes per the spreadsheet. Legacy works with 21 R&D spreadsheet.
 
 #### Settings 
 See `libs/settings.py` for settings: 
