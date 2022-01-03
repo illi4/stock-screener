@@ -88,38 +88,10 @@ def check_positions():
                         # results for 4th day open and 6th day open
                         # for 'not moving for 3d / 5d' (first index is 0)
 
-                        try:
-                            result_d_4 = (
-                                mergedDf["open"].values[3]
-                                - mergedDf["open"].values[0]
-                            ) / (mergedDf["open"].values[0])
-                            date_d4 = mergedDf["timestamp"].values[3]
-                        except IndexError:
-                            result_d_4 = (
-                                mergedDf["open"].values[-1]
-                                - mergedDf["open"].values[0]
-                            ) / (mergedDf["open"].values[0])
-                            date_d4 = mergedDf["timestamp"].values[-1]
-
-                        try:
-                            result_d_6 = (
-                                mergedDf["open"].values[5]
-                                - mergedDf["open"].values[0]
-                            ) / (mergedDf["open"].values[0])
-                            date_d6 = mergedDf["timestamp"].values[5]
-                        except IndexError:
-                            result_d_6 = (
-                                mergedDf["open"].values[-1]
-                                - mergedDf["open"].values[0]
-                            ) / (mergedDf["open"].values[0])
-                            date_d6 = mergedDf["timestamp"].values[-1]
-
                         alerted_positions.add(
                             f"{stock_code} ({exchange}) [{entry_date} -> {exit_date}] "
-                            f"W {round(wanted_price, 3)} A {round(opened_price, 3)} | "
-                            f"D6 ({date_d6}) {result_d_6:.2%} | "
-                            f"D4 ({date_d4}) {result_d_4:.2%} | "
-                            f"ED low {entry_day_low_result:.2%} ({ed_low_shifted}) ({lower_than_low_date})"
+                            f"W {round(wanted_price, 3)} A {round(opened_price, 3)} | " 
+                            f"Entry Day Low {entry_day_low_result:.2%} ({ed_low_shifted}) ({lower_than_low_date})"
                         )
                         print(
                             f"{stock_code} ({exchange}) [{entry_date}]: alert"
