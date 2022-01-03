@@ -22,7 +22,7 @@ Please note that the shortlist should only be used to guide your own research an
 - Helper scripts (note: requires configuring Google credentials in order to work, not updated to the new format yet):  
    - `monitor.py` to run daily to check whether the exit condition was hit for active entries.
    - `paperfill.py` to run daily to fill in the values for paper trade entries automatically.
-   - `simulator.py` simulates outcomes per the spreadsheet. Legacy works with 21 R&D spreadsheet.
+   - `simulator.py` simulates outcomes per the spreadsheet. Note that `simulator_legacy.py` script works with the older 21 R&D spreadsheet.
 
 #### Settings 
 See `libs/settings.py` for settings: 
@@ -56,4 +56,6 @@ See `libs/settings.py` for settings:
 4. Install the required libraries: `pip install -r requirements.txt` 
 
 #### Google sheet / project configuration 
-If you want to use monitor and paperfill in addition to the screener, please create a sheet similar to [this one](https://docs.google.com/spreadsheets/d/1luuTn-wRsa2IXkaLTB-3FGlev6gJy6fnO0uQfqnHjRI/edit?usp=sharing) and configure API access, then save the credentials under `.config\gspread\service_account.json`. This is not required if you only want to use the screener (main.py).
+If you want to use monitor and paperfill in addition to the screener, please create a sheet similar to [this one](https://docs.google.com/spreadsheets/d/12uNaLya_qiQbT4NDbTaaQr0Y2sDbfDmEZDhvlzTRyjc/edit?usp=sharing) and configure API access, then save the credentials under `.config\gspread\service_account.json`. This is not required if you only want to use the screener (main.py).
+
+Note: legacy sheet (R&D 2021) is available [here](https://docs.google.com/spreadsheets/d/1luuTn-wRsa2IXkaLTB-3FGlev6gJy6fnO0uQfqnHjRI/edit?usp=sharing).
