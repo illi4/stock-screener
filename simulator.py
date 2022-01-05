@@ -55,11 +55,14 @@ sheet_columns = [
     "outcome",
     "control_result_%",
     "exit_price_portion",
-    "threshold_1_level",
+    "threshold_1_expected_price",
+    "threshold_1_actual_price",
     "threshold_1_exit_portion",
-    "threshold_2_level",
+    "threshold_2_expected_price",
+    "threshold_2_actual_price",
     "threshold_2_exit_portion",
-    "threshold_3_level",
+    "threshold_3_expected_price",
+    "threshold_3_actual_price",
     "threshold_3_exit_portion",
     "max_level_reached",
     "comments",
@@ -170,6 +173,12 @@ def prepare_data(ws):
         "entry_price_actual",
         "exit_price_planned",
         "main_exit_price",
+        "threshold_1_expected_price",
+        "threshold_1_actual_price",
+        "threshold_2_expected_price",
+        "threshold_2_actual_price",
+        "threshold_3_expected_price",
+        "threshold_3_actual_price",
     ]
     ws[num_cols] = ws[num_cols].apply(pd.to_numeric, errors="coerce")
 
@@ -185,11 +194,8 @@ def prepare_data(ws):
     for column in [
         "control_result_%",
         "exit_price_portion",
-        "threshold_1_level",
         "threshold_1_exit_portion",
-        "threshold_2_level",
         "threshold_2_exit_portion",
-        "threshold_3_level",
         "threshold_3_exit_portion",
         "max_level_reached",
     ]:
@@ -273,20 +279,30 @@ def add_entry_no_profit_thresholds(sim, stock):
         )
 
 
-def add_exit_no_profit_thresholds(sim, stock, elem):  # HERE#
+def add_exit_no_profit_thresholds(sim, stock, elem):
     if stock in sim.current_positions:
         sim.current_positions.remove(stock)
         sim.positions_held -= 1
 
-        # Calculate result based on thresholds
-        main_part_result = (elem["main_exit_price"] - elem["entry_price_actual"]) / elem[
-            "entry_price_actual"
-        ]
-        result = (
-            main_part_result * elem["exit_price_portion"]
-            + elem["threshold_1_level"] * elem["threshold_1_exit_portion"]
-            + elem["threshold_2_level"] * elem["threshold_2_exit_portion"]
-            + elem["threshold_3_level"] * elem["threshold_3_exit_portion"]
+        stock_threshold_results = dict()
+
+        # Calculate result based on three thresholds
+        main_part_result = (
+            elem["main_exit_price"] - elem["entry_price_actual"]
+        ) / elem["entry_price_actual"]
+
+        for i in range(0, 3):
+            threshold_result = (
+                elem[f"threshold_{i+1}_actual_price"] - elem["entry_price_actual"]
+            ) / elem["entry_price_actual"]
+            threshold_outcome = threshold_result * elem[f"threshold_{i+1}_exit_portion"]
+            threshold_outcome = (
+                0 if str(threshold_outcome) == "nan" else threshold_outcome
+            )
+            stock_threshold_results[i + 1] = threshold_outcome
+
+        result = main_part_result * elem["exit_price_portion"] + sum(
+            stock_threshold_results.values()
         )
 
         if result >= 0:
