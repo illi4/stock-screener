@@ -184,10 +184,10 @@ def prepare_data(ws):
 
     ws["max_level_reached"] = ws["max_level_reached"].apply(p2f)
     ws["entry_date"] = pd.to_datetime(
-        ws["entry_date"], format="%d/%m/%y", errors="coerce"
+        ws["entry_date"], format="%d/%m/%Y", errors="coerce"
     )
     ws["control_exit_date"] = pd.to_datetime(
-        ws["control_exit_date"], format="%d/%m/%y", errors="coerce"
+        ws["control_exit_date"], format="%d/%m/%Y", errors="coerce"
     )
 
     # Not needed in the new format

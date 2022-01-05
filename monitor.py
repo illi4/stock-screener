@@ -34,7 +34,7 @@ def check_positions():
                 entry_date_value = row["Entry date"]
 
                 try:
-                    entry_date = arrow.get(entry_date_value, "DD/MM/YY").datetime.date()
+                    entry_date = arrow.get(entry_date_value, "DD/MM/YYYY").datetime.date()
                 except arrow.parser.ParserMatchError:
                     print("Skipping blank entry date lines")
                     continue  # continue with the next iteration in the for cycle

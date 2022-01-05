@@ -23,7 +23,7 @@ def fill_prices():
                 stock_code = row["Stock"]
 
                 entry_date_value = row["Entry date"]
-                entry_date = arrow.get(entry_date_value, "DD/MM/YY").datetime.date()
+                entry_date = arrow.get(entry_date_value, "DD/MM/YYYY").datetime.date()
                 ohlc_daily, volume_daily = get_stock_data(
                     f"{stock_code}{stock_suffix}", reporting_date_start
                 )
