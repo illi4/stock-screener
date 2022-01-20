@@ -87,17 +87,18 @@ def check_positions():
                         opened_price = mergedDf["open"].values[hit_idx + 1]
                         # results for 4th day open and 6th day open
                         # for 'not moving for 3d / 5d' (first index is 0)
-
                         alerted_positions.add(
                             f"{stock_code} ({exchange}) [{entry_date} -> {exit_date}] "
-                            f"W {round(wanted_price, 3)} A {round(opened_price, 3)} | " 
-                            f"Entry Day Low {entry_day_low_result:.2%} ({ed_low_shifted}) ({lower_than_low_date})"
+                            f"wanted price: {round(wanted_price, 3)} | actual price: {round(opened_price, 3)}"
                         )
                         print(
                             f"{stock_code} ({exchange}) [{entry_date}]: alert"
                         )
                     except IndexError:
-                        print(f"{stock_code} ({exchange}): need to wait for next day after hitting MA10")
+                        alerted_positions.add(
+                            f"{stock_code} ({exchange}) [{entry_date} -> {exit_date}]"
+                        )
+                        print(f"{stock_code} ({exchange}): alert (market pre-open)")
 
                 else:
                     print(
