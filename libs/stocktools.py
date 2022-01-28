@@ -100,6 +100,13 @@ def get_asx_symbols(checked_workday):
     return stocks
 
 
+def get_market_index_ticker(exchange):
+    if exchange.lower() == 'asx':
+        return "AXJO.INDX"
+    else:
+        print("Unknown market")
+        exit(0)
+
 def get_stock_data(code, reporting_date_start):
     global session
     if session is None:

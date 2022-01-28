@@ -6,7 +6,7 @@ from libs.helpers import (
     get_test_stocks,
     get_data_start_date,
 )
-from libs.signal import bullish_ma_based
+from libs.signal import bullish_ma_based, market_bearish
 from libs.stocktools import (
     get_asx_symbols,
     get_nasdaq_symbols,
@@ -14,6 +14,7 @@ from libs.stocktools import (
     ohlc_daily_to_weekly,
     get_exchange_symbols,
     get_stock_suffix,
+    get_market_index_ticker,
 )
 from libs.db import (
     bulk_add_stocks,
@@ -125,6 +126,16 @@ def process_data_at_date(ohlc_daily, volume_daily):
     return ohlc_daily_shifted, volume_daily_shifted
 
 
+def process_market_data_at_date(market_ohlc_daily, market_volume_daily):
+    if arguments["date"] is None:
+        return market_ohlc_daily, market_volume_daily
+
+    market_ohlc_daily_shifted = market_ohlc_daily[market_ohlc_daily["timestamp"] < arguments["date"]]
+    market_volume_daily_shifted = market_volume_daily[market_volume_daily["timestamp"] < arguments["date"]]
+
+    return market_ohlc_daily_shifted, market_volume_daily_shifted
+
+
 def scan_stock(stocks, exchange):
     stock_suffix = get_stock_suffix(exchange)
 
@@ -186,6 +197,17 @@ def scan_stock(stocks, exchange):
 
 
 def scan_exchange_stocks(exchange):
+    # Check the market conditions
+    market_ticker = get_market_index_ticker(exchange)
+    market_ohlc_daily, market_volume_daily = get_stock_data(market_ticker, reporting_date_start)
+    market_ohlc_daily, market_volume_daily = process_market_data_at_date(market_ohlc_daily, market_volume_daily)
+    is_market_bearish, _ = market_bearish(market_ohlc_daily, market_volume_daily, output=True)
+
+    if is_market_bearish:
+        print("Overall market sentiment is bearish, not scanning individual stocks")
+        exit(0)
+
+    # Get the stocks for scanning
     stocks = get_stocks(
         exchange=exchange,
         price_min=price_min,
@@ -258,6 +280,10 @@ if __name__ == "__main__":
 
     arguments = define_args()
     reporting_date_start = get_data_start_date(arguments["date"])
+
+    if arguments["exchange"] == "ALL":
+        print("All exchanges are not supported, please use asx at the time")
+        exit(0)
 
     if arguments["update"]:
         update_stocks()
