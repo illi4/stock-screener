@@ -292,3 +292,49 @@ def red_day_on_volume(
     result = False not in confirmation
 
     return result, numerical_score
+
+
+def market_bearish(
+    ohlc_with_indicators_daily,
+    volume_daily,
+    output=False,
+):
+    """
+    :param ohlc_with_indicators_daily: daily OHLC with indicators (pandas df)
+    :param volume_daily: volume values (pandas df)
+    :param ohlc_with_indicators_weekly: weekly OHLC with indicators (pandas df)
+    :param consider_volume_spike: is the volume spike condition considered
+    :param output: should the output be printed
+    :param stock_name: name of a stock
+    :return:
+    """
+    ma200 = MA(ohlc_with_indicators_daily, 200)
+    ma10 = MA(ohlc_with_indicators_daily, 10)
+
+    # Condition: market is below MA200
+    market_below_ma_200 = (
+        ohlc_with_indicators_daily["close"].iloc[-1]
+        < ma200["ma200"].iloc[-1]
+    )
+    # Condition: MA is decreasing
+    ma_10_decreasing = (
+            (ma10["ma10"].iloc[-1] < ma10["ma10"].iloc[-2]) and
+            (ma10["ma10"].iloc[-1] < ma10["ma10"].iloc[-3]) and
+            (ma10["ma10"].iloc[-1] < ma10["ma10"].iloc[-5])
+    )
+
+    if output:
+        print(
+            f"- Market below MA200: [{market_below_ma_200}] | MA10 decreasing: [{ma_10_decreasing}]"
+        )
+
+    negative_confirmation = [
+        market_below_ma_200,
+        ma_10_decreasing
+    ]
+    numerical_score = round(
+        5 * sum(negative_confirmation) / len(negative_confirmation), 0
+    )  # score X (of 5)
+    result = False not in negative_confirmation
+
+    return result, numerical_score
