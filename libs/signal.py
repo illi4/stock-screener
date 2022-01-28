@@ -308,28 +308,33 @@ def market_bearish(
     :param stock_name: name of a stock
     :return:
     """
-
+    ma200 = MA(ohlc_with_indicators_daily, 200)
     ma10 = MA(ohlc_with_indicators_daily, 10)
-    ma20 = MA(ohlc_with_indicators_daily, 20)
-    ma30 = MA(ohlc_with_indicators_daily, 30)
-    ma_daily_values = dict(ma10=ma10, ma20=ma20, ma30=ma30,)
 
-    # Condition: market is below MA30
-    market_below_ma = (
+    # Condition: market is below MA200
+    market_below_ma_200 = (
         ohlc_with_indicators_daily["close"].iloc[-1]
-        < ma30["ma30"].iloc[-1]
+        < ma200["ma200"].iloc[-1]
     )
+    # Condition: MA is decreasing
+    ma_10_decreasing = (
+            (ma10["ma10"].iloc[-1] < ma10["ma10"].iloc[-2]) and
+            (ma10["ma10"].iloc[-1] < ma10["ma10"].iloc[-3]) and
+            (ma10["ma10"].iloc[-1] < ma10["ma10"].iloc[-5])
+    )
+
     if output:
         print(
-            f"- Market below MA: [{market_below_ma}]"
+            f"- Market below MA200: [{market_below_ma_200}] | MA10 decreasing: [{ma_10_decreasing}]"
         )
 
-    confirmation = [
-        market_below_ma,
+    negative_confirmation = [
+        market_below_ma_200,
+        ma_10_decreasing
     ]
     numerical_score = round(
-        5 * sum(confirmation) / len(confirmation), 0
+        5 * sum(negative_confirmation) / len(negative_confirmation), 0
     )  # score X (of 5)
-    result = False not in confirmation
+    result = False not in negative_confirmation
 
     return result, numerical_score
