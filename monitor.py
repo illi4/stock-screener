@@ -1,18 +1,29 @@
 # Monitors whether the open positions hit the exit criteria at some point
 # Output W: wanted exit price, A: actual exit, D4: result if nothing on day 3 (so exit on 4), similar with D6
 import libs.gsheetobj as gsheetsobj
-from libs.stocktools import get_stock_data, get_stock_suffix
+from libs.stocktools import get_stock_data, get_stock_suffix, get_market_index_ticker
 from libs.techanalysis import MA
 from libs.settings import gsheet_name
 import arrow
 from datetime import timedelta
 from libs.helpers import get_data_start_date
+from libs.signal import market_bearish
 
 reporting_date_start = get_data_start_date()
 
 def get_first_true_idx(list):
     filtr = lambda x: x == True
     return [i for i, x in enumerate(list) if filtr(x)][0]
+
+
+def check_market():
+    exchange = "ASX"    # only supporting asx for now
+    market_ticker = get_market_index_ticker(exchange)
+    market_ohlc_daily, market_volume_daily = get_stock_data(market_ticker, reporting_date_start)
+    is_market_bearish, _ = market_bearish(market_ohlc_daily, market_volume_daily, output=True)
+    if is_market_bearish:
+        print("Overall market sentiment is bearish, exit all the open positions")
+        exit(0)
 
 
 def check_positions():
@@ -109,6 +120,9 @@ def check_positions():
 
 
 if __name__ == "__main__":
+    print("Checking the market")
+    check_market()
+
     print("Checking positions...")
     alerted_positions = check_positions()
     print()
