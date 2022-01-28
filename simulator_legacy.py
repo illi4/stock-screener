@@ -11,6 +11,7 @@ import numpy as np
 from libs.stocktools import get_stock_suffix, get_stock_data
 import argparse
 from itertools import groupby
+from libs.signal import market_bearish
 
 parser = argparse.ArgumentParser()
 import matplotlib.pyplot as plt
@@ -125,6 +126,7 @@ def define_args():
     )
     parser.add_argument("--he", action="store_true", help="Higher or equal opens only")
     parser.add_argument("--ho", action="store_true", help="Higher opens only")
+    parser.add_argument("--market", action="store_true", help="Consider market")
     parser.add_argument(
         "--red_day_exit",
         action="store_true",
@@ -155,8 +157,12 @@ def process_filter_args():
         red_entry_day_exit = True
     else:
         red_entry_day_exit = False
+    if arguments["market"]:
+        market_consideration = True
+    else:
+        market_consideration = False
 
-    return higher_or_equal_open_filter, higher_strictly_open_filter, red_entry_day_exit
+    return higher_or_equal_open_filter, higher_strictly_open_filter, red_entry_day_exit, market_consideration
 
 
 def p2f(s):
@@ -681,6 +687,19 @@ def interate_over_variant_main_mode(results_dict):
     return results_dict, sim
 
 
+def get_market_state(current_date_dt):
+    market_price, market_volume = market_info[0], market_info[1]
+    # has to be strict condition as we only know data for the previous day
+    curr_state_market_price = market_price.loc[
+        market_price["timestamp"] < current_date_dt
+        ]
+    curr_state_market_volume = market_volume.loc[
+        market_volume["timestamp"] < current_date_dt
+        ]
+    is_market_bearish, _ = market_bearish(curr_state_market_price, curr_state_market_volume, output=True)
+    return is_market_bearish
+
+
 def iterate_over_variant_tp_mode(results_dict):
     # Initiate the simulation object
     sim = simulation(capital)
@@ -721,9 +740,16 @@ def iterate_over_variant_tp_mode(results_dict):
         # Entries
         day_entries = ws.loc[ws["entry_date"] == current_date_dt]
         for key, elem in day_entries.iterrows():
-            add_entry_with_profit_thresholds(
-                sim, elem["stock"], elem["entry_price_actual"], elem["entry_date"]
-            )
+
+            # Firstly, check whether the market performance is Ok
+            if market_consideration:
+                is_market_bearish = get_market_state(current_date_dt)
+
+            # Add the entry
+            if (market_consideration and not is_market_bearish) or (not market_consideration):
+                add_entry_with_profit_thresholds(
+                    sim, elem["stock"], elem["entry_price_actual"], elem["entry_date"]
+                )
 
             # On the entry day, check whether the stock is ok or not as this could be used further
             # Note: if the day is red, we should flag that it should be exited on the next
@@ -769,6 +795,7 @@ if __name__ == "__main__":
         higher_or_equal_open_filter,
         higher_strictly_open_filter,
         red_entry_day_exit,
+        market_consideration
     ) = process_filter_args()
 
     print("reading the values...")
@@ -816,6 +843,11 @@ if __name__ == "__main__":
         stock_names = [item.stock for key, item in ws.iterrows()]
         stock_prices = dict()
         suffix = get_stock_suffix(exchange)
+
+        # Getting market data
+        market_info = get_stock_data(f"AXJO.INDX", reporting_start_date)
+
+        # Getting individual stocks data
         for stock in stock_names:
             print(f"getting stock data for {stock}{suffix}")
             stock_info = get_stock_data(f"{stock}{suffix}", reporting_start_date)

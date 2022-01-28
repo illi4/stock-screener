@@ -292,3 +292,44 @@ def red_day_on_volume(
     result = False not in confirmation
 
     return result, numerical_score
+
+
+def market_bearish(
+    ohlc_with_indicators_daily,
+    volume_daily,
+    output=False,
+):
+    """
+    :param ohlc_with_indicators_daily: daily OHLC with indicators (pandas df)
+    :param volume_daily: volume values (pandas df)
+    :param ohlc_with_indicators_weekly: weekly OHLC with indicators (pandas df)
+    :param consider_volume_spike: is the volume spike condition considered
+    :param output: should the output be printed
+    :param stock_name: name of a stock
+    :return:
+    """
+
+    ma10 = MA(ohlc_with_indicators_daily, 10)
+    ma20 = MA(ohlc_with_indicators_daily, 20)
+    ma30 = MA(ohlc_with_indicators_daily, 30)
+    ma_daily_values = dict(ma10=ma10, ma20=ma20, ma30=ma30,)
+
+    # Condition: market is below MA30
+    market_below_ma = (
+        ohlc_with_indicators_daily["close"].iloc[-1]
+        < ma30["ma30"].iloc[-1]
+    )
+    if output:
+        print(
+            f"- Market below MA: [{market_below_ma}]"
+        )
+
+    confirmation = [
+        market_below_ma,
+    ]
+    numerical_score = round(
+        5 * sum(confirmation) / len(confirmation), 0
+    )  # score X (of 5)
+    result = False not in confirmation
+
+    return result, numerical_score
