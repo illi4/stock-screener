@@ -8,6 +8,7 @@ Stock shortlisting and industry score estimates incorporate the following condit
 - Bullish MRI indicator on the weekly timeframe  
 - Moving averages (10, 20, 30 day) Consensio ([Guppy MMA](https://www.investopedia.com/terms/g/guppy-multiple-moving-average.asp))
 - Moving averages (10, 20, 30 day) rising
+- Market is not below MA200 with MA10 declining
 - 2 most recent weekly candles closing above weekly moving averages (10/20/30 week)
 - Close for the last week is not exceeding 200% when compared to 4 weeks ago
 - Volume spike in the last day compared to the 20-day moving average (should be 30% higher at least)  
@@ -16,13 +17,17 @@ Please note that the shortlist should only be used to guide your own research an
 
 #### Usage  
 - Run `main.py --h` to view context help 
-- To update the stocks list, run `main.py --update -exchange=all`. It is recommended to run this daily prior to scanning. For asx, run `main.py --update -exchange=asx`
-- To scan and shortlist, run `main.py --scan -exchange=all` (replace with asx if needed). 
+- To update the stocks list, run `main.py --update -exchange=asx`. It is recommended to run this daily prior to scanning.  
+- To scan and shortlist, run `main.py --scan -exchange=asx`. 
 - To simulate scanning as of a particular date, use the `-date` parameter (the format is `YYYY-MM-DD`). 
 - Helper scripts (note: requires configuring Google credentials in order to work, not updated to the new format yet):  
    - `monitor.py` to run daily to check whether the exit condition was hit for active entries.
    - `paperfill.py` to run daily to fill in the values for paper trade entries automatically.
-   - `simulator.py` simulates outcomes per the spreadsheet. Note that `simulator_legacy.py` script works with the older 21 R&D spreadsheet.
+   - `simulator.py` simulates outcomes per the spreadsheet.  
+   - `simulator_legacy.py` works with the older 21 R&D spreadsheet and also has an optional argument `--market` which would include market MA200/MA10 conditions when running simulation **in the tp mode**.  
+- The monitor would notify: 
+  - when the close for a position is below MA10 
+  - when the market switches to the bearish mode (market below MA200 with MA10 decreasing) as a trigger to close all open positions
 
 #### Settings 
 See `libs/settings.py` for settings: 
@@ -58,4 +63,4 @@ See `libs/settings.py` for settings:
 #### Google sheet / project configuration 
 If you want to use monitor and paperfill in addition to the screener, please create a sheet similar to [this one](https://docs.google.com/spreadsheets/d/12uNaLya_qiQbT4NDbTaaQr0Y2sDbfDmEZDhvlzTRyjc/edit?usp=sharing) and configure API access, then save the credentials under `.config\gspread\service_account.json`. This is not required if you only want to use the screener (main.py).
 
-Note: legacy sheet (R&D 2021) is available [here](https://docs.google.com/spreadsheets/d/1luuTn-wRsa2IXkaLTB-3FGlev6gJy6fnO0uQfqnHjRI/edit?usp=sharing).
+**Note**: legacy sheet (R&D 2021) is available [here](https://docs.google.com/spreadsheets/d/1luuTn-wRsa2IXkaLTB-3FGlev6gJy6fnO0uQfqnHjRI/edit?usp=sharing).
