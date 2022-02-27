@@ -66,15 +66,19 @@ def check_update_date():
     if exchange == "ALL":
         exchange = "ASX"  # just to simplify
 
-    last_update_date = get_update_date(exchange)
-    diff = dates_diff(last_update_date)
-    if diff > 1:
+    try:
+        last_update_date = get_update_date(exchange)
+        diff = dates_diff(last_update_date)
+        if diff > 1:
+            print(
+                "Warning: Stocks list was not updated today, the volume filter could work incorrectly. "
+                "Please consider running the --update first..."
+            )
+            sleep(3)
+    except:
         print(
-            "Warning: Stocks list was not updated today, the volume filter could work incorrectly. "
-            "Please consider running the --update first..."
+            "Warning: failed to check the update date for correctness"
         )
-        sleep(3)
-
 
 def last_volume_5D_MA(volume_daily):
     volume_ma_20 = MA(volume_daily, 20, colname="volume")
