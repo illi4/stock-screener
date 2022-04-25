@@ -498,6 +498,7 @@ def failsafe_trigger_rollback(sim, stock_prices, current_date_dt):
 
                     # We should use the correct price as something may just open very low
                     price_to_use = min(curr_row["open"].iloc[0], failsafe_rollback_level)
+                    print(f'-- using the price as a minimum of {curr_row["open"].iloc[0]} and {failsafe_rollback_level}')
                     failback_triggers.append([position, price_to_use])
 
     return failback_triggers
