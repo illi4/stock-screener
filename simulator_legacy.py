@@ -25,10 +25,15 @@ commission = 3  # this is brokerage (per entry / per exit)
 higher_or_equal_open_filter, higher_strictly_open_filter, and red_entry_day_exit are defined in a function
 '''
 
+# Quick and dirty check of the hypothesis
+failsafe_trigger_level = 0.125
+failsafe_exit_level = 0.05  # tight just to test
+failsafe_active = True
+
 gsheet_name = 'Trading journal R&D 2021'  # hardcoded legacy name
 
 # Variations to go through
-simultaneous_positions = [3, 4, 5]
+simultaneous_positions = [4] #[3, 4, 5]
 variant_names = ["control", "test_a", "test_b", "test_c", "test_e"]
 tp_base_variant = "control"  # NOTE: works with control and test_c currently (need to have the price column)
 
@@ -38,17 +43,19 @@ tp_base_variant = "control"  # NOTE: works with control and test_c currently (ne
 # Take profit level variations
 # Would be used iterating over control with simultaneous_positions variations too
 take_profit_variants = {
-    "_repeated_to_control": [0.25, 0.45, 0.9],
-    "tp_b": [0.5, 1],
-    "tp_c": [0.15, 0.5, 0.9, 1.75],
+    #"_repeated_to_control": [0.25, 0.45, 0.9],
+    #"tp_b": [0.5, 1],
+    #"tp_c": [0.15, 0.5, 0.9, 1.75],
     "tp_d": [0.5, 1, 1.5],
-    "tp_e": [0.25, 0.45, 0.9, 1.45],
-    "tp_g": [0.25, 0.9, 1.45, 1.75],
-    "tp_h": [1.45, 1.75, 1.95],
-    "tp_k1": [0.45, 1.75, 1.95],
-    "tp_l1": [0.45, 1.45, 1.75, 1.95],
-    "tp_x": [0.1, 1.45, 1.75],
-    "tp_y": [0.1, 1.75, 1.95]
+    #"tp_d_a": [0.2, 1, 1.5],
+    #"tp_d_b": [0.25, 1, 1.5],
+    #"tp_e": [0.25, 0.45, 0.9, 1.45],
+    #"tp_g": [0.25, 0.9, 1.45, 1.75],
+    #"tp_h": [1.45, 1.75, 1.95],
+    #"tp_k1": [0.45, 1.75, 1.95],
+    #"tp_l1": [0.45, 1.45, 1.75, 1.95],
+    #"tp_x": [0.1, 1.45, 1.75],
+    #"tp_y": [0.1, 1.75, 1.95]
 }
 
 # Sheet columns for the Gsheet
@@ -273,6 +280,9 @@ class simulation:
         self.detailed_capital_values = dict()
         # A dict for failed entry days whatever the condition is
         self.failed_entry_day_stocks = dict()
+        # For the failsafe checks
+        self.failsafe_stock_trigger = dict()
+        self.failsafe_active_dates = dict()  # for dates check
 
     def snapshot_balance(self, current_date_dt):
         self.balances[
@@ -287,6 +297,9 @@ class simulation:
         self.capital_per_position.pop(stock)
         self.thresholds_reached[stock] = []
         self.failed_entry_day_stocks.pop(stock, None)
+        # quick one
+        self.failsafe_stock_trigger.pop(stock, None)
+        self.failsafe_active_dates.pop(stock, None)
 
 
 def add_entry_no_profit_thresholds(sim, stock):
@@ -439,6 +452,7 @@ def add_entry_with_profit_thresholds(sim, stock, entry_price_actual, entry_date_
             stock,
             "| positions held",
             sim.positions_held,
+            entry_date_actual, " "
         )
         print(f"-> entry price: {entry_price_actual}")
         print(f"accounting for the brokerage: ${commission}")
@@ -457,6 +471,32 @@ def add_entry_with_profit_thresholds(sim, stock, entry_price_actual, entry_date_
         sim.thresholds_reached[
             stock
         ] = set()  # appropriate as each would only be there once
+
+
+def failsafe_trigger_check(sim, stock_prices, current_date_dt):
+    for position in sim.current_positions:
+        current_df = stock_prices[position][0]
+        curr_row = current_df.loc[current_df["timestamp"] == current_date_dt]
+        failsafe_current_level = sim.entry_prices[position] * (1 + failsafe_trigger_level)
+        if not curr_row.empty:
+            if curr_row["high"].iloc[0] >= failsafe_current_level:
+                print(f"failsafe level reached for {position} @ {failsafe_current_level}")
+                sim.failsafe_stock_trigger[position] = True
+                sim.failsafe_active_dates[position] = current_date_dt
+
+
+def failsafe_trigger_rollback(sim, stock_prices, current_date_dt):
+    failback_triggers = []
+    for position in sim.current_positions:
+        current_df = stock_prices[position][0]
+        curr_row = current_df.loc[current_df["timestamp"] == current_date_dt]
+        failsafe_rollback_level = sim.entry_prices[position] * (1 + failsafe_exit_level)
+        if not curr_row.empty and (position in sim.failsafe_stock_trigger):
+            if sim.failsafe_stock_trigger[position]:
+                if (curr_row["low"].iloc[0] < failsafe_rollback_level) and (sim.failsafe_active_dates[position] != current_date_dt):
+                    print(f"failsafe rollback for {position} @ {failsafe_rollback_level}")
+                    failback_triggers.append([position, failsafe_rollback_level])
+    return failback_triggers
 
 
 def thresholds_check(sim, stock_prices, current_date_dt):
@@ -479,7 +519,6 @@ def thresholds_check(sim, stock_prices, current_date_dt):
                     # Add the threshold
                     sim.thresholds_reached[position].add(each_threshold)
                     print(f"-- {position} reached {each_threshold:.2%}")
-
 
 def add_exit_with_profit_thresholds(
     sim, stock, entry_price_actual, exit_price_actual, control_result_percent
@@ -580,6 +619,7 @@ def plot_latest_sim(latest_sim):
         if index not in lst:
             label.set_visible(False)
     plt.show()
+
 
 
 def failed_entry_day_check(sim, stock_prices, stock_name, current_date_dt):
@@ -755,6 +795,24 @@ def iterate_over_variant_tp_mode(results_dict):
             # Note: if the day is red, we should flag that it should be exited on the next
             # In the cycle above, exits from the red closing days should be processed before the entries
             failed_entry_day_check(sim, stock_prices, elem["stock"], current_date_dt)
+
+        # For stocks in positions
+        if failsafe_active:
+            # For each day, check quick n dirty failsafe trigger
+            # Checking same day as the entry
+            failsafe_trigger_check(sim, stock_prices, current_date_dt)
+            # For each day, check failsafe rollback
+            # Check next day after the failsafe activation
+            failsafe_results = failsafe_trigger_rollback(sim, stock_prices, current_date_dt)
+            if failsafe_results != []:
+                for elem in failsafe_results:
+                    add_exit_with_profit_thresholds(
+                        sim,
+                        elem[0],
+                        sim.entry_prices[elem[0]],
+                        elem[1],
+                        None,
+                    )
 
         # For each day, need to check the current positions and whether the position reached a threshold
         thresholds_check(sim, stock_prices, current_date_dt)
