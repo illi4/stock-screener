@@ -26,7 +26,7 @@ higher_or_equal_open_filter, higher_strictly_open_filter, and red_entry_day_exit
 '''
 
 # Quick and dirty check of the hypothesis
-failsafe_trigger_level = 0.125
+failsafe_trigger_level = 0.15
 failsafe_exit_level = 0.05  # tight just to test
 failsafe_active = True
 
