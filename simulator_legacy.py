@@ -27,7 +27,7 @@ higher_or_equal_open_filter, higher_strictly_open_filter, and red_entry_day_exit
 
 # Quick and dirty check of the hypothesis
 failsafe_trigger_level = 0.15
-failsafe_exit_level = 0.1  # tight just to test
+failsafe_exit_level = 0.05
 failsafe_active = True
 
 gsheet_name = 'Trading journal R&D 2021'  # hardcoded legacy name
