@@ -28,7 +28,7 @@ higher_or_equal_open_filter, higher_strictly_open_filter, and red_entry_day_exit
 gsheet_name = 'Trading journal R&D 2021'  # hardcoded legacy name
 
 # Variations to go through
-simultaneous_positions = [3, 4, 5]
+simultaneous_positions = [4] #[3, 4, 5]
 variant_names = ["control", "test_a", "test_b", "test_c", "test_e"]
 tp_base_variant = "control"  # NOTE: works with control and test_c currently (need to have the price column)
 
@@ -38,17 +38,17 @@ tp_base_variant = "control"  # NOTE: works with control and test_c currently (ne
 # Take profit level variations
 # Would be used iterating over control with simultaneous_positions variations too
 take_profit_variants = {
-    "_repeated_to_control": [0.25, 0.45, 0.9],
-    "tp_b": [0.5, 1],
-    "tp_c": [0.15, 0.5, 0.9, 1.75],
+    #"_repeated_to_control": [0.25, 0.45, 0.9],
+    #"tp_b": [0.5, 1],
+    #"tp_c": [0.15, 0.5, 0.9, 1.75],
     "tp_d": [0.5, 1, 1.5],
-    "tp_e": [0.25, 0.45, 0.9, 1.45],
-    "tp_g": [0.25, 0.9, 1.45, 1.75],
-    "tp_h": [1.45, 1.75, 1.95],
-    "tp_k1": [0.45, 1.75, 1.95],
-    "tp_l1": [0.45, 1.45, 1.75, 1.95],
-    "tp_x": [0.1, 1.45, 1.75],
-    "tp_y": [0.1, 1.75, 1.95]
+    #"tp_e": [0.25, 0.45, 0.9, 1.45],
+    #"tp_g": [0.25, 0.9, 1.45, 1.75],
+    #"tp_h": [1.45, 1.75, 1.95],
+    #"tp_k1": [0.45, 1.75, 1.95],
+    #"tp_l1": [0.45, 1.45, 1.75, 1.95],
+    #"tp_x": [0.1, 1.45, 1.75],
+    #"tp_y": [0.1, 1.75, 1.95]
 }
 
 # Sheet columns for the Gsheet
@@ -481,6 +481,29 @@ def thresholds_check(sim, stock_prices, current_date_dt):
                     print(f"-- {position} reached {each_threshold:.2%}")
 
 
+def failed_market_check(is_market_bearish, sim, stock_prices, current_date_dt): ###HERE###
+    exit_now_positions = []
+    if is_market_bearish:
+        for position in sim.current_positions:
+            if sim.entry_dates[position] != current_date_dt:
+                print(f"market bearish - exiting {position}")
+                current_df = stock_prices[position][0]
+                curr_row = current_df.loc[current_df["timestamp"] == current_date_dt]
+
+                if not curr_row.empty:
+                    open_price = curr_row["high"].iloc[0]
+                    print(f"Current open for {position}: {open_price}")
+                    exit_now_positions.append([position, open_price])
+
+        for elem in exit_now_positions:
+            add_exit_with_profit_thresholds(
+                sim,
+                elem[0],
+                sim.entry_prices[elem[0]],
+                elem[1],
+                None,
+            )
+
 def add_exit_with_profit_thresholds(
     sim, stock, entry_price_actual, exit_price_actual, control_result_percent
 ):
@@ -737,13 +760,13 @@ def iterate_over_variant_tp_mode(results_dict):
         # Prior to looking at entries, process failed entry day stocks
         failed_entry_day_process(sim, stock_prices, current_date_dt)
 
+        # Firstly, check whether the market performance is Ok
+        if market_consideration:
+            is_market_bearish = get_market_state(current_date_dt)
+
         # Entries
         day_entries = ws.loc[ws["entry_date"] == current_date_dt]
         for key, elem in day_entries.iterrows():
-
-            # Firstly, check whether the market performance is Ok
-            if market_consideration:
-                is_market_bearish = get_market_state(current_date_dt)
 
             # Add the entry
             if (market_consideration and not is_market_bearish) or (not market_consideration):
@@ -758,6 +781,9 @@ def iterate_over_variant_tp_mode(results_dict):
 
         # For each day, need to check the current positions and whether the position reached a threshold
         thresholds_check(sim, stock_prices, current_date_dt)
+
+        # For each day, check if the market is now bearish so that all the positions must be closed
+        failed_market_check(is_market_bearish, sim, stock_prices, current_date_dt)
 
         # Exits
         day_exits = ws.loc[ws[f"{current_variant}_exit_date"] == current_date_dt]
