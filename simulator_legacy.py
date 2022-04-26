@@ -27,7 +27,7 @@ higher_or_equal_open_filter, higher_strictly_open_filter, and red_entry_day_exit
 
 # Quick and dirty check of the hypothesis
 failsafe_trigger_level = 0.15
-failsafe_exit_level = 0.05  # tight just to test
+failsafe_exit_level = 0.1  # tight just to test
 failsafe_active = True
 
 gsheet_name = 'Trading journal R&D 2021'  # hardcoded legacy name
@@ -475,14 +475,15 @@ def add_entry_with_profit_thresholds(sim, stock, entry_price_actual, entry_date_
 
 def failsafe_trigger_check(sim, stock_prices, current_date_dt):
     for position in sim.current_positions:
-        current_df = stock_prices[position][0]
-        curr_row = current_df.loc[current_df["timestamp"] == current_date_dt]
-        failsafe_current_level = sim.entry_prices[position] * (1 + failsafe_trigger_level)
-        if not curr_row.empty:
-            if curr_row["high"].iloc[0] >= failsafe_current_level:
-                print(f"failsafe level reached for {position} @ {failsafe_current_level}")
-                sim.failsafe_stock_trigger[position] = True
-                sim.failsafe_active_dates[position] = current_date_dt
+        if position not in sim.failsafe_stock_trigger:
+            current_df = stock_prices[position][0]
+            curr_row = current_df.loc[current_df["timestamp"] == current_date_dt]
+            failsafe_current_level = sim.entry_prices[position] * (1 + failsafe_trigger_level)
+            if not curr_row.empty:
+                if curr_row["high"].iloc[0] >= failsafe_current_level:
+                    print(f"failsafe level reached for {position} @ {failsafe_current_level}")
+                    sim.failsafe_stock_trigger[position] = True
+                    sim.failsafe_active_dates[position] = current_date_dt
 
 
 def failsafe_trigger_rollback(sim, stock_prices, current_date_dt):
@@ -493,6 +494,7 @@ def failsafe_trigger_rollback(sim, stock_prices, current_date_dt):
         failsafe_rollback_level = sim.entry_prices[position] * (1 + failsafe_exit_level)
         if not curr_row.empty and (position in sim.failsafe_stock_trigger):
             if sim.failsafe_stock_trigger[position]:
+                print(f'{position} failsafe levels check: curr_low {curr_row["low"].iloc[0]} | fsafe level: {failsafe_rollback_level} | failsafe_date {sim.failsafe_active_dates[position]}')
                 if (curr_row["low"].iloc[0] < failsafe_rollback_level) and (sim.failsafe_active_dates[position] != current_date_dt):
                     print(f"failsafe rollback for {position} @ {failsafe_rollback_level} on {current_date_dt}")
 
