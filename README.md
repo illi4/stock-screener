@@ -16,10 +16,10 @@ Stock shortlisting and industry score estimates incorporate the following condit
 Please note that the shortlist should only be used to guide your own research and should not be interpreted as 'signals'. 
 
 #### Usage  
-- Run `main.py --h` to view context help 
-- To update the stocks list, run `main.py --update -exchange=asx`. It is recommended to run this daily prior to scanning.  
-- To scan and shortlist, run `main.py --scan -exchange=asx`. 
-- To simulate scanning as of a particular date, use the `-date` parameter (the format is `YYYY-MM-DD`). 
+- Run `python main.py --h` to view context help 
+- To update the stocks list, run `python main.py --update -exchange=asx`. It is recommended to run this daily prior to scanning.  
+- To scan and shortlist, run `python main.py --scan -exchange=asx`. 
+- To simulate scanning as of a particular date, use the `-date` parameter (the format is `YYYY-MM-DD`). For example, `python main.py --update -exchange=asx -date=2021-01-05`.
 - Helper scripts (note: requires configuring Google credentials in order to work, not updated to the new format yet):  
    - `monitor.py` to run daily to check whether the exit condition was hit for active entries.
    - `paperfill.py` to run daily to fill in the values for paper trade entries automatically.
