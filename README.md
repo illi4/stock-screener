@@ -1,6 +1,7 @@
 ### Stock screener
 
-ASX / NASDAQ stocks ticker grabber and a basic screener. **The best time to run it is in the morning prior to market open** as US stocks data would refresh after a night of trading. The shortlist acts as a guide for entering breakout trades which have high probability of success. As a data source, eodhistoricaldata.com is used.  
+ASX / NASDAQ stocks ticker grabber and a basic screener. **For ASX, the best time to run it is in the evening after market closure to prepare for the next day**.  
+For US, that have to be morning as US stocks data would refresh after a night of trading (per AU time). The shortlist acts as a guide for entering breakout trades which have high probability of success. As a data source, eodhistoricaldata.com is used.  
 
 Stock shortlisting and industry score estimates incorporate the following conditions: 
 - Daily higher candle closes above bodies of the previous 10 daily candles and is green
