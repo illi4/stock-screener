@@ -27,6 +27,12 @@ def get_previous_workday():
     return current_datetime
 
 
+def get_current_workday():
+    current_datetime = arrow.now()
+    current_datetime = current_datetime.format("YYYY-MM-DD")
+    return current_datetime
+
+
 def define_args():
     parser.add_argument(
         "--update",
