@@ -3,6 +3,7 @@ from libs.helpers import (
     dates_diff,
     format_number,
     get_previous_workday,
+    get_current_workday,
     get_test_stocks,
     get_data_start_date,
 )
@@ -42,7 +43,7 @@ def update_stocks():
     exchange = arguments["exchange"]
 
     if arguments["date"] is None:
-        checked_workday = get_previous_workday()
+        checked_workday = get_current_workday() #get_previous_workday()
     else:
         checked_workday = arguments["date"].strftime("%Y-%m-%d")
 
