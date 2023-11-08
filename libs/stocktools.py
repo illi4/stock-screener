@@ -1,10 +1,11 @@
 # from libs.exceptions_lib import exception_handler
-from libs.settings import eod_key
 import json
 import pandas as pd
 import requests
+import os
 
 session = None  # to use in requests
+eod_key = os.environ.get("API_KEY")
 
 # Leaving as is, but this is not used anymore
 industry_mapping_asx = {

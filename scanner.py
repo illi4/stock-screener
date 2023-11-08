@@ -24,10 +24,12 @@ from libs.db import (
     get_stocks,
     get_update_date,
 )
-from libs.settings import price_min, price_max, minimum_volume_level
 from libs.techanalysis import td_indicators, MA
 import pandas as pd
 from time import time, sleep
+
+from libs.read_settings import read_config
+config = read_config()
 
 
 def rewrite_stocks(exchange, stocks):
@@ -43,7 +45,7 @@ def update_stocks():
     exchange = arguments["exchange"]
 
     if arguments["date"] is None:
-        checked_workday = get_current_workday() #get_previous_workday()
+        checked_workday = get_current_workday()  #get_previous_workday()
     else:
         checked_workday = arguments["date"].strftime("%Y-%m-%d")
 
@@ -179,16 +181,16 @@ def scan_stock(stocks, exchange):
                 print(f"{stock.name} [v] meeting shortlisting conditions")
                 volume_MA_5D = last_volume_5D_MA(volume_daily)
 
-                if volume_MA_5D > minimum_volume_level:
+                if volume_MA_5D > config["filters"]["minimum_volume_level"]:
                     print(
-                        f"\n{stock.name} [v] meeting minimum volume level conditions "
-                        f"({format_number(volume_MA_5D)} > {format_number(minimum_volume_level)})"
+                        f'\n{stock.name} [v] meeting minimum volume level conditions '
+                        f'({format_number(volume_MA_5D)} > {format_number(config["filters"]["minimum_volume_level"])})'
                     )
                     shortlisted_stocks.append((stock.code, stock.name, volume_MA_5D))
                 else:
                     print(
-                        f"\n{stock.name} [x] not meeting minimum volume level conditions "
-                        f"({format_number(volume_MA_5D)} < {format_number(minimum_volume_level)})"
+                        f'\n{stock.name} [x] not meeting minimum volume level conditions '
+                        f'({format_number(volume_MA_5D)} < {format_number(config["filters"]["minimum_volume_level"])})'
                     )
 
             else:
@@ -215,9 +217,9 @@ def scan_exchange_stocks(exchange):
     # Get the stocks for scanning
     stocks = get_stocks(
         exchange=exchange,
-        price_min=price_min,
-        price_max=price_max,
-        min_volume=minimum_volume_level,
+        price_min=config["pricing"]["min"],
+        price_max=config["pricing"]["max"],
+        min_volume=config["filters"]["minimum_volume_level"],
     )
 
     # Limit per arguments as required
@@ -231,8 +233,8 @@ def scan_exchange_stocks(exchange):
 
     total_number = len(stocks)
     print(
-        f"Scanning {total_number} stocks priced {price_min} from to {price_max} "
-        f"and with volume of at least {format_number(minimum_volume_level)}\n"
+        f'Scanning {total_number} stocks priced {config["pricing"]["min"]} from to {config["pricing"]["max"]} '
+        f'and with volume of at least {format_number(config["filters"]["minimum_volume_level"])}\n'
     )
 
     # Back to basics because parallel run shows incorrect results for some reason

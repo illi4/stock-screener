@@ -2,8 +2,10 @@
 import libs.gsheetobj as gsheetsobj
 from libs.helpers import get_data_start_date
 from libs.stocktools import get_stock_data, get_stock_suffix
-from libs.settings import gsheet_name
 import arrow
+
+from libs.read_settings import read_config
+config = read_config()
 
 reporting_date_start = get_data_start_date()
 
@@ -13,7 +15,7 @@ def fill_prices():
         stock_suffix = get_stock_suffix(exchange)
         tab_name = f"{exchange}"
 
-        ws = gsheetsobj.sheet_to_df(gsheet_name, tab_name)
+        ws = gsheetsobj.sheet_to_df(config["logging"]["gsheet_name"], tab_name)
 
         for index, row in ws.iterrows():
             if (
@@ -40,7 +42,7 @@ def fill_prices():
                         index + 2
                     )  # +2 to account for starting 0 and header
                     gsheetsobj.sheet_update(
-                        gsheet_name, tab_name, update_row, "E", open_price
+                        config["logging"]["gsheet_name"], tab_name, update_row, "E", open_price
                     )
                 else:
                     print(
