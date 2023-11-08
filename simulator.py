@@ -3,7 +3,6 @@
 # Use example: python simulator.py -mode=main -exchange=asx -start=2021-02-01 -end=2021-07-01
 
 import libs.gsheetobj as gsheetsobj
-from libs.settings import gsheet_name
 from libs.signal import red_day_on_volume
 import pandas as pd
 from datetime import datetime, timedelta
@@ -14,6 +13,9 @@ from itertools import groupby
 
 parser = argparse.ArgumentParser()
 import matplotlib.pyplot as plt
+
+from libs.read_settings import read_config
+config = read_config()
 
 pd.set_option("display.max_columns", None)
 
@@ -834,7 +836,7 @@ if __name__ == "__main__":
 
     # This is working ok
     exchange = arguments["exchange"]
-    ws = gsheetsobj.sheet_to_df(gsheet_name, f"{exchange}")
+    ws = gsheetsobj.sheet_to_df(config["logging"]["gsheet_name"], f"{exchange}")
     ws.columns = sheet_columns
     ws = prepare_data(ws)
 

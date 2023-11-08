@@ -17,9 +17,9 @@ Stock shortlisting and industry score estimates incorporate the following condit
 Please note that the shortlist should only be used to guide your own research and should not be interpreted as 'signals'. 
 
 #### Usage  
-- Run `python main.py --h` to view context help 
-- To update the stocks list, run `python main.py --update -exchange=asx`. It is recommended to run this daily prior to scanning.  
-- To scan and shortlist, run `python main.py --scan -exchange=asx`. 
+- Run `python scanner.py --h` to view context help 
+- To update the stocks list, run `python scanner.py --update -exchange=asx`. It is recommended to run this daily prior to scanning.  
+- To scan and shortlist, run `python scanner.py --scan -exchange=asx`. 
 - To simulate scanning as of a particular date, use the `-date` parameter (the format is `YYYY-MM-DD`). For example, `python main.py --update -exchange=asx -date=2021-01-05`.
 - Helper scripts (note: requires configuring Google credentials in order to work, not updated to the new format yet):  
    - `monitor.py` to run daily to check whether the exit condition was hit for active entries.
@@ -31,11 +31,12 @@ Please note that the shortlist should only be used to guide your own research an
   - when the market switches to the bearish mode (market below MA200 with MA10 decreasing) as a trigger to close all open positions
 
 #### Settings 
-See `libs/settings.py` for settings: 
-- Eodhistoricaldata API key
+See `config.yaml` for settings: 
 - Price range for stocks considered on scan
-- Minimum volume threshold (500k)  
+- Minimum volume threshold  
 - Overextended threshold
+
+API key must be placed in `.envrc` under variable `API_KEY`
 
 #### Limitations
 - The scripts were tested on a machine in the `Australia/Sydney` timezone.

@@ -77,7 +77,7 @@ def define_args():
             exit(0)
 
     if True not in arguments.values():
-        print("No arguments specified. Run main.py --h to show help.")
+        print("No arguments specified. Run scanner.py --h to show help.")
         exit(0)
 
     return arguments
@@ -105,7 +105,7 @@ def format_bool(value):
 
 def get_test_stocks():
     # Use for testing / bugfixes
-    # In main.py, use: stocks = get_test_stocks()
+    # In scanner.py, use: stocks = get_test_stocks()
 
     class Stk:
         code, name = None, None

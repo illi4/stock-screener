@@ -137,3 +137,6 @@ dmypy.json
 
 # Test files
 *.csv
+
+# Envrc file
+.envrc

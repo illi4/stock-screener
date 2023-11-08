@@ -1,7 +1,9 @@
-from libs.settings import overextended_threshold_percent
 from libs.techanalysis import MA
 from libs.helpers import format_bool
 import numpy as np
+
+from libs.read_settings import read_config
+config = read_config()
 
 
 def bullish_breakout(
@@ -110,7 +112,7 @@ def ma_increasing(ma_values, number_of_ma):
 def weekly_not_overextended(ohlc_with_indicators_weekly):
     not_overextended = (
         ohlc_with_indicators_weekly["close"].iloc[-1]
-        < (1 + overextended_threshold_percent / 100)
+        < (1 + config["filters"]["overextended_threshold_percent"] / 100)
         * ohlc_with_indicators_weekly["close"].iloc[-4]
     )
     return not_overextended

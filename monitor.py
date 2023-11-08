@@ -3,11 +3,13 @@
 import libs.gsheetobj as gsheetsobj
 from libs.stocktools import get_stock_data, get_stock_suffix, get_market_index_ticker
 from libs.techanalysis import MA
-from libs.settings import gsheet_name
 import arrow
 from datetime import timedelta
 from libs.helpers import get_data_start_date
 from libs.signal import market_bearish
+
+from libs.read_settings import read_config
+config = read_config()
 
 reporting_date_start = get_data_start_date()
 
@@ -32,7 +34,7 @@ def check_positions():
 
     stock_suffix = get_stock_suffix(exchange)
 
-    ws = gsheetsobj.sheet_to_df(gsheet_name, f"{exchange}")
+    ws = gsheetsobj.sheet_to_df(config["logging"]["gsheet_name"], f"{exchange}")
 
     for index, row in ws.iterrows():
         if (

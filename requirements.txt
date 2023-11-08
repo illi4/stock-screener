@@ -4,3 +4,4 @@ pandas
 arrow
 html5lib
 gspread
+pyyaml
