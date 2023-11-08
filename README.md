@@ -18,9 +18,9 @@ Please note that the shortlist should only be used to guide your own research an
 
 #### Usage  
 - Run `python scanner.py --h` to view context help 
-- To update the stocks list, run `python scanner.py --update -exchange=asx`. It is recommended to run this daily prior to scanning.  
-- To scan and shortlist, run `python scanner.py --scan -exchange=asx`. 
-- To simulate scanning as of a particular date, use the `-date` parameter (the format is `YYYY-MM-DD`). For example, `python main.py --update -exchange=asx -date=2021-01-05`.
+- To update the stocks list, run `python scanner.py --update -exchange=nasdaq`. It is recommended to run this daily prior to scanning.  
+- To scan and shortlist, run `python scanner.py --scan -exchange=nasdaq`. 
+- To simulate scanning as of a particular date, use the `-date` parameter (the format is `YYYY-MM-DD`). For example, `python scanner.py --update -exchange=nasdaq -date=2021-01-05`.
 - Helper scripts (note: requires configuring Google credentials in order to work, not updated to the new format yet):  
    - `monitor.py` to run daily to check whether the exit condition was hit for active entries.
    - `paperfill.py` to run daily to fill in the values for paper trade entries automatically.
@@ -52,12 +52,6 @@ API key must be placed in `.envrc` under variable `API_KEY`
     ```
     python3 -m venv venv
     . venv/bin/activate
-    ```
-   
-    Windows: 
-    ```
-    python -m venv venv
-    venv＼Scripts＼activate
     ```
    
 4. Install the required libraries: `pip install -r requirements.txt` 
