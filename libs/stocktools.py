@@ -79,11 +79,13 @@ def get_exchange_symbols(exchange, checked_workday):
 
     data = json.loads(r.text)
     for elem in data:
+
         stock = dict(
             code=elem["code"],
             name=elem["name"],
             price=elem["close"],
             volume=elem["volume"],
+            type=elem["type"],
             exchange=exchange,
         )
         stocks.append(stock)
@@ -104,6 +106,8 @@ def get_asx_symbols(checked_workday):
 def get_market_index_ticker(exchange):
     if exchange.lower() == 'asx':
         return "AXJO.INDX"
+    elif exchange.lower() == 'nasdaq':
+        return "ONEQ"  # nasdaq ETF
     else:
         print("Unknown market")
         exit(0)

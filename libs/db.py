@@ -3,6 +3,9 @@ import peewee
 import datetime
 import arrow
 
+from libs.read_settings import read_config
+config = read_config()
+
 db = SqliteDatabase("stocks.db")
 
 
@@ -17,6 +20,7 @@ class Stock(BaseModel):
     price = FloatField(null=True)
     volume = FloatField(null=True)
     exchange = CharField()
+    type = CharField()
     date = DateTimeField(default=datetime.datetime.now)
 
 
@@ -47,12 +51,22 @@ def get_stocks(exchange, price_min=None, price_max=None, min_volume=None):
     min_volume = 0 if min_volume is None else min_volume
 
     try:
-        stocks = Stock.select().where(
-            (Stock.price >= price_min)
-            & (Stock.price < price_max)
-            & (Stock.volume > min_volume)
-            & (Stock.exchange == exchange)
-        )
+        if config["filters"]["stocks_only"]:
+            print("Excluding funds and ETF per settings")
+            stocks = Stock.select().where(
+                (Stock.price >= price_min)
+                & (Stock.price < price_max)
+                & (Stock.volume > min_volume)
+                & (Stock.exchange == exchange)
+                & (Stock.type == 'Common Stock')
+            )
+        else:
+            stocks = Stock.select().where(
+                (Stock.price >= price_min)
+                & (Stock.price < price_max)
+                & (Stock.volume > min_volume)
+                & (Stock.exchange == exchange)
+            )
         if len(stocks) == 0:
             print("Warning: no stocks in the database")
     except peewee.OperationalError:
