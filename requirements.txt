@@ -5,3 +5,4 @@ arrow
 html5lib
 gspread
 pyyaml
+matplotlib

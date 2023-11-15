@@ -2,6 +2,7 @@
 # Will save the result to simulator_result.csv
 # Use example: python simulator.py -mode=main -exchange=asx -start=2021-02-01 -end=2021-07-01
 
+import csv
 import libs.gsheetobj as gsheetsobj
 from libs.signal import red_day_on_volume
 import pandas as pd
@@ -22,11 +23,11 @@ pd.set_option("display.max_columns", None)
 # Settings (default)
 # higher_or_equal_open_filter, higher_strictly_open_filter, and red_entry_day_exit
 # are returned from process_filter_args()
-capital = 5000
-commission = 10  # this is brokerage (per entry / per exit)
+capital = 100000
+commission = 0  # this is brokerage (per entry / per exit)
 
 # Variations to go through
-simultaneous_positions = [4] #[3, 4, 5]
+simultaneous_positions = [3, 4, 5] # [4]
 
 # Quick and dirty check of the 'failsafe level' hypothesis
 failsafe_trigger_level = 0.15
@@ -98,6 +99,10 @@ def define_args():
         "--failsafe", action="store_true", help="Activate the failsafe approach"
     )
 
+    parser.add_argument(
+        "--show_monthly", action="store_true", help="Show MoM capital value (only in main mode)"
+    )
+
     # Adding the dates
     parser.add_argument(
         "-start",
@@ -127,6 +132,12 @@ def define_args():
         arguments["plot"] = False
     if not arguments["failsafe"]:
         arguments["failsafe"] = False
+    if not arguments["show_monthly"]:
+        arguments["show_monthly"] = False
+
+    # Check for consistency
+    if arguments["mode"] == 'tp' and arguments["show_monthly"]:
+        print('Error: show_monthly option is only supported in the main mode')
 
     return arguments
 
@@ -392,6 +403,7 @@ def calculate_metrics(sim, capital):
 
 
 def print_metrics(sim):
+    print()
     print(f"capital growth/loss: {sim.growth:.2%}")
     print(
         f"win rate: {sim.win_rate:.2%} | winning_trades: {sim.winning_trades_number} | losing trades: {sim.losing_trades_number}"
@@ -818,6 +830,36 @@ def iterate_over_variant_tp_mode(results_dict):
     return results_dict, sim
 
 
+def show_monthly_breakdown(result, positions):
+    # Open a file for writing
+    csv_filename = f'sim_monthly.csv'
+
+    with open(csv_filename, 'w', newline='') as csv_file:
+        csv_writer = csv.writer(csv_file)
+
+        # Write the header
+        csv_writer.writerow(['Date', 'Value'])
+
+        # Convert string dates to datetime objects
+        date_values = {datetime.strptime(date, '%d/%m/%Y'): value for date, value in result.items()}
+
+        print()
+        print('--- Monthly breakdown ---')
+
+        # Iterate over the dictionary and print values at the beginning of each month
+        current_month = None
+        for date, value in sorted(date_values.items()):
+            if date.month != current_month:
+                current_month = date.month
+                formatted_date = date.replace(day=1).strftime("%d/%m/%Y")
+                rounded_value = round(value, 1)
+                print(f'{formatted_date}: {rounded_value}')
+                csv_writer.writerow([formatted_date, rounded_value])
+
+        print('-------------------------')
+        print(f'Results have been written to {csv_filename}')
+        print()
+
 if __name__ == "__main__":
 
     arguments = define_args()
@@ -853,7 +895,11 @@ if __name__ == "__main__":
         for current_simultaneous_positions in simultaneous_positions:
             results_dict, latest_sim = interate_over_variant_main_mode(
                 results_dict
-            )  # here#
+            )
+
+            # For the main mode, get data on MoM performance
+            if arguments["show_monthly"]:
+                show_monthly_breakdown(latest_sim.detailed_capital_values, positions=simultaneous_positions)
 
     # < Finished iterating
 
@@ -917,8 +963,8 @@ if __name__ == "__main__":
         print(f"take profit variants tested: {take_profit_variants}")
 
     # save to csv
-    final_result.to_csv("simulator_result.csv", index=False)
-    print("results saved to simulator_result.csv")
+    final_result.to_csv("sim_summary.csv", index=False)
+    print("results saved to sim_summary.csv")
 
     # plotting
     if arguments["plot"]:

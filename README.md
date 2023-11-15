@@ -59,4 +59,6 @@ API key must be placed in `.envrc` under variable `API_KEY`
 #### Google sheet / project configuration 
 If you want to use monitor and paperfill in addition to the screener, please create a sheet similar to [this one](https://docs.google.com/spreadsheets/d/12uNaLya_qiQbT4NDbTaaQr0Y2sDbfDmEZDhvlzTRyjc/edit?usp=sharing) and configure API access, then save the credentials under `.config\gspread\service_account.json`. This is not required if you only want to use the screener (main.py).
 
+There is a warning thrown when using gsheets, which is a [known issue](https://github.com/burnash/gspread/issues/1348) and doesn't affect the outcomes. 
+
 **Note**: legacy sheet (R&D 2021) is available [here](https://docs.google.com/spreadsheets/d/1luuTn-wRsa2IXkaLTB-3FGlev6gJy6fnO0uQfqnHjRI/edit?usp=sharing).
