@@ -1,6 +1,10 @@
 # Simulates trading progress and results over time using a spreadsheet with various considerations
 # Will save the result to simulator_result.csv
-# Use example: python simulator.py -mode=main -exchange=asx -start=2021-02-01 -end=2021-07-01
+# Use example: python simulator.py -mode=main -exchange=nasdaq -start=2021-02-01 -end=2021-07-01
+
+# Suppress warnings from urllib and gspread
+import warnings
+warnings.filterwarnings("ignore")
 
 import csv
 import libs.gsheetobj as gsheetsobj
@@ -27,7 +31,7 @@ capital = 100000
 commission = 0  # this is brokerage (per entry / per exit)
 
 # Variations to go through
-simultaneous_positions = [3, 4, 5] # [4]
+simultaneous_positions = [4] # [3, 4, 5]
 
 # Quick and dirty check of the 'failsafe level' hypothesis
 failsafe_trigger_level = 0.15
@@ -36,7 +40,7 @@ failsafe_exit_level = 0.05
 # Take profit level variations
 # Would be used iterating over control with simultaneous_positions variations too
 take_profit_variants = {
-    #"_repeated_to_control": [0.25, 0.45, 0.9],
+    #"_repeated_to_control": [0.25, 0.45, 0.9], # preserved this for historical purposes
     #"tp_b": [0.5, 1],
     #"tp_c": [0.15, 0.5, 0.9, 1.75],
     "tp_d": [0.5, 1, 1.5],
@@ -844,6 +848,7 @@ def show_monthly_breakdown(result, positions):
         date_values = {datetime.strptime(date, '%d/%m/%Y'): value for date, value in result.items()}
 
         print()
+        print('(!) Note: monthly results are only shown for the last simulation')
         print('--- Monthly breakdown ---')
 
         # Iterate over the dictionary and print values at the beginning of each month
@@ -857,7 +862,7 @@ def show_monthly_breakdown(result, positions):
                 csv_writer.writerow([formatted_date, rounded_value])
 
         print('-------------------------')
-        print(f'Results have been written to {csv_filename}')
+        print(f'(i) results have been written to {csv_filename}')
         print()
 
 if __name__ == "__main__":
@@ -964,7 +969,8 @@ if __name__ == "__main__":
 
     # save to csv
     final_result.to_csv("sim_summary.csv", index=False)
-    print("results saved to sim_summary.csv")
+    print()
+    print("(i) summary saved to sim_summary.csv")
 
     # plotting
     if arguments["plot"]:

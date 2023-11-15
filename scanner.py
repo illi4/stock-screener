@@ -1,3 +1,7 @@
+# Suppress warnings from urllib and gspread
+import warnings
+warnings.filterwarnings("ignore")
+
 from libs.helpers import (
     define_args,
     dates_diff,
