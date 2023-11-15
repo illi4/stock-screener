@@ -9,4 +9,4 @@ filters:
 locality:
   tzinfo: Australia/Sydney
 logging:
-  gsheet_name: "Trading journal 2022"
+  gsheet_name: "Trading journal 2024"

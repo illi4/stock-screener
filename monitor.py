@@ -1,5 +1,10 @@
 # Monitors whether the open positions hit the exit criteria at some point
 # Output W: wanted exit price, A: actual exit, D4: result if nothing on day 3 (so exit on 4), similar with D6
+
+# Suppress warnings from urllib and gspread
+import warnings
+warnings.filterwarnings("ignore")
+
 import libs.gsheetobj as gsheetsobj
 from libs.stocktools import get_stock_data, get_stock_suffix, get_market_index_ticker
 from libs.techanalysis import MA
@@ -30,7 +35,7 @@ def check_market():
 
 def check_positions():
     alerted_positions = set()
-    exchange = "ASX"    # only supporting asx for now, easy to replicate for NASDAQ if needed
+    exchange = "NASDAQ"    # only supporting NASDAQ for now, easy to replicate for other if needed
 
     stock_suffix = get_stock_suffix(exchange)
 

@@ -1,4 +1,10 @@
-# Fills in the missing prices for paper entries where applicable
+# Fills in the missing prices for paper entries where applicable using daily data
+# Intraday is not implemented because of the higher cost for intraday data
+
+# Suppress warnings from urllib and gspread
+import warnings
+warnings.filterwarnings("ignore")
+
 import libs.gsheetobj as gsheetsobj
 from libs.helpers import get_data_start_date
 from libs.stocktools import get_stock_data, get_stock_suffix
@@ -10,7 +16,7 @@ config = read_config()
 reporting_date_start = get_data_start_date()
 
 def fill_prices():
-    for exchange in ["ASX", "NASDAQ"]:
+    for exchange in ["NASDAQ"]:
 
         stock_suffix = get_stock_suffix(exchange)
         tab_name = f"{exchange}"
