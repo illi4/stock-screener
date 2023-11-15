@@ -1,4 +1,5 @@
-# Fills in the missing prices for paper entries where applicable
+# Fills in the missing prices for paper entries where applicable using daily data
+# Intraday is not implemented because of the higher cost for intraday data
 
 # Suppress warnings from urllib and gspread
 import warnings
