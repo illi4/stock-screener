@@ -12,7 +12,7 @@ Stock shortlisting and industry score estimates incorporate the following condit
 - Market is not below MA200 with MA10 declining
 - 2 most recent weekly candles closing above weekly moving averages (10/20/30 week)
 - Close for the last week is not exceeding 500% when compared to 4 weeks ago
-- Volume spike in the last day compared to the 20-day moving average (should be 30% higher at least)  
+- Volume is significant in the last day compared to the 20-day moving average (defined in the config)  
 
 **Please note that the shortlist should only be used to guide your own research and should not be interpreted as 'signals'.** 
 

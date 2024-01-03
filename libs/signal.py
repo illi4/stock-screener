@@ -81,8 +81,8 @@ def volume_spike(volume_daily):
     mergedDf = volume_daily.merge(volume_ma_20, left_index=True, right_index=True)
     mergedDf.dropna(inplace=True, how="any")
     mergedDf["volume_above_average"] = mergedDf["volume"].ge(
-        mergedDf["ma20"]*1.3
-    )  # GE is greater or equal, than averaged 20d volume plus 30 percent
+        mergedDf["ma20"]*config["filters"]["volume_to_average"]
+    )  # GE is greater or equal, than averaged 20d volume x coefficient from settings
     try:
         volume_condition = bool(mergedDf["volume_above_average"].iloc[-1])
     except IndexError:
@@ -142,6 +142,16 @@ def recent_close_above_last(ohlc_with_indicators_daily):
     ].tolist()
     upper_condition = not (False in previous_n_lower_than_recent)
     return upper_condition
+
+
+def broad_range(ohlc_with_indicators_weekly):
+    last_n_weeks = ohlc_with_indicators_weekly.tail(config["filters"]["range_over_weeks"])
+
+    highest_high = last_n_weeks["high"].max()
+    lowest_low = last_n_weeks["low"].min()
+    hg_condition = 100*(highest_high/lowest_low - 1) >= config["filters"]["range_percentage"]
+
+    return hg_condition
 
 
 def bullish_ma_based(
@@ -215,6 +225,9 @@ def bullish_ma_based(
     # Factor: Most recent close should be above the bodies of 5 candles prior
     upper_condition = recent_close_above_last(ohlc_with_indicators_daily)
 
+    # Factor: Must be high growth and not just barely moving
+    broad_range_condition = broad_range(ohlc_with_indicators_weekly)
+
     if output:
         print(
             f"- {stock_name} MRI: D [{format_bool(daily_condition_td)}] / W [{format_bool(weekly_condition_td)}] | "
@@ -223,6 +236,7 @@ def bullish_ma_based(
             f"- {stock_name} Higher close: [{format_bool(daily_condition_close_higher)}] | "
             f"Volume condition: [{format_bool(volume_condition)}] | Upper condition: [{format_bool(upper_condition)}] | "
             f"Last candle is green: [{format_bool(last_candle_is_green)}] | "
+            f"Broad range condition:  [{format_bool(broad_range_condition)}] | "
             f"Weekly/MA close: [{format_bool(ma_weekly_close_condition)}]"
         )
 
@@ -237,6 +251,7 @@ def bullish_ma_based(
         upper_condition,
         last_candle_is_green,
         ma_weekly_close_condition,
+        broad_range_condition
     ]
     numerical_score = round(
         5 * sum(confirmation) / len(confirmation), 0

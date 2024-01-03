@@ -1,15 +1,22 @@
-# Configuration file
+#### Configuration file ####
+
 pricing:
   min: 0.005  # minimum price to filter stocks when running scanner
   max: 500000  # maximum price to filter stocks when running scanner
+
 filters:
   overextended_threshold_percent: 500  # skip stocks which went up more than this amount over a week
   minimum_volume_level: 500000  # miminum volume requirement (as 5-day moving average)
   stocks_only: True  # filters out ETFs and Funds
+  volume_to_average: 0.85  # what volume is required on the last candle compared to average
+  range_percentage: 40  # there must be this difference in % (at least) between now and N weeks before to exclude weak stocks
+  range_over_weeks: 12  # over what time to apply
+
 locality:
   tzinfo: Australia/Sydney
+
 logging:
-  gsheet_name: "Trading journal 2024"
+  gsheet_name: "Trading journal R&D 2024"
   gsheet_columns:
     - stock
     - trade_type
@@ -34,4 +41,14 @@ logging:
     - max_level_reached
     - pre_formation_run_value
     - sustainable_growth
+    - significant_volume_spike
+    - decreasing_volume_in_formation
     - comments
+
+simulator:  # note - does not apply to legacy simulator, only works with current
+  capital: 100000
+  commission: 0
+  simultaneous_positions: # variants to go through
+    - 4
+  failsafe_trigger_level: 0.15  # 15% to reach
+  failsafe_exit_level: 0.05  # 5% to throwback
