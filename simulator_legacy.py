@@ -89,6 +89,8 @@ sheet_columns = [
     "time_in_trade_test_b",
     "time_in_trade_test_c",
     "time_in_trade_test_e",
+    "decreasing_volume",
+    "research_1"
 ]
 
 

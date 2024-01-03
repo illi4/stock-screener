@@ -4,14 +4,14 @@ NASDAQ / ASX stocks ticker grabber and a basic screener. **For ASX, the best tim
 For US, that have to be morning (running in Australia) as US stocks data would refresh after a night of trading (per AU time). The shortlist acts as a guide for entering breakout trades which have high probability of success. As a data source, eodhistoricaldata.com is used.  
 
 Stock shortlisting and industry score estimates incorporate the following conditions: 
-- Daily higher candle closes above bodies of the previous 10 daily candles and is green
+- Daily higher candle closes above bodies of the previous 5 daily candles and is green
 - Bullish [MRI](https://tonevays.com/indicator) indicator value on the daily timeframe
 - Bullish MRI indicator on the weekly timeframe  
 - Moving averages (10, 20, 30 day) Consensio ([Guppy MMA](https://www.investopedia.com/terms/g/guppy-multiple-moving-average.asp))
 - Moving averages (10, 20, 30 day) rising
 - Market is not below MA200 with MA10 declining
 - 2 most recent weekly candles closing above weekly moving averages (10/20/30 week)
-- Close for the last week is not exceeding 200% when compared to 4 weeks ago
+- Close for the last week is not exceeding 500% when compared to 4 weeks ago
 - Volume spike in the last day compared to the 20-day moving average (should be 30% higher at least)  
 
 **Please note that the shortlist should only be used to guide your own research and should not be interpreted as 'signals'.** 
