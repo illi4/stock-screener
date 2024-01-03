@@ -9,6 +9,8 @@ filters:
   minimum_volume_level: 500000  # miminum volume requirement (as 5-day moving average)
   stocks_only: True  # filters out ETFs and Funds
   volume_to_average: 1  # what volume is required on the last candle compared to average
+  growth_percentage: 40  # there must be this difference (at least) between now and N weeks before
+  growth_over_weeks: 12  # over what time to apply
 
 locality:
   tzinfo: Australia/Sydney
