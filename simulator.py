@@ -24,26 +24,13 @@ config = read_config()
 
 pd.set_option("display.max_columns", None)
 
-# Settings (default)
-# higher_or_equal_open_filter, higher_strictly_open_filter, and red_entry_day_exit
-# are returned from process_filter_args()
-capital = 100000
-commission = 0  # this is brokerage (per entry / per exit)
-
-# Variations to go through
-simultaneous_positions = [4] # [3, 4, 5]
-
-# Quick and dirty check of the 'failsafe level' hypothesis
-failsafe_trigger_level = 0.15
-failsafe_exit_level = 0.05
-
 # Take profit level variations
 # Would be used iterating over control with simultaneous_positions variations too
 take_profit_variants = {
-    #"_repeated_to_control": [0.25, 0.45, 0.9], # preserved this for historical purposes
+    "tp_d": [0.5, 1, 1.5],  # this is our baseline, the rest is preserved this for historical purposes
+    #"_repeated_to_control": [0.25, 0.45, 0.9], #
     #"tp_b": [0.5, 1],
     #"tp_c": [0.15, 0.5, 0.9, 1.75],
-    "tp_d": [0.5, 1, 1.5],
     #"tp_e": [0.25, 0.45, 0.9, 1.45],
     #"tp_g": [0.25, 0.9, 1.45, 1.75],
     # "tp_h": [1.45, 1.75, 1.95],
@@ -273,8 +260,8 @@ def add_entry_no_profit_thresholds(sim, stock):
             "| positions held",
             sim.positions_held,
         )
-        print(f"accounting for the brokerage: ${commission}")
-        sim.current_capital -= commission
+        print(f'accounting for the brokerage: ${config["simulator"]["commission"]}')
+        sim.current_capital -= config["simulator"]["commission"]
         print(
             f"current_capital: ${sim.current_capital}, allocated to the position: ${sim.capital_per_position[stock]}"
         )
@@ -335,8 +322,8 @@ def add_exit_no_profit_thresholds(sim, stock, elem):
         print(f"capital state pre exit: ${sim.current_capital}")
 
         sim.current_capital = sim.current_capital + capital_gain
-        print(f"accounting for the brokerage: ${commission}")
-        sim.current_capital -= commission
+        print(f'accounting for the brokerage: ${config["simulator"]["commission"]}')
+        sim.current_capital -= config["simulator"]["commission"]
         print(f"balance: ${sim.current_capital}")
 
         sim.capital_values.append(sim.current_capital)
@@ -436,8 +423,8 @@ def add_entry_with_profit_thresholds(sim, stock, entry_price_actual, entry_date_
             sim.positions_held,
         )
         print(f"-> entry price: {entry_price_actual}")
-        print(f"accounting for the brokerage: ${commission}")
-        sim.current_capital -= commission
+        print(f'accounting for the brokerage: ${config["simulator"]["commission"]}')
+        sim.current_capital -= config["simulator"]["commission"]
         print(
             f"current_capital: ${sim.current_capital}, allocated to the position: ${sim.capital_per_position[stock]}"
         )
@@ -459,7 +446,7 @@ def failsafe_trigger_check(sim, stock_prices, current_date_dt):
         if position not in sim.failsafe_stock_trigger:
             current_df = stock_prices[position][0]
             curr_row = current_df.loc[current_df["timestamp"] == current_date_dt]
-            failsafe_current_level = sim.entry_prices[position] * (1 + failsafe_trigger_level)
+            failsafe_current_level = sim.entry_prices[position] * (1 + config["simulator"]["failsafe_trigger_level"])
             if not curr_row.empty:
                 if curr_row["high"].iloc[0] >= failsafe_current_level:
                     print(f"failsafe level reached for {position} @ {failsafe_current_level}")
@@ -472,7 +459,7 @@ def failsafe_trigger_rollback(sim, stock_prices, current_date_dt):
     for position in sim.current_positions:
         current_df = stock_prices[position][0]
         curr_row = current_df.loc[current_df["timestamp"] == current_date_dt]
-        failsafe_rollback_level = sim.entry_prices[position] * (1 + failsafe_exit_level)
+        failsafe_rollback_level = sim.entry_prices[position] * (1 + config["simulator"]["failsafe_exit_level"])
         if not curr_row.empty and (position in sim.failsafe_stock_trigger):
             if sim.failsafe_stock_trigger[position]:
                 print(f'{position} failsafe levels check: curr_low {curr_row["low"].iloc[0]} | fsafe level: {failsafe_rollback_level} | failsafe_date {sim.failsafe_active_dates[position]}')
@@ -582,9 +569,9 @@ def add_exit_with_profit_thresholds(
 
         sim.current_capital = sim.current_capital + capital_gain
         print(
-            f"accounting for the brokerage: ${commission * number_brokerage_commissions_paid} ({commission}x{number_brokerage_commissions_paid})"
+            f'accounting for the brokerage: ${config["simulator"]["commission"] * number_brokerage_commissions_paid} ({config["simulator"]["commission"]}x{number_brokerage_commissions_paid})'
         )
-        sim.current_capital -= commission * number_brokerage_commissions_paid
+        sim.current_capital -= config["simulator"]["commission"] * number_brokerage_commissions_paid
         print(f"balance: ${sim.current_capital}")
         sim.capital_values.append(sim.current_capital)
 
@@ -658,8 +645,8 @@ def get_dates(start_date, end_date):
 
 
 def interate_over_variant_main_mode(results_dict):
-    # Initiate the simulation object
-    sim = simulation(capital)
+    # Initiate the simulation object with a starting capital
+    sim = simulation(config["simulator"]["capital"])
 
     # Starting for a variant
     start_date_dt, end_date_dt, current_date_dt = get_dates(start_date, end_date)
@@ -699,7 +686,7 @@ def interate_over_variant_main_mode(results_dict):
     # sim.snapshot_balance(current_date_dt) # nope, makes mom calc convoluted
 
     # Calculate metrics and print the results
-    calculate_metrics(sim, capital)
+    calculate_metrics(sim, config["simulator"]["capital"])
     print_metrics(sim)
 
     # Saving the result in the overall dictionary
@@ -871,14 +858,14 @@ if __name__ == "__main__":
     # > Iterating through days and variants for the fixed TP levels per the control & spreadsheet
     current_tp_variant_name = None
     if arguments["mode"] == "main":
-        for current_simultaneous_positions in simultaneous_positions:
+        for current_simultaneous_positions in config["simulator"]["simultaneous_positions"]:
             results_dict, latest_sim = interate_over_variant_main_mode(
                 results_dict
             )
 
             # For the main mode, get data on MoM performance
             if arguments["show_monthly"]:
-                show_monthly_breakdown(latest_sim.detailed_capital_values, positions=simultaneous_positions)
+                show_monthly_breakdown(latest_sim.detailed_capital_values, positions=config["simulator"]["simultaneous_positions"])
 
     # < Finished iterating
 
@@ -899,7 +886,7 @@ if __name__ == "__main__":
                 f">> starting the variant {current_tp_variant_name}-{current_tp_variant}"
             )
 
-            for current_simultaneous_positions in simultaneous_positions:
+            for current_simultaneous_positions in config["simulator"]["simultaneous_positions"]:
                 results_dict, latest_sim = iterate_over_variant_tp_mode(results_dict)
 
             print(
