@@ -136,9 +136,9 @@ def recent_close_above_last(ohlc_with_indicators_daily):
     ].lt(
         close_most_recent
     )  # LT is lower than
-    # Do not include the most recent itself in the calculation. Take 10 previous before that.
+    # Do not include the most recent itself in the calculation. Take 5 previous before that.
     previous_n_lower_than_recent = ohlc_with_indicators_daily["lower_than_recent"][
-        -11:-1
+        -6:-1
     ].tolist()
     upper_condition = not (False in previous_n_lower_than_recent)
     return upper_condition
@@ -212,7 +212,7 @@ def bullish_ma_based(
     # Factor: Last candle should actually be green (close above open)
     last_candle_is_green = last_is_green(ohlc_with_indicators_daily)
 
-    # Factor: Most recent close should be above the bodies of 10 candles prior
+    # Factor: Most recent close should be above the bodies of 5 candles prior
     upper_condition = recent_close_above_last(ohlc_with_indicators_daily)
 
     if output:
