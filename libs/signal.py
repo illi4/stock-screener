@@ -144,12 +144,12 @@ def recent_close_above_last(ohlc_with_indicators_daily):
     return upper_condition
 
 
-def high_growth(ohlc_with_indicators_weekly):
-    last_n_weeks = ohlc_with_indicators_weekly.tail(config["filters"]["growth_over_weeks"])
+def broad_range(ohlc_with_indicators_weekly):
+    last_n_weeks = ohlc_with_indicators_weekly.tail(config["filters"]["range_over_weeks"])
 
     highest_high = last_n_weeks["high"].max()
     lowest_low = last_n_weeks["low"].min()
-    hg_condition = 100*(highest_high/lowest_low - 1) >= config["filters"]["growth_percentage"]
+    hg_condition = 100*(highest_high/lowest_low - 1) >= config["filters"]["range_percentage"]
 
     return hg_condition
 
@@ -226,7 +226,7 @@ def bullish_ma_based(
     upper_condition = recent_close_above_last(ohlc_with_indicators_daily)
 
     # Factor: Must be high growth and not just barely moving
-    high_growth_condition = high_growth(ohlc_with_indicators_weekly)
+    broad_range_condition = broad_range(ohlc_with_indicators_weekly)
 
     if output:
         print(
@@ -236,7 +236,7 @@ def bullish_ma_based(
             f"- {stock_name} Higher close: [{format_bool(daily_condition_close_higher)}] | "
             f"Volume condition: [{format_bool(volume_condition)}] | Upper condition: [{format_bool(upper_condition)}] | "
             f"Last candle is green: [{format_bool(last_candle_is_green)}] | "
-            f"High growth condition:  [{format_bool(high_growth_condition)}] | "
+            f"Broad range condition:  [{format_bool(broad_range_condition)}] | "
             f"Weekly/MA close: [{format_bool(ma_weekly_close_condition)}]"
         )
 
@@ -251,7 +251,7 @@ def bullish_ma_based(
         upper_condition,
         last_candle_is_green,
         ma_weekly_close_condition,
-        high_growth_condition
+        broad_range_condition
     ]
     numerical_score = round(
         5 * sum(confirmation) / len(confirmation), 0
