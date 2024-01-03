@@ -10,3 +10,28 @@ locality:
   tzinfo: Australia/Sydney
 logging:
   gsheet_name: "Trading journal 2024"
+  gsheet_columns:
+    - stock
+    - trade_type
+    - entry_date
+    - entry_price_planned
+    - entry_price_actual
+    - control_exit_date
+    - exit_price_planned
+    - main_exit_price
+    - outcome
+    - control_result_%
+    - exit_price_portion
+    - threshold_1_expected_price
+    - threshold_1_actual_price
+    - threshold_1_exit_portion
+    - threshold_2_expected_price
+    - threshold_2_actual_price
+    - threshold_2_exit_portion
+    - threshold_3_expected_price
+    - threshold_3_actual_price
+    - threshold_3_exit_portion
+    - max_level_reached
+    - pre_formation_run_value
+    - sustainable_growth
+    - comments

@@ -53,32 +53,6 @@ take_profit_variants = {
     # "tp_y": [0.1, 1.75, 1.95]
 }
 
-# Sheet columns for the Gsheet
-sheet_columns = [
-    "stock",
-    "trade_type",
-    "entry_date",
-    "entry_price_planned",
-    "entry_price_actual",
-    "control_exit_date",
-    "exit_price_planned",
-    "main_exit_price",
-    "outcome",
-    "control_result_%",
-    "exit_price_portion",
-    "threshold_1_expected_price",
-    "threshold_1_actual_price",
-    "threshold_1_exit_portion",
-    "threshold_2_expected_price",
-    "threshold_2_actual_price",
-    "threshold_2_exit_portion",
-    "threshold_3_expected_price",
-    "threshold_3_actual_price",
-    "threshold_3_exit_portion",
-    "max_level_reached",
-    "comments",
-]
-
 
 def define_args():
     # Take profit levels variation is only supported for the control group, thus the modes are different
@@ -884,7 +858,7 @@ if __name__ == "__main__":
     # This is working ok
     exchange = arguments["exchange"]
     ws = gsheetsobj.sheet_to_df(config["logging"]["gsheet_name"], f"{exchange}")
-    ws.columns = sheet_columns
+    ws.columns = config["logging"]["gsheet_columns"]
     ws = prepare_data(ws)
 
     # Dict to hold all the results
