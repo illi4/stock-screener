@@ -46,10 +46,10 @@ def rewrite_stocks(exchange, stocks):
 
 
 def update_stocks():
-    exchange = arguments["exchange"]
+    exchange = config["market"]
 
     if arguments["date"] is None:
-        checked_workday = get_current_workday()  #get_previous_workday()
+        checked_workday = get_current_workday()
     else:
         checked_workday = arguments["date"].strftime("%Y-%m-%d")
 
@@ -69,9 +69,7 @@ def update_stocks():
 
 
 def check_update_date():
-    exchange = arguments["exchange"]
-    if exchange == "ALL":
-        exchange = "ASX"  # just to simplify
+    exchange = config["market"]
 
     try:
         last_update_date = get_update_date(exchange)
@@ -253,13 +251,13 @@ def scan_exchange_stocks(exchange):
 
 def scan_stocks():
 
-    if arguments["exchange"] != "ALL":
+    if config["market"] != "ALL":
         shortlist, industry_momentum, industry_score = scan_exchange_stocks(
-            arguments["exchange"]
+            config["market"]
         )
         print()
         if len(shortlist) > 0:
-            report_on_shortlist(shortlist, industry_score, arguments["exchange"])
+            report_on_shortlist(shortlist, industry_score, config["market"])
         else:
             print(f"No shortlisted stocks")
     else:
@@ -292,8 +290,8 @@ if __name__ == "__main__":
     arguments = define_args()
     reporting_date_start = get_data_start_date(arguments["date"])
 
-    if arguments["exchange"] == "ALL":
-        print("All exchanges are not supported, please use asx at the time")
+    if config["market"] == "ALL":
+        print("All markets are not supported, please specify the market.")
         exit(0)
 
     if arguments["update"]:

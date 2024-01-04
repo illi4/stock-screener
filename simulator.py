@@ -1,6 +1,5 @@
 # Simulates trading progress and results over time using a spreadsheet with various considerations
 # Will save the result to simulator_result.csv
-# Use example: python simulator.py -mode=main -exchange=nasdaq -start=2021-02-01 -end=2021-07-01
 
 # Suppress warnings from urllib and gspread
 import warnings
@@ -51,13 +50,6 @@ def define_args():
         choices=["main", "tp"],
     )
     parser.add_argument(
-        "-exchange",
-        type=str,
-        required=True,
-        help="Exchange (asx|nasdaq)",
-        choices=["asx", "nasdaq"],
-    )
-    parser.add_argument(
         "--plot", action="store_true", help="Plot the latest simulation"
     )
     parser.add_argument(
@@ -92,7 +84,6 @@ def define_args():
     args = parser.parse_args()
     arguments = vars(args)
     arguments["mode"] = arguments["mode"].lower()
-    arguments["exchange"] = arguments["exchange"].upper()
     if not arguments["plot"]:
         arguments["plot"] = False
     if not arguments["failsafe"]:
@@ -457,8 +448,11 @@ def failsafe_trigger_check(sim, stock_prices, current_date_dt):
 def failsafe_trigger_rollback(sim, stock_prices, current_date_dt):
     failback_triggers = []
     for position in sim.current_positions:
-        current_df = stock_prices[position][0]
+        current_df = stock_prices[position][0].copy()
+        current_df['next_open'] = current_df['open'].shift(-1)
+
         curr_row = current_df.loc[current_df["timestamp"] == current_date_dt]
+
         failsafe_rollback_level = sim.entry_prices[position] * (1 + config["simulator"]["failsafe_exit_level"])
         if not curr_row.empty and (position in sim.failsafe_stock_trigger):
             if sim.failsafe_stock_trigger[position]:
@@ -466,9 +460,10 @@ def failsafe_trigger_rollback(sim, stock_prices, current_date_dt):
                 if (curr_row["low"].iloc[0] < failsafe_rollback_level) and (sim.failsafe_active_dates[position] != current_date_dt):
                     print(f"failsafe rollback for {position} @ {failsafe_rollback_level} on {current_date_dt}")
 
-                    # We should use the correct price as something may just open very low
-                    price_to_use = min(curr_row["open"].iloc[0], failsafe_rollback_level)
-                    print(f'-- using the price {price_to_use}: as a minimum of {curr_row["open"].iloc[0]} and {failsafe_rollback_level}')
+                    # We should use the correct price
+                    #price_to_use = min(curr_row["open"].iloc[0], failsafe_rollback_level) # old incorrect logic
+                    price_to_use = curr_row["next_open"].iloc[0]
+                    print(f'-- using the price {price_to_use}: next day open')
 
                     failback_triggers.append([position, price_to_use])
 
@@ -843,7 +838,7 @@ if __name__ == "__main__":
     reporting_start_date = reporting_start_date.strftime("%Y-%m-%d")
 
     # This is working ok
-    exchange = arguments["exchange"]
+    exchange = config["market"]
     ws = gsheetsobj.sheet_to_df(config["logging"]["gsheet_name"], f"{exchange}")
     ws.columns = config["logging"]["gsheet_columns"]
     ws = prepare_data(ws)
