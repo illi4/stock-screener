@@ -43,13 +43,6 @@ def define_args():
         "--scan", action="store_true", help="Scan for potential signals"
     )
     parser.add_argument(
-        "-exchange",
-        type=str,
-        required=True,
-        help="Exchange (asx|nasdaq|all)",
-        choices=["asx", "nasdaq", "all"],
-    )
-    parser.add_argument(
         "-date",
         type=str,
         required=False,
@@ -66,7 +59,6 @@ def define_args():
         arguments["update"] = False
     if not arguments["scan"]:
         arguments["scan"] = False
-    arguments["exchange"] = arguments["exchange"].upper()
 
     # Process the date
     if arguments["date"] is not None:

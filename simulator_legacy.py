@@ -497,8 +497,11 @@ def failsafe_trigger_check(sim, stock_prices, current_date_dt):
 def failsafe_trigger_rollback(sim, stock_prices, current_date_dt):
     failback_triggers = []
     for position in sim.current_positions:
-        current_df = stock_prices[position][0]
+        current_df = stock_prices[position][0].copy()
+        current_df['next_open'] = current_df['open'].shift(-1)
+
         curr_row = current_df.loc[current_df["timestamp"] == current_date_dt]
+
         failsafe_rollback_level = sim.entry_prices[position] * (1 + failsafe_exit_level)
         if not curr_row.empty and (position in sim.failsafe_stock_trigger):
             if sim.failsafe_stock_trigger[position]:
@@ -506,9 +509,10 @@ def failsafe_trigger_rollback(sim, stock_prices, current_date_dt):
                 if (curr_row["low"].iloc[0] < failsafe_rollback_level) and (sim.failsafe_active_dates[position] != current_date_dt):
                     print(f"failsafe rollback for {position} @ {failsafe_rollback_level} on {current_date_dt}")
 
-                    # We should use the correct price as something may just open very low
-                    price_to_use = min(curr_row["open"].iloc[0], failsafe_rollback_level)
-                    print(f'-- using the price {price_to_use}: as a minimum of {curr_row["open"].iloc[0]} and {failsafe_rollback_level}')
+                    # We should use the correct price
+                    #price_to_use = min(curr_row["open"].iloc[0], failsafe_rollback_level) # old incorrect logic
+                    price_to_use = curr_row["next_open"].iloc[0]
+                    print(f'-- using the price {price_to_use}: next day open')
 
                     failback_triggers.append([position, price_to_use])
 
@@ -518,6 +522,11 @@ def failsafe_trigger_rollback(sim, stock_prices, current_date_dt):
 def thresholds_check(sim, stock_prices, current_date_dt):
     for position in sim.current_positions:
         current_df = stock_prices[position][0]
+
+        if current_df.empty:
+            print('Error - no price data')
+            exit(0)
+
         curr_row = current_df.loc[current_df["timestamp"] == current_date_dt]
         if not curr_row.empty:
             print(
