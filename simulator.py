@@ -154,6 +154,7 @@ def prepare_data(ws):
         "threshold_2_actual_price",
         "threshold_3_expected_price",
         "threshold_3_actual_price",
+        "adr_at_breakout"
     ]
     ws[num_cols] = ws[num_cols].apply(pd.to_numeric, errors="coerce")
 
