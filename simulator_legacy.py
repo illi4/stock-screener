@@ -89,8 +89,10 @@ sheet_columns = [
     "time_in_trade_test_b",
     "time_in_trade_test_c",
     "time_in_trade_test_e",
-    "decreasing_volume",
-    "research_1"
+    "pre_formation_run_up",
+    "sustainable_growth",
+    "breakout_volume_spike",
+    "decreasing_volume_in_formation"
 ]
 
 
@@ -157,6 +159,11 @@ def define_args():
 
 
 def process_filter_args():
+
+    # Default values if no rule
+    higher_or_equal_open_filter = ["Y", "N"]
+    higher_strictly_open_filter = ["Y", "N"]
+
     if arguments["nofilter"]:
         higher_or_equal_open_filter = ["Y", "N"]
         higher_strictly_open_filter = ["Y", "N"]
