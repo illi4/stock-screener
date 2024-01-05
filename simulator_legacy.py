@@ -29,6 +29,9 @@ higher_or_equal_open_filter, higher_strictly_open_filter, and red_entry_day_exit
 failsafe_trigger_level = 0.15
 failsafe_exit_level = 0.05
 
+# ADR check value
+ADR_LEVEL = 0.1
+
 gsheet_name = 'Trading journal R&D 2021'  # hardcoded legacy name
 
 # Variations to go through
@@ -157,6 +160,9 @@ def define_args():
 
 
 def process_filter_args():
+    higher_or_equal_open_filter = ["Y", "N"]  # default if no filters
+    higher_strictly_open_filter = ["Y", "N"]
+
     if arguments["nofilter"]:
         higher_or_equal_open_filter = ["Y", "N"]
         higher_strictly_open_filter = ["Y", "N"]
@@ -645,6 +651,30 @@ def plot_latest_sim(latest_sim):
             label.set_visible(False)
     plt.show()
 
+def calculate_adr_last_20_days(dataframe, current_date_dt):
+
+    # Filter dataframe for the last 20 days including the current date
+    start_date = current_date_dt - pd.DateOffset(days=19)
+    selected_date_range_data = dataframe[(dataframe['timestamp'] >= start_date) & (dataframe['timestamp'] <= current_date_dt)]
+
+    # Check if there is any data for the selected date range
+    if selected_date_range_data.empty:
+        return f"No data available for the selected date range"
+        exit(0)
+
+    # Calculate Daily Range for each day in the selected date range
+    daily_ranges = (selected_date_range_data['high'] - selected_date_range_data['low'])/selected_date_range_data['open']
+
+    # Calculate Average Daily Range (ADR)
+    adr = daily_ranges.mean()
+
+    return adr
+
+
+def check_adr(sim, stock_prices, stock_name, current_date_dt):
+    adr = calculate_adr_last_20_days(stock_prices[stock_name][0], current_date_dt)
+    adr_condition = adr >= ADR_LEVEL
+    return adr_condition
 
 
 def failed_entry_day_check(sim, stock_prices, stock_name, current_date_dt):
@@ -810,8 +840,11 @@ def iterate_over_variant_tp_mode(results_dict):
             if market_consideration:
                 is_market_bearish = get_market_state(current_date_dt)
 
+            # Check ADR value
+            is_adr_condition = check_adr(sim, stock_prices, elem["stock"], current_date_dt)
+
             # Add the entry
-            if (market_consideration and not is_market_bearish) or (not market_consideration):
+            if ((market_consideration and not is_market_bearish) or (not market_consideration)) and (is_adr_condition):
                 add_entry_with_profit_thresholds(
                     sim, elem["stock"], elem["entry_price_actual"], elem["entry_date"]
                 )
