@@ -90,8 +90,7 @@ sheet_columns = [
     "time_in_trade_test_c",
     "time_in_trade_test_e",
     "pre_formation_run_up",
-    "sustainable_growth",
-    "breakout_volume_spike",
+    "sustainable_growth", 
     "decreasing_volume_in_formation"
 ]
 
