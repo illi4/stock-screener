@@ -140,3 +140,4 @@ dmypy.json
 
 # Envrc file
 .envrc
+.DS_Store
