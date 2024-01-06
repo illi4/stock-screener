@@ -37,6 +37,10 @@ condition_sustainable_price_growth = False
 pre_formation_level_lowest_value = 0
 pre_formation_level_highest_value = 10000
 
+# Ad Hoc 2
+check_stochastic = True
+check_stochastic_threshold = 0.9
+
 
 gsheet_name = 'Trading journal R&D 2021'  # hardcoded legacy name
 
@@ -671,6 +675,66 @@ def plot_latest_sim(latest_sim):
 
 
 
+# calculating RSI (gives the same values as TradingView)
+# https://stackoverflow.com/questions/20526414/relative-strength-index-in-python-pandas
+def RSI(series, period=14):
+    delta = series.diff().dropna()
+    ups = delta * 0
+    downs = ups.copy()
+    ups[delta > 0] = delta[delta > 0]
+    downs[delta < 0] = -delta[delta < 0]
+    ups[ups.index[period-1]] = np.mean( ups[:period] ) #first value is sum of avg gains
+    ups = ups.drop(ups.index[:(period-1)])
+    downs[downs.index[period-1]] = np.mean( downs[:period] ) #first value is sum of avg losses
+    downs = downs.drop(downs.index[:(period-1)])
+    rs = ups.ewm(com=period-1,min_periods=0,adjust=False,ignore_na=False).mean() / \
+         downs.ewm(com=period-1,min_periods=0,adjust=False,ignore_na=False).mean()
+    return 100 - 100 / (1 + rs)
+
+
+# calculating Stoch RSI (gives the same values as TradingView)
+# https://www.tradingview.com/wiki/Stochastic_RSI_(STOCH_RSI)
+def StochRSI(series, period=14, smoothK=3, smoothD=3):
+    # Calculate RSI
+    delta = series.diff().dropna()
+    ups = delta * 0
+    downs = ups.copy()
+    ups[delta > 0] = delta[delta > 0]
+    downs[delta < 0] = -delta[delta < 0]
+    ups[ups.index[period-1]] = np.mean( ups[:period] ) #first value is sum of avg gains
+    ups = ups.drop(ups.index[:(period-1)])
+    downs[downs.index[period-1]] = np.mean( downs[:period] ) #first value is sum of avg losses
+    downs = downs.drop(downs.index[:(period-1)])
+    rs = ups.ewm(com=period-1,min_periods=0,adjust=False,ignore_na=False).mean() / \
+         downs.ewm(com=period-1,min_periods=0,adjust=False,ignore_na=False).mean()
+    rsi = 100 - 100 / (1 + rs)
+
+    # Calculate StochRSI
+    stochrsi  = (rsi - rsi.rolling(period).min()) / (rsi.rolling(period).max() - rsi.rolling(period).min())
+    stochrsi_K = stochrsi.rolling(smoothK).mean()
+    stochrsi_D = stochrsi_K.rolling(smoothD).mean()
+
+    return stochrsi_K.iloc[-1], stochrsi_D.iloc[-1]
+
+def stochastic_is_ok(sim, stock_prices, stock_name, current_date_dt):
+    print(stock_name)
+    stock_prices_df = stock_prices[stock_name][0]
+
+    current_df = stock_prices_df.loc[
+        stock_prices_df["timestamp"] <= current_date_dt
+    ].copy()
+
+    oscillator_values = StochRSI(current_df['close'])
+    oscillator_max = max(oscillator_values)
+    print('Oscillator value', oscillator_max)
+
+    if oscillator_max >= check_stochastic_threshold:
+        print('Oscillator too high')
+        return False
+    else:
+        return True
+
+
 def failed_entry_day_check(sim, stock_prices, stock_name, current_date_dt):
     if len(sim.current_positions) + 1 > current_simultaneous_positions:
         print(f"max possible positions held, skipping {stock_name}")
@@ -834,8 +898,14 @@ def iterate_over_variant_tp_mode(results_dict):
             if market_consideration:
                 is_market_bearish = get_market_state(current_date_dt)
 
+            # Check stoch RSI
+            if check_stochastic:
+                is_stochastic_ok = stochastic_is_ok(sim, stock_prices, elem["stock"], current_date_dt)
+            else:
+                is_stochastic_ok = True
+
             # Add the entry
-            if (market_consideration and not is_market_bearish) or (not market_consideration):
+            if ((market_consideration and not is_market_bearish) or (not market_consideration)) and is_stochastic_ok:
                 add_entry_with_profit_thresholds(
                     sim, elem["stock"], elem["entry_price_actual"], elem["entry_date"]
                 )
