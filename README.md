@@ -13,6 +13,7 @@ Stock shortlisting logic uses the following conditions:
 - Close for the last week is not exceeding 500% when compared to 4 weeks ago
 - Volume is significant in the last day compared to the 20-day moving average (defined in the config)  
 - The stock has a significant range of movement over the past few weeks (defined in the config)
+- Stochastic RSI is not overextended (>90%)
 
 For ASX, the best time to run it is in the evening after market closure to prepare for the next day. For US, that have to be morning (running in Australia) as US stocks data would refresh after a night of trading (per AU time). The shortlist acts as a guide for entering breakout trades which have high probability of success. As a data source, eodhistoricaldata.com is used.
 

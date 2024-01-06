@@ -1,4 +1,4 @@
-from libs.techanalysis import MA
+from libs.techanalysis import MA, StochRSI
 from libs.helpers import format_bool
 import numpy as np
 
@@ -144,6 +144,15 @@ def recent_close_above_last(ohlc_with_indicators_daily):
     return upper_condition
 
 
+def stoch_rsi_in_range(ohlc_with_indicators_daily):
+    stoch_rsi_k,  stoch_rsi_d = StochRSI(ohlc_with_indicators_daily)
+
+    stock_rsi_max = max(stoch_rsi_k.iloc[-1], stoch_rsi_d.iloc[-1])
+    stoch_rsi_in_range_condition = stock_rsi_max < 0.9  # less than 90% per tests
+
+    return stoch_rsi_in_range_condition
+
+
 def broad_range(ohlc_with_indicators_weekly):
     last_n_weeks = ohlc_with_indicators_weekly.tail(config["filters"]["range_over_weeks"])
 
@@ -225,8 +234,13 @@ def bullish_ma_based(
     # Factor: Most recent close should be above the bodies of 5 candles prior
     upper_condition = recent_close_above_last(ohlc_with_indicators_daily)
 
+    # Factor: stochastic RSI below 90
+    stoch_rsi_condition = stoch_rsi_in_range(ohlc_with_indicators_daily)
+
     # Factor: Must be high growth and not just barely moving
     broad_range_condition = broad_range(ohlc_with_indicators_weekly)
+
+
 
     if output:
         print(
@@ -237,6 +251,7 @@ def bullish_ma_based(
             f"Volume condition: [{format_bool(volume_condition)}] | Upper condition: [{format_bool(upper_condition)}] | "
             f"Last candle is green: [{format_bool(last_candle_is_green)}] | "
             f"Broad range condition:  [{format_bool(broad_range_condition)}] | "
+            f"StochRSI not overextended: [{format_bool(stoch_rsi_condition)}] | "
             f"Weekly/MA close: [{format_bool(ma_weekly_close_condition)}]"
         )
 
@@ -251,7 +266,8 @@ def bullish_ma_based(
         upper_condition,
         last_candle_is_green,
         ma_weekly_close_condition,
-        broad_range_condition
+        broad_range_condition,
+        stoch_rsi_condition
     ]
     numerical_score = round(
         5 * sum(confirmation) / len(confirmation), 0
