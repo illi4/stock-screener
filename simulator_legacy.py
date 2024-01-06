@@ -20,7 +20,8 @@ import matplotlib.pyplot as plt
 confidence_filter = [8, 9]
 penny_filter = ["Y", "N"]
 capital = 5000
-commission = 3  # this is brokerage (per entry / per exit)
+commission = 1  # this is brokerage (per entry / per exit); IBKR is very cheap
+
 '''
 higher_or_equal_open_filter, higher_strictly_open_filter, and red_entry_day_exit are defined in a function
 '''
@@ -28,6 +29,14 @@ higher_or_equal_open_filter, higher_strictly_open_filter, and red_entry_day_exit
 # Quick and dirty check of the 'failsafe level' hypothesis
 failsafe_trigger_level = 0.15
 failsafe_exit_level = 0.05
+
+# Ad hoc settings for testing a few hypothesis:
+# Decreasing volume, sustainable price movement, pre formation run up value
+condition_decreasing_volume_formation = False
+condition_sustainable_price_growth = False
+pre_formation_level_lowest_value = 0
+pre_formation_level_highest_value = 10000
+
 
 gsheet_name = 'Trading journal R&D 2021'  # hardcoded legacy name
 
@@ -90,7 +99,7 @@ sheet_columns = [
     "time_in_trade_test_c",
     "time_in_trade_test_e",
     "pre_formation_run_up",
-    "sustainable_growth", 
+    "sustainable_growth",
     "decreasing_volume_in_formation"
 ]
 
@@ -229,6 +238,7 @@ def prepare_data(ws):
         "exit_price_planned",
         "control_price",
         "test_c_price",
+        "pre_formation_run_up"
     ]
     ws[num_cols] = ws[num_cols].apply(pd.to_numeric, errors="coerce")
 
@@ -237,6 +247,14 @@ def prepare_data(ws):
     ws = ws.loc[ws["penny_stock"].isin(penny_filter)]
     ws = ws.loc[ws["higher_open"].isin(higher_or_equal_open_filter)]
     ws = ws.loc[ws["higher_strictly_open"].isin(higher_strictly_open_filter)]
+
+    # Ad hoc checks
+    if condition_decreasing_volume_formation:
+        ws = ws.loc[ws["decreasing_volume_in_formation"].isin(['Y'])]
+    if condition_sustainable_price_growth:
+        ws = ws.loc[ws["sustainable_growth"].isin(['Y'])]
+    ws = ws.loc[ws["pre_formation_run_up"] >= pre_formation_level_lowest_value]
+    ws = ws.loc[ws["pre_formation_run_up"] <= pre_formation_level_highest_value]
 
     ws["max_level_reached"] = ws["max_level_reached"].apply(p2f)
 
@@ -904,6 +922,7 @@ if __name__ == "__main__":
     ws = gsheetsobj.sheet_to_df(gsheet_name, f"{exchange}")
     ws.columns = sheet_columns
     ws = prepare_data(ws)
+
 
     # Dict to hold all the results
     results_dict = dict()
