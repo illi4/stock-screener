@@ -28,6 +28,7 @@ For ASX, the best time to run it is in the evening after market closure to prepa
    - `monitor.py` to run daily to check whether the exit condition was hit for active entries.
    - `paperfill.py` to run daily to fill in the values for paper trade entries automatically. 
    - `simulator.py` simulates outcomes per the spreadsheet.  
+     - Current experiment: exit price variation if using stop under the formation. Use the argument `--exit_variation_a`
    - `simulator_legacy.py` works with the older 21 R&D spreadsheet and also has an optional argument `--market` which would include market MA200/MA10 conditions when running simulation **in the tp mode**. You don't need to run this. 
   This argument is there because the rule on using market conditions was already integrated in methodology and used for the stock selection with scanner.  
 - The monitor would notify: 
@@ -65,6 +66,7 @@ Your eodhistoricaldata API key must be placed in `.envrc` under variable `API_KE
    
 4. Install the required libraries: `pip install -r requirements.txt` 
 5. Run referring to the usage instructions. 
+ 
 
 ### Google sheet and Google project configuration 
 If you want to log your stocks and use monitor and paperfill in addition to the screener, please create a sheet similar to [this one](https://docs.google.com/spreadsheets/d/12uNaLya_qiQbT4NDbTaaQr0Y2sDbfDmEZDhvlzTRyjc/edit?usp=sharing) and configure API access, then save the credentials under `.config\gspread\service_account.json`. 

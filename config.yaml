@@ -36,6 +36,7 @@ logging:
     - control_exit_date
     - exit_price_planned
     - main_exit_price
+    - exit_price_test_a
     - outcome
     - control_result_%
     - exit_price_portion

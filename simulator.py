@@ -81,6 +81,13 @@ def define_args():
         help="Exit when entry day is red (in tp mode only)",
     )
 
+    # Test for the exit price variation experimentation
+    parser.add_argument(
+        "--exit_variation_a",
+        action="store_true",
+        help="Exit approach experiment A (main mode only)",
+    )
+
     args = parser.parse_args()
     arguments = vars(args)
     arguments["mode"] = arguments["mode"].lower()
@@ -94,6 +101,8 @@ def define_args():
     # Check for consistency
     if arguments["mode"] == 'tp' and arguments["show_monthly"]:
         print('Error: show_monthly option is only supported in the main mode')
+    if arguments["mode"] == 'tp' and arguments["exit_variation_a"]:
+        print('Error: exit_variation_a option is only supported in the main mode')
 
     return arguments
 
@@ -148,6 +157,7 @@ def prepare_data(ws):
         "entry_price_actual",
         "exit_price_planned",
         "main_exit_price",
+        "exit_price_test_a",
         "threshold_1_expected_price",
         "threshold_1_actual_price",
         "threshold_2_expected_price",
@@ -265,9 +275,15 @@ def add_exit_no_profit_thresholds(sim, stock, elem):
 
         stock_threshold_results = dict()
 
+        # Select appropriate exit price
+        if arguments["exit_variation_a"]:
+            exit_price_to_use = elem["exit_price_test_a"]
+        else:
+            exit_price_to_use = elem["main_exit_price"]
+
         # Calculate result based on three thresholds
         main_part_result = (
-            elem["main_exit_price"] - elem["entry_price_actual"]
+            exit_price_to_use - elem["entry_price_actual"]
         ) / elem["entry_price_actual"]
 
         for i in range(0, 3):
