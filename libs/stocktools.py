@@ -130,11 +130,6 @@ def get_stock_data(code, reporting_date_start):
         print(f"Status response is not Ok: {r.status_code}")
         exit(0)
 
-    # This may happen if the stocks list is taken from a different location
-    # if r.text == "[]":
-    #    print("No recent stock data")
-    #    exit(0)
-
     data = json.loads(r.text)
 
     df = pd.DataFrame.from_dict(

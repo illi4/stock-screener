@@ -136,9 +136,12 @@ def recent_close_above_last(ohlc_with_indicators_daily):
     ].lt(
         close_most_recent
     )  # LT is lower than
-    # Do not include the most recent itself in the calculation. Take 5 previous before that.
+
+    # Do not include the most recent itself in the calculation. Take N previous before that.
+    candle_idx = config["filters"]["higher_than_n_last_candles"] + 1
+
     previous_n_lower_than_recent = ohlc_with_indicators_daily["lower_than_recent"][
-        -6:-1
+        -candle_idx:-1
     ].tolist()
     upper_condition = not (False in previous_n_lower_than_recent)
     return upper_condition
