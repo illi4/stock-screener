@@ -3,6 +3,7 @@ import json
 import pandas as pd
 import requests
 import os
+import time
 
 session = None  # to use in requests
 eod_key = os.environ.get("API_KEY")
@@ -67,14 +68,30 @@ def get_exchange_symbols(exchange, checked_workday):
 
     url = f"https://eodhistoricaldata.com/api/eod-bulk-last-day/{exchange_url_part}?api_token={eod_key}&fmt=json&filter=extended&date={checked_workday}"
     params = {"api_token": eod_key}
-    r = session.get(url, params=params)  # to speed things up
+    max_attempts = 5
+    attempt = 0
 
-    if r.status_code == 404:
-        print(f"Error: not found")
-        exit(0)
+    while attempt < max_attempts:
+        r = session.get(url, params=params)  # to speed things up
 
-    if r.status_code != requests.codes.ok:
-        print(f"Status response is not Ok: {r.status_code}")
+        if r.status_code == 404:
+            print(f"Ticker not found, skipping")
+            return None, None
+
+        if r.status_code == 502:
+            print("Received status code 502, retrying...")
+            time.sleep(1)  # Sleep for 1 second
+            attempt += 1
+            continue
+
+        if r.status_code != requests.codes.ok and r.status_code != 502:
+            print(f"Status response is not Ok: {r.status_code}")
+            exit(0)
+
+        # Successful response, breaking out of the loop
+        break
+    else:
+        print("Maximum attempts reached, exiting...")
         exit(0)
 
     data = json.loads(r.text)
