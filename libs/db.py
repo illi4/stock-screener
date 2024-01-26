@@ -20,7 +20,7 @@ class Stock(BaseModel):
     price = FloatField(null=True)
     volume = FloatField(null=True)
     exchange = CharField()
-    type = CharField()
+    type = CharField(null=True)
     date = DateTimeField(default=datetime.datetime.now)
 
 
