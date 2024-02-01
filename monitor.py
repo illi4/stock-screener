@@ -66,8 +66,8 @@ def check_positions():
             mergedDf.dropna(inplace=True, how="any")
 
             mergedDf["close_below_ma"] = mergedDf["close"].lt(
-                mergedDf["ma10"]
-            )  # LT is lower than
+                mergedDf["ma10"]*0.9975
+            )  # LT is lower than; close below MA10 minus 0.25%
 
             mergedDf["timestamp"] = mergedDf["timestamp"].dt.date
             mergedDf = mergedDf[
