@@ -8,7 +8,7 @@ pricing:
 
 filters:
   overextended_threshold_percent: 500  # skip stocks which went up more than this amount over a week
-  minimum_volume_level: 500000  # miminum volume requirement (as 5-day moving average)
+  minimum_volume_level: 350000  # miminum volume requirement (as 5-day moving average)
   stocks_only: True  # filters out ETFs and Funds
   volume_to_average: 0.7  # what volume is required on the last candle compared to average
   range_percentage: 40  # there must be this difference in % (at least) between now and N weeks before to exclude weak stocks
