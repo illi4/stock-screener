@@ -58,4 +58,5 @@ logging:
     - decreasing_volume_in_formation
     - tilted_formation
     - morningstar_uncertainty
+    - good_news_on_day
     - comments
