@@ -59,4 +59,6 @@ logging:
     - tilted_formation
     - morningstar_uncertainty
     - good_news_on_day
+    - analyst_target_price
+    - gap_bw_current_and_target
     - comments
