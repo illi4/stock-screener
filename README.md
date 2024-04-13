@@ -4,7 +4,7 @@ NASDAQ / ASX stocks bullish screener.
 
 Stock shortlisting logic uses the following conditions depending on the method:
 
-**MRI**
+**MRI** (method=mri)
 - Daily higher candle closes above bodies of the previous 5 daily candles and is green
 - Bullish [MRI](https://tonevays.com/indicator) indicator value on the daily timeframe
 - Bullish MRI indicator on the weekly timeframe  
@@ -17,7 +17,7 @@ Stock shortlisting logic uses the following conditions depending on the method:
 - The stock has a significant range of movement over the past few weeks (defined in the config)
 - Stochastic RSI is not overextended (>90%)
 
-**Alphanumetrix**
+**Alphanumetrix** (method=anx)
 - Bullish SAR on weekly scale 
 - Price above MA200 
 - Cross of MA7 and MA30
@@ -45,7 +45,7 @@ For ASX, the best time to run it is in the evening after market closure to prepa
   - when the market switches to the bearish mode (market below MA200 with MA10 decreasing) as a trigger to close all open positions
 
 Example running a simulator: 
-`python simulator.py -mode=main -start=2023-12-10 -end=2024-04-01 --show_monthly`
+`python simulator.py -mode=main -start=2023-12-10 -end=2024-04-01 -method=mri --show_monthly`
 
 ### Settings 
 See `config.yaml` for settings which include:

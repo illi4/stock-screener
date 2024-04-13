@@ -60,6 +60,14 @@ def define_args():
         "--show_monthly", action="store_true", help="Show MoM capital value (only in main mode)"
     )
 
+    parser.add_argument(
+        "-method",
+        type=str,
+        required=True,
+        choices=["mri", "anx"],
+        help="Method of shortlisting (mri or anx)"
+    )
+
     # Adding the dates
     parser.add_argument(
         "-start",
@@ -855,7 +863,12 @@ if __name__ == "__main__":
 
     # This is working ok
     exchange = config["market"]
-    ws = gsheetsobj.sheet_to_df(config["logging"]["gsheet_name"], f"{exchange}")
+
+    sheet_name = config["logging"]["gsheet_name"]
+    tab_name = f'{exchange}_{arguments["method"]}'
+
+    ws = gsheetsobj.sheet_to_df(sheet_name, tab_name)
+
     ws.columns = config["logging"]["gsheet_columns"]
     ws = prepare_data(ws)
 
