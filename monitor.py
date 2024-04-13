@@ -138,20 +138,36 @@ def check_positions(method_name):
                 ) = generate_indicators_daily_weekly(ohlc_daily)
                 # Get SAR and check for flips
                 ohlc_with_indicators_weekly = SAR(ohlc_with_indicators_weekly)
+                ohlc_with_indicators_weekly["start_of_week"] = ohlc_with_indicators_weekly["start_of_week"].dt.date
+                ohlc_with_indicators_weekly = ohlc_with_indicators_weekly[
+                    ohlc_with_indicators_weekly["start_of_week"] >= entry_date
+                ]  # only look from the entry date
 
-                #df =ohlc_with_indicators_weekly.copy()
-                # Convert 'year' and 'timestamp' to strings
-                #df['year'] = df['year'].astype(str)
-                #df['timestamp'] = df['timestamp'].astype(str)
+                # Just a simplified approach
+                if -1 in ohlc_with_indicators_weekly["trend"].values:
+                    alerted_positions.add(
+                        f"{stock_code} ({exchange}): SAR flip"
+                    )
 
-                #print(df.dtypes)
+                # Also check the bearish cross
+                ma7 = MA(ohlc_daily, 7)
+                ma30 = MA(ohlc_daily, 30)
+                mergedDf = ohlc_daily.merge(ma7, left_index=True, right_index=True)
+                mergedDf.dropna(inplace=True, how="any")
+                mergedDf = mergedDf.merge(ma30, left_index=True, right_index=True)
+                mergedDf.dropna(inplace=True, how="any")
 
-                # Add a new column 'date' by combining 'year' and 'timestamp' columns
-                #df['date'] = df['year'] + '0' + df['timestamp']  #+ '0' # pd.to_datetime(df['year'] + df['timestamp'] + '0', format='%Y%W%w')
+                mergedDf["timestamp"] = mergedDf["timestamp"].dt.date
+                mergedDf = mergedDf[
+                    mergedDf["timestamp"] >= entry_date
+                ]  # only look from the entry date
 
-                print(ohlc_with_indicators_weekly)
-                exit(0)
-
+                condition = ((mergedDf['ma7'] < mergedDf['ma30']) & (mergedDf['ma7'].shift(-1) > mergedDf['ma30'].shift(-1)))
+                alert = condition.any()
+                if alert:
+                    alerted_positions.add(
+                        f"{stock_code} ({exchange}): bearish cross"
+                    )
 
     return alerted_positions
 
