@@ -54,7 +54,7 @@ def define_args():
     parser.add_argument(
         "-method",
         type=str,
-        required=True,
+        required=False,
         choices=["mri", "anx"],
         help="Method of shortlisting (mri or anx)"
     )
@@ -73,6 +73,11 @@ def define_args():
             arguments["date"] = arrow.get(arguments["date"], "YYYY-MM-DD").naive
         except arrow.parser.ParserMatchError:
             print("The date must be in the format YYYY-MM-DD")
+            exit(0)
+
+    # Check if method is specified
+    if arguments["scan"] and arguments["method"] is None:
+            print("Specify the method when scanning")
             exit(0)
 
     if True not in arguments.values():

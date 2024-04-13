@@ -1,4 +1,4 @@
-from libs.techanalysis import MA, StochRSI
+from libs.techanalysis import MA, StochRSI, SAR
 from libs.helpers import format_bool
 import numpy as np
 import pandas as pd
@@ -301,47 +301,6 @@ def bullish_mri_based(
     return result, numerical_score
 
 
-def calculate_sar(df, acceleration=0.02, max_acceleration=0.20):
-    sar = []
-    trend = []
-
-    # Initial values
-    sar.append(df['low'].iloc[0])
-    trend.append(1)
-
-    acceleration_factor = acceleration
-    sar_direction = 1  # 1 for long, -1 for short
-
-    for i in range(1, len(df)):
-        if sar_direction == 1:  # Long position
-            if df['low'].iloc[i] <= sar[-1]:
-                sar_direction = -1
-                sar.append(df['high'].iloc[i-1])  # SAR is set to last extreme price
-                trend.append(-1)
-                acceleration_factor = acceleration
-            else:
-                sar.append(sar[-1] + acceleration_factor * (df['high'].iloc[i-1] - sar[-1]))
-                trend.append(1 if sar[-1] < df['high'].iloc[i] else -1)
-                if df['high'].iloc[i] > df['high'].iloc[i-1]:
-                    acceleration_factor = min(acceleration_factor + acceleration, max_acceleration)
-        else:  # Short position
-            if df['high'].iloc[i] >= sar[-1]:
-                sar_direction = 1
-                sar.append(df['low'].iloc[i-1])
-                trend.append(1)
-                acceleration_factor = acceleration
-            else:
-                sar.append(sar[-1] - acceleration_factor * (sar[-1] - df['low'].iloc[i-1]))
-                trend.append(-1 if sar[-1] > df['low'].iloc[i] else 1)
-                if df['low'].iloc[i] < df['low'].iloc[i-1]:
-                    acceleration_factor = min(acceleration_factor + acceleration, max_acceleration)
-
-    df['sar'] = sar
-    df['trend'] = trend
-
-    return df
-
-
 def bullish_anx_based(
     ohlc_with_indicators_daily,
     volume_daily,
@@ -360,7 +319,7 @@ def bullish_anx_based(
 
     # Parabolic SARS calculation for checking the trend (1: bullish, -1: bearish)
     # Factor: Weekly SARS wave is bullish
-    ohlc_with_indicators_weekly = calculate_sar(ohlc_with_indicators_weekly)
+    ohlc_with_indicators_weekly = SAR(ohlc_with_indicators_weekly)
     bullish_sars_condition = bullish_sars(ohlc_with_indicators_weekly)
 
     # Factor: price is above MA200
