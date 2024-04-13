@@ -51,6 +51,13 @@ def define_args():
     parser.add_argument(
         "-num", type=int, required=False, help="Limit the number of scanned stocks"
     )
+    parser.add_argument(
+        "-method",
+        type=str,
+        required=True,
+        choices=["mri", "anx"],
+        help="Method of shortlisting (mri or anx)"
+    )
 
     args = parser.parse_args()
     arguments = vars(args)

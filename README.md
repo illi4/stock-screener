@@ -2,7 +2,9 @@
 
 NASDAQ / ASX stocks bullish screener. 
 
-Stock shortlisting logic uses the following conditions: 
+Stock shortlisting logic uses the following conditions depending on the method:
+
+**MRI**
 - Daily higher candle closes above bodies of the previous 5 daily candles and is green
 - Bullish [MRI](https://tonevays.com/indicator) indicator value on the daily timeframe
 - Bullish MRI indicator on the weekly timeframe  
@@ -15,6 +17,9 @@ Stock shortlisting logic uses the following conditions:
 - The stock has a significant range of movement over the past few weeks (defined in the config)
 - Stochastic RSI is not overextended (>90%)
 
+**Alphanumetrix**
+- ... 
+
 For ASX, the best time to run it is in the evening after market closure to prepare for the next day. For US, that have to be morning (running in Australia) as US stocks data would refresh after a night of trading (per AU time). The shortlist acts as a guide for entering breakout trades which have high probability of success. As a data source, eodhistoricaldata.com is used.
 
 **Please note that the shortlist should only be used to guide your own research and should not be interpreted as 'signals'. If you buy the stocks just using the output, you will definitely lose all your money.** 
@@ -24,6 +29,7 @@ For ASX, the best time to run it is in the evening after market closure to prepa
 - To update the stocks list, run `python scanner.py --update`. It is recommended to run this daily prior to scanning. You can use the `-date` parameter (the format is `YYYY-MM-DD`).   
 - To scan and shortlist, run `python scanner.py --scan`. 
 - To simulate scanning as of a particular date, use the `-date` parameter (the format is `YYYY-MM-DD`). For example, `python scanner.py --update -date=2021-01-05`.
+- Use `method` to specify the method used (`mri` or `anx`). 
 - Helper scripts (note: requires configuring Google credentials in order to work):  
    - `monitor.py` to run daily to check whether the exit condition was hit for active entries.
    - `paperfill.py` to run daily to fill in the values for paper trade entries automatically. 

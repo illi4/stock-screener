@@ -1,6 +1,9 @@
 from libs.techanalysis import MA, StochRSI
 from libs.helpers import format_bool
 import numpy as np
+import pandas as pd
+from datetime import datetime, timedelta
+
 
 from libs.read_settings import read_config
 config = read_config()
@@ -15,7 +18,7 @@ def bullish_breakout(
     stock_name="",
 ):
     # 3MA variant of a bullish breakout system on volume
-    result, numerical_score = bullish_ma_based(
+    result, numerical_score = bullish_mri_based(
         ohlc_with_indicators_daily,
         volume_daily,
         ohlc_with_indicators_weekly,
@@ -166,7 +169,27 @@ def broad_range(ohlc_with_indicators_weekly):
     return hg_condition
 
 
-def bullish_ma_based(
+def bullish_sars(ohlc_with_indicators_weekly):
+    return ohlc_with_indicators_weekly['trend'].iloc[-1] == 1
+
+
+def price_above_ma(ohlc_with_indicators_daily, ma_values, ma_length):
+    condition = (
+        ohlc_with_indicators_daily["close"].iloc[-1]
+        > ma_values[f"ma{ma_length}"].iloc[-1]
+    )
+    return condition
+
+
+def recent_bullish_cross(ma_a, ma_b, a_length, b_length):
+    return (
+                ma_a[f"ma{a_length}"].iloc[-1] > ma_b[f"ma{b_length}"].iloc[-1]
+                    and
+                ma_a[f"ma{a_length}"].iloc[-2] < ma_b[f"ma{b_length}"].iloc[-2]
+    )
+
+
+def bullish_mri_based(
     ohlc_with_indicators_daily,
     volume_daily,
     ohlc_with_indicators_weekly,
@@ -243,8 +266,6 @@ def bullish_ma_based(
     # Factor: Must be high growth and not just barely moving
     broad_range_condition = broad_range(ohlc_with_indicators_weekly)
 
-
-
     if output:
         print(
             f"- {stock_name} MRI: D [{format_bool(daily_condition_td)}] / W [{format_bool(weekly_condition_td)}] | "
@@ -271,6 +292,101 @@ def bullish_ma_based(
         ma_weekly_close_condition,
         broad_range_condition,
         stoch_rsi_condition
+    ]
+    numerical_score = round(
+        5 * sum(confirmation) / len(confirmation), 0
+    )  # score X (of 5)
+    result = False not in confirmation
+
+    return result, numerical_score
+
+
+def calculate_sar(df, acceleration=0.02, max_acceleration=0.20):
+    sar = []
+    trend = []
+
+    # Initial values
+    sar.append(df['low'].iloc[0])
+    trend.append(1)
+
+    acceleration_factor = acceleration
+    sar_direction = 1  # 1 for long, -1 for short
+
+    for i in range(1, len(df)):
+        if sar_direction == 1:  # Long position
+            if df['low'].iloc[i] <= sar[-1]:
+                sar_direction = -1
+                sar.append(df['high'].iloc[i-1])  # SAR is set to last extreme price
+                trend.append(-1)
+                acceleration_factor = acceleration
+            else:
+                sar.append(sar[-1] + acceleration_factor * (df['high'].iloc[i-1] - sar[-1]))
+                trend.append(1 if sar[-1] < df['high'].iloc[i] else -1)
+                if df['high'].iloc[i] > df['high'].iloc[i-1]:
+                    acceleration_factor = min(acceleration_factor + acceleration, max_acceleration)
+        else:  # Short position
+            if df['high'].iloc[i] >= sar[-1]:
+                sar_direction = 1
+                sar.append(df['low'].iloc[i-1])
+                trend.append(1)
+                acceleration_factor = acceleration
+            else:
+                sar.append(sar[-1] - acceleration_factor * (sar[-1] - df['low'].iloc[i-1]))
+                trend.append(-1 if sar[-1] > df['low'].iloc[i] else 1)
+                if df['low'].iloc[i] < df['low'].iloc[i-1]:
+                    acceleration_factor = min(acceleration_factor + acceleration, max_acceleration)
+
+    df['sar'] = sar
+    df['trend'] = trend
+
+    return df
+
+
+def bullish_anx_based(
+    ohlc_with_indicators_daily,
+    volume_daily,
+    ohlc_with_indicators_weekly,
+    output=True,
+    stock_name="",
+):
+    """
+    :param ohlc_with_indicators_daily: daily OHLC with indicators (pandas df)
+    :param volume_daily: volume values (pandas df)
+    :param ohlc_with_indicators_weekly: weekly OHLC with indicators (pandas df)
+    :param output: should the output be printed
+    :param stock_name: name of a stock
+    :return:
+    """
+
+    # Parabolic SARS calculation for checking the trend (1: bullish, -1: bearish)
+    # Factor: Weekly SARS wave is bullish
+    ohlc_with_indicators_weekly = calculate_sar(ohlc_with_indicators_weekly)
+    bullish_sars_condition = bullish_sars(ohlc_with_indicators_weekly)
+
+    # Factor: price is above MA200
+    ma200 = MA(ohlc_with_indicators_daily, 200)
+    price_above_ma_condition = price_above_ma(ohlc_with_indicators_daily, ma200, 200)
+
+    # Factor: bullish MA cross (MA7 and MA30)
+    ma7 = MA(ohlc_with_indicators_daily, 7)
+    ma30 = MA(ohlc_with_indicators_daily, 30)
+    recent_bullish_cross_condition = recent_bullish_cross(ma7, ma30, 7, 30)
+
+    # Factor: Close for the last week is not more than X% from the 4 weeks ago
+    not_overextended = weekly_not_overextended(ohlc_with_indicators_weekly)
+
+    if output:
+        print(
+            f"- {stock_name} | "
+            f"Bullish weekly SARS: [{format_bool(bullish_sars_condition)}] | price above MA200: [{format_bool(price_above_ma_condition)}] | "
+            f"Recent bullish cross: [{format_bool(recent_bullish_cross_condition)}] | not overextended: [{format_bool(not_overextended)}]"
+        )
+
+    confirmation = [
+        bullish_sars_condition,
+        price_above_ma_condition,
+        recent_bullish_cross_condition,
+        not_overextended
     ]
     numerical_score = round(
         5 * sum(confirmation) / len(confirmation), 0
