@@ -166,12 +166,13 @@ def get_stock_data(code, reporting_date_start):
 def ohlc_daily_to_weekly(df):
     df["week_number"] = df["timestamp"].dt.isocalendar().week
     df["year"] = df["timestamp"].dt.year
+    df["start_of_week"] = df["timestamp"] - pd.to_timedelta(df["timestamp"].dt.dayofweek, unit='D')
     df_weekly = df.groupby(["year", "week_number"]).agg(
-        {"open": "first", "high": "max", "low": "min", "close": "last"}
+        {"open": "first", "high": "max", "low": "min", "close": "last", "start_of_week": "first"}
     )
     # rename week to timestamp. even though it is not super correct, it's fine to do that for our purposes
     df_weekly = df_weekly.reset_index()
-    df_weekly.columns = ["year", "timestamp", "open", "high", "low", "close"]
+    df_weekly.columns = ["year", "timestamp", "open", "high", "low", "close", "start_of_week"]
     return df_weekly
 
 

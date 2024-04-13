@@ -2,7 +2,9 @@
 
 NASDAQ / ASX stocks bullish screener. 
 
-Stock shortlisting logic uses the following conditions: 
+Stock shortlisting logic uses the following conditions depending on the method:
+
+**MRI** (method=mri)
 - Daily higher candle closes above bodies of the previous 5 daily candles and is green
 - Bullish [MRI](https://tonevays.com/indicator) indicator value on the daily timeframe
 - Bullish MRI indicator on the weekly timeframe  
@@ -10,10 +12,16 @@ Stock shortlisting logic uses the following conditions:
 - Moving averages (10, 20, 30 day) rising
 - Market is not below MA200 with MA10 declining
 - 2 most recent weekly candles closing above weekly moving averages (10/20/30 week)
-- Close for the last week is not exceeding 500% when compared to 4 weeks ago
+- Close for the last week is not exceeding 300% when compared to 4 weeks ago
 - Volume is significant in the last day compared to the 20-day moving average (defined in the config)  
 - The stock has a significant range of movement over the past few weeks (defined in the config)
 - Stochastic RSI is not overextended (>90%)
+
+**Alphanumetrix** (method=anx)
+- Price above MA200 
+- Cross of MA7 and MA30
+- Close for the last week is not exceeding 300% when compared to 4 weeks ago
+- Note: Bullish SAR on weekly scale have to be checked manually as I cannot figure out the correct Lucid SAR calculation
 
 For ASX, the best time to run it is in the evening after market closure to prepare for the next day. For US, that have to be morning (running in Australia) as US stocks data would refresh after a night of trading (per AU time). The shortlist acts as a guide for entering breakout trades which have high probability of success. As a data source, eodhistoricaldata.com is used.
 
@@ -22,9 +30,10 @@ For ASX, the best time to run it is in the evening after market closure to prepa
 ### Usage  
 - Run `python scanner.py --h` to view context help 
 - To update the stocks list, run `python scanner.py --update`. It is recommended to run this daily prior to scanning. You can use the `-date` parameter (the format is `YYYY-MM-DD`).   
-- To scan and shortlist, run `python scanner.py --scan`. 
+- To scan and shortlist, run `python scanner.py --scan -method=anx`. 
+  - Use `method` to specify the method used (`mri` or `anx`). 
 - To simulate scanning as of a particular date, use the `-date` parameter (the format is `YYYY-MM-DD`). For example, `python scanner.py --update -date=2021-01-05`.
-- Helper scripts (note: requires configuring Google credentials in order to work):  
+- Helper scripts (note: requires configuring Google credentials in order to work). Use `-method` parameter as this will influence which spreadsheet is used. 
    - `monitor.py` to run daily to check whether the exit condition was hit for active entries.
    - `paperfill.py` to run daily to fill in the values for paper trade entries automatically. 
    - `simulator.py` simulates outcomes per the spreadsheet.  
@@ -36,7 +45,7 @@ For ASX, the best time to run it is in the evening after market closure to prepa
   - when the market switches to the bearish mode (market below MA200 with MA10 decreasing) as a trigger to close all open positions
 
 Example running a simulator: 
-`python simulator.py -mode=main -start=2023-12-10 -end=2024-04-01 --show_monthly`
+`python simulator.py -mode=main -start=2023-12-10 -end=2024-04-01 -method=mri --show_monthly`
 
 ### Settings 
 See `config.yaml` for settings which include:

@@ -11,7 +11,7 @@ from libs.helpers import (
     get_test_stocks,
     get_data_start_date,
 )
-from libs.signal import bullish_ma_based, market_bearish
+from libs.signal import bullish_mri_based, market_bearish, bullish_anx_based
 from libs.stocktools import (
     get_asx_symbols,
     get_nasdaq_symbols,
@@ -145,7 +145,7 @@ def process_market_data_at_date(market_ohlc_daily, market_volume_daily):
     return market_ohlc_daily_shifted, market_volume_daily_shifted
 
 
-def scan_stock(stocks, exchange):
+def scan_stock(stocks, exchange, method):
     stock_suffix = get_stock_suffix(exchange)
 
     try:
@@ -171,14 +171,26 @@ def scan_stock(stocks, exchange):
             ):
                 continue
 
-            confirmation, _ = bullish_ma_based(
-                ohlc_with_indicators_daily,
-                volume_daily,
-                ohlc_with_indicators_weekly,
-                consider_volume_spike=True,
-                output=True,
-                stock_name=stock.name,
-            )
+            # Check for confirmation depending on the method
+            if method == 'mri':
+                confirmation, _ = bullish_mri_based(
+                    ohlc_with_indicators_daily,
+                    volume_daily,
+                    ohlc_with_indicators_weekly,
+                    consider_volume_spike=True,
+                    output=True,
+                    stock_name=stock.name,
+                )
+            elif method == 'anx':
+                confirmation, _ = bullish_anx_based(
+                    ohlc_with_indicators_daily,
+                    volume_daily,
+                    ohlc_with_indicators_weekly,
+                    output=True,
+                    stock_name=stock.name,
+                )
+
+
             if confirmation:
                 print(f"{stock.name} [v] meeting shortlisting conditions")
                 volume_MA_5D = last_volume_5D_MA(volume_daily)
@@ -205,7 +217,7 @@ def scan_stock(stocks, exchange):
         exit(0)
 
 
-def scan_exchange_stocks(exchange):
+def scan_exchange_stocks(exchange, method):
     # Check the market conditions
     market_ticker = get_market_index_ticker(exchange)
     market_ohlc_daily, market_volume_daily = get_stock_data(market_ticker, reporting_date_start)
@@ -239,8 +251,7 @@ def scan_exchange_stocks(exchange):
         f'and with volume of at least {format_number(config["filters"]["minimum_volume_level"])}\n'
     )
 
-    # Back to basics because parallel run shows incorrect results for some reason
-    shortlist = scan_stock(stocks, exchange)
+    shortlist = scan_stock(stocks, exchange, method)
 
     # Short the stocks by volume desc
     sorted_stocks = sorted(shortlist, key=lambda tup: tup[2], reverse=True)
@@ -253,7 +264,7 @@ def scan_stocks():
 
     if config["market"] != "ALL":
         shortlist, industry_momentum, industry_score = scan_exchange_stocks(
-            config["market"]
+            config["market"], arguments["method"]
         )
         print()
         if len(shortlist) > 0:
@@ -268,7 +279,7 @@ def scan_stocks():
                 shortlists[each_exchange],
                 industry_momentums[each_exchange],
                 industry_scores[each_exchange],
-            ) = scan_exchange_stocks(each_exchange)
+            ) = scan_exchange_stocks(each_exchange, arguments["method"])
 
         for each_exchange in all_exchanges:
             print()

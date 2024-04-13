@@ -6,7 +6,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 import libs.gsheetobj as gsheetsobj
-from libs.helpers import get_data_start_date
+from libs.helpers import get_data_start_date, define_args_method_only
 from libs.stocktools import get_stock_data, get_stock_suffix
 import arrow
 
@@ -15,13 +15,14 @@ config = read_config()
 
 reporting_date_start = get_data_start_date()
 
-def fill_prices():
+def fill_prices(method_name):
     exchange = config["market"]
 
     stock_suffix = get_stock_suffix(exchange)
-    tab_name = f"{exchange}"
+    sheet_name = config["logging"]["gsheet_name"]
+    tab_name = f'{exchange}_{method_name}'
 
-    ws = gsheetsobj.sheet_to_df(config["logging"]["gsheet_name"], tab_name)
+    ws = gsheetsobj.sheet_to_df(sheet_name, tab_name)
 
     for index, row in ws.iterrows():
         if (
@@ -57,6 +58,7 @@ def fill_prices():
 
 
 if __name__ == "__main__":
+    arguments = define_args_method_only()
     print("Filling entry prices for paper trades...")
-    alerted_positions = fill_prices()
+    alerted_positions = fill_prices(method_name=arguments['method'])
     print("Done")

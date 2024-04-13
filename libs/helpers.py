@@ -33,6 +33,21 @@ def get_current_workday():
     return current_datetime
 
 
+def define_args_method_only():
+    parser.add_argument(
+        "-method",
+        type=str,
+        required=True,
+        choices=["mri", "anx"],
+        help="Method (mri or anx)"
+    )
+
+    args = parser.parse_args()
+    arguments = vars(args)
+
+    return arguments
+
+
 def define_args():
     parser.add_argument(
         "--update",
@@ -51,6 +66,13 @@ def define_args():
     parser.add_argument(
         "-num", type=int, required=False, help="Limit the number of scanned stocks"
     )
+    parser.add_argument(
+        "-method",
+        type=str,
+        required=False,
+        choices=["mri", "anx"],
+        help="Method of shortlisting (mri or anx)"
+    )
 
     args = parser.parse_args()
     arguments = vars(args)
@@ -66,6 +88,11 @@ def define_args():
             arguments["date"] = arrow.get(arguments["date"], "YYYY-MM-DD").naive
         except arrow.parser.ParserMatchError:
             print("The date must be in the format YYYY-MM-DD")
+            exit(0)
+
+    # Check if method is specified
+    if arguments["scan"] and arguments["method"] is None:
+            print("Specify the method when scanning")
             exit(0)
 
     if True not in arguments.values():
