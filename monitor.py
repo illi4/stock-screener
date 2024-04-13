@@ -136,7 +136,9 @@ def check_positions(method_name):
                     ohlc_with_indicators_daily,
                     ohlc_with_indicators_weekly,
                 ) = generate_indicators_daily_weekly(ohlc_daily)
-                # Get SAR and check for flips
+
+                # Get SAR and check for flips # that seems inconsistent with ANX on tradingview, has to be checked manually 
+                '''
                 ohlc_with_indicators_weekly = SAR(ohlc_with_indicators_weekly)
                 ohlc_with_indicators_weekly["start_of_week"] = ohlc_with_indicators_weekly["start_of_week"].dt.date
                 ohlc_with_indicators_weekly = ohlc_with_indicators_weekly[
@@ -148,6 +150,8 @@ def check_positions(method_name):
                     alerted_positions.add(
                         f"{stock_code} ({exchange}): SAR flip"
                     )
+                '''
+                #TODO! Check for diamonds (rsi conditions)
 
                 # Also check the bearish cross
                 ma7 = MA(ohlc_daily, 7)
@@ -168,8 +172,6 @@ def check_positions(method_name):
                     alerted_positions.add(
                         f"{stock_code} ({exchange}): bearish cross"
                     )
-
-                #TODO! Check for diamonds (rsi conditions)
 
     return alerted_positions
 

@@ -319,8 +319,11 @@ def bullish_anx_based(
 
     # Parabolic SARS calculation for checking the trend (1: bullish, -1: bearish)
     # Factor: Weekly SARS wave is bullish
+    # The result is inconsistent with ANX indicator on tradingview so not using it, has to be checked manually
+    '''
     ohlc_with_indicators_weekly = SAR(ohlc_with_indicators_weekly)
     bullish_sars_condition = bullish_sars(ohlc_with_indicators_weekly)
+    '''
 
     # Factor: price is above MA200
     ma200 = MA(ohlc_with_indicators_daily, 200)
@@ -337,12 +340,11 @@ def bullish_anx_based(
     if output:
         print(
             f"- {stock_name} | "
-            f"Bullish weekly SARS: [{format_bool(bullish_sars_condition)}] | price above MA200: [{format_bool(price_above_ma_condition)}] | "
+            f"Price above MA200: [{format_bool(price_above_ma_condition)}] | "
             f"Recent bullish cross: [{format_bool(recent_bullish_cross_condition)}] | not overextended: [{format_bool(not_overextended)}]"
         )
 
     confirmation = [
-        bullish_sars_condition,
         price_above_ma_condition,
         recent_bullish_cross_condition,
         not_overextended
