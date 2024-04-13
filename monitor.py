@@ -169,6 +169,8 @@ def check_positions(method_name):
                         f"{stock_code} ({exchange}): bearish cross"
                     )
 
+                #TODO! Check for diamonds (rsi conditions)
+
     return alerted_positions
 
 
