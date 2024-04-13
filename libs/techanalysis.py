@@ -240,6 +240,7 @@ def StochRSI(df, period=14, smoothK=3, smoothD=3):
 def SAR(df, acceleration=0.02, max_acceleration=0.20):
     """
     Calculate the Parabolic SAR (Stop and Reverse) values and trends for a given DataFrame.
+    Include updates by following https://www.tradingview.com/script/OkACQQgL-Lucid-SAR/
 
     Args:
     - df (DataFrame): DataFrame containing 'high' and 'low' columns.
@@ -259,6 +260,7 @@ def SAR(df, acceleration=0.02, max_acceleration=0.20):
     acceleration_factor = acceleration
     sar_direction = 1  # 1 for long, -1 for short
 
+    # This does not seem to be in line Alphanumetrix
     for i in range(1, len(df)):
         if sar_direction == 1:  # Long position
             if df['low'].iloc[i] <= sar[-1]:

@@ -137,7 +137,8 @@ def check_positions(method_name):
                     ohlc_with_indicators_weekly,
                 ) = generate_indicators_daily_weekly(ohlc_daily)
 
-                # Get SAR and check for flips # that seems inconsistent with ANX on tradingview, has to be checked manually 
+                # Get SAR and check for flips # that doesn't seem to work well
+                # Maybe revisit https://www.tradingview.com/script/OkACQQgL-Lucid-SAR/
                 '''
                 ohlc_with_indicators_weekly = SAR(ohlc_with_indicators_weekly)
                 ohlc_with_indicators_weekly["start_of_week"] = ohlc_with_indicators_weekly["start_of_week"].dt.date
