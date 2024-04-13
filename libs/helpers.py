@@ -33,6 +33,21 @@ def get_current_workday():
     return current_datetime
 
 
+def define_args_method_only():
+    parser.add_argument(
+        "-method",
+        type=str,
+        required=True,
+        choices=["mri", "anx"],
+        help="Method (mri or anx)"
+    )
+
+    args = parser.parse_args()
+    arguments = vars(args)
+
+    return arguments
+
+
 def define_args():
     parser.add_argument(
         "--update",

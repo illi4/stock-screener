@@ -33,7 +33,7 @@ For ASX, the best time to run it is in the evening after market closure to prepa
 - To scan and shortlist, run `python scanner.py --scan -method=anx`. 
   - Use `method` to specify the method used (`mri` or `anx`). 
 - To simulate scanning as of a particular date, use the `-date` parameter (the format is `YYYY-MM-DD`). For example, `python scanner.py --update -date=2021-01-05`.
-- Helper scripts (note: requires configuring Google credentials in order to work):  
+- Helper scripts (note: requires configuring Google credentials in order to work). Use `-method` parameter as this will influence which spreadsheet is used. 
    - `monitor.py` to run daily to check whether the exit condition was hit for active entries.
    - `paperfill.py` to run daily to fill in the values for paper trade entries automatically. 
    - `simulator.py` simulates outcomes per the spreadsheet.  
