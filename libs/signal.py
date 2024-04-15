@@ -1,4 +1,4 @@
-from libs.techanalysis import MA, StochRSI #, SAR
+from libs.techanalysis import MA, StochRSI, SAR #, SAR
 from libs.helpers import format_bool
 import numpy as np
 import pandas as pd
@@ -321,7 +321,7 @@ def bullish_anx_based(
     # Factor: Weekly SARS wave is bullish
     # The result is inconsistent with ANX indicator on tradingview so not using it, has to be checked manually
     '''
-    ohlc_with_indicators_weekly = SAR_mixed(ohlc_with_indicators_weekly)
+    ohlc_with_indicators_weekly = SAR(ohlc_with_indicators_weekly)
     bullish_sars_condition = bullish_sars(ohlc_with_indicators_weekly)
     '''
 
