@@ -73,6 +73,9 @@ def define_args():
         choices=["mri", "anx"],
         help="Method of shortlisting (mri or anx)"
     )
+    parser.add_argument(
+        "-stock", type=str, required=False, help="Force checking one stock only"
+    )
 
     args = parser.parse_args()
     arguments = vars(args)

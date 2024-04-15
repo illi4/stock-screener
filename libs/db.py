@@ -45,12 +45,20 @@ def bulk_add_stocks(stocks_list_of_dict):
             Stock.insert_many(chunk).execute()
 
 
-def get_stocks(exchange, price_min=None, price_max=None, min_volume=None):
+def get_stocks(exchange, price_min=None, price_max=None, min_volume=None, code=None):
     price_min = 0 if price_min is None else price_min
     price_max = 10e9 if price_max is None else price_max
     min_volume = 0 if min_volume is None else min_volume
 
     try:
+
+        # If only one stock requested
+        if code is not None:
+            stocks = Stock.select().where(
+                (Stock.code == code)
+            )
+            return stocks
+
         if config["filters"]["stocks_only"]:
             print("Excluding funds and ETF per settings")
             stocks = Stock.select().where(
@@ -69,6 +77,7 @@ def get_stocks(exchange, price_min=None, price_max=None, min_volume=None):
             )
         if len(stocks) == 0:
             print("Warning: no stocks in the database")
+
     except peewee.OperationalError:
         print("Error: table not found. Update the stocks list first.")
         exit(0)

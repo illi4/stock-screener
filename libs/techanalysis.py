@@ -260,7 +260,7 @@ def SAR(df, acceleration=0.02, max_acceleration=0.20):
     acceleration_factor = acceleration
     sar_direction = 1  # 1 for long, -1 for short
 
-    # This does not seem to be in line Alphanumetrix
+    # This does not seem to be in line with lucid sar
     for i in range(1, len(df)):
         if sar_direction == 1:  # Long position
             if df['low'].iloc[i] <= sar[-1]:
@@ -281,6 +281,75 @@ def SAR(df, acceleration=0.02, max_acceleration=0.20):
                 acceleration_factor = acceleration
             else:
                 sar.append(sar[-1] - acceleration_factor * (sar[-1] - df['low'].iloc[i-1]))
+                trend.append(-1 if sar[-1] > df['low'].iloc[i] else 1)
+                if df['low'].iloc[i] < df['low'].iloc[i-1]:
+                    acceleration_factor = min(acceleration_factor + acceleration, max_acceleration)
+
+    df['sar'] = sar
+    df['trend'] = trend
+
+    return df
+
+def SAR_v2(df, acceleration=0.02, max_acceleration=0.20):
+    """
+    Calculate the Parabolic SAR (Stop and Reverse) values and trends for a given DataFrame.
+    Include updates by following https://www.tradingview.com/script/OkACQQgL-Lucid-SAR/
+
+    Args:
+    - df (DataFrame): DataFrame containing 'high' and 'low' columns.
+    - acceleration (float, optional): Acceleration factor for SAR calculation (default is 0.02).
+    - max_acceleration (float, optional): Maximum acceleration factor (default is 0.20).
+
+    Returns:
+    - DataFrame: Input DataFrame with additional columns 'sar' (Parabolic SAR values) and 'trend' (trend direction, 1 for long, -1 for short).
+    """
+    sar = []
+    trend = []
+
+    # Initial values
+    sar.append(df['low'].iloc[0])
+    sar.append(df['low'].iloc[0])
+    sar.append(df['low'].iloc[0])
+
+    trend.append(1)
+    trend.append(1)
+    trend.append(1)
+
+    acceleration_factor = acceleration
+    sar_direction = 1  # 1 for long, -1 for short
+
+    # This does not seem to be in line with lucid sar
+    for i in range(3, len(df)):
+        if sar_direction == 1:  # Long position
+            if df['low'].iloc[i] <= sar[-1]:
+                sar_direction = -1
+                sar.append(df['high'].iloc[i-1])  # SAR is set to last extreme price
+                trend.append(-1)
+                acceleration_factor = acceleration
+            else:
+                #sar.append(sar[-1] + acceleration_factor * (df['high'].iloc[i-1] - sar[-1]))
+                new_sar = sar[-1] + acceleration_factor * (df['high'].iloc[i-1] - sar[-1])
+                if new_sar > df['low'].iloc[i] or new_sar > df['low'].iloc[i-1]:
+                    new_sar = min(df['low'].iloc[i], df['low'].iloc[i-1])
+                sar.append(new_sar)
+
+                trend.append(1 if sar[-1] < df['high'].iloc[i] else -1)
+                if df['high'].iloc[i] > df['high'].iloc[i-1]:
+                    acceleration_factor = min(acceleration_factor + acceleration, max_acceleration)
+
+        else:  # Short position
+            if df['high'].iloc[i] >= sar[-1]:
+                sar_direction = 1
+                sar.append(df['low'].iloc[i-1])
+                trend.append(1)
+                acceleration_factor = acceleration
+            else:
+                #sar.append(sar[-1] - acceleration_factor * (sar[-1] - df['low'].iloc[i-1]))
+                new_sar = sar[-1] - acceleration_factor * (sar[-1] - df['low'].iloc[i-1])
+                if new_sar < df['high'].iloc[i] or new_sar < df['high'].iloc[i-1]:
+                    new_sar = max(df['high'].iloc[i], df['high'].iloc[i-1])
+                sar.append(new_sar)
+
                 trend.append(-1 if sar[-1] > df['low'].iloc[i] else 1)
                 if df['low'].iloc[i] < df['low'].iloc[i-1]:
                     acceleration_factor = min(acceleration_factor + acceleration, max_acceleration)

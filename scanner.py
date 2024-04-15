@@ -171,6 +171,8 @@ def scan_stock(stocks, exchange, method):
             ):
                 continue
 
+
+
             # Check for confirmation depending on the method
             if method == 'mri':
                 confirmation, _ = bullish_mri_based(
@@ -229,17 +231,24 @@ def scan_exchange_stocks(exchange, method):
         exit(0)
 
     # Get the stocks for scanning
-    stocks = get_stocks(
-        exchange=exchange,
-        price_min=config["pricing"]["min"],
-        price_max=config["pricing"]["max"],
-        min_volume=config["filters"]["minimum_volume_level"],
-    )
+    if arguments["stock"] is None:
+        stocks = get_stocks(
+            exchange=exchange,
+            price_min=config["pricing"]["min"],
+            price_max=config["pricing"]["max"],
+            min_volume=config["filters"]["minimum_volume_level"],
+        )
+    else:
+        stocks = get_stocks(
+            exchange=exchange,
+            code=arguments["stock"]
+        )
 
     # Limit per arguments as required
     if arguments["num"] is not None:
         print(f"Limiting to the first {arguments['num']} stocks")
         stocks = stocks[: arguments["num"]]
+
 
     # Get industry bullishness scores: disabled as it was not helpful
     # industry_momentum, industry_score = get_industry_momentum(exchange)
@@ -271,7 +280,8 @@ def scan_stocks():
             report_on_shortlist(shortlist, industry_score, config["market"])
         else:
             print(f"No shortlisted stocks")
-    else:
+
+    else: # Have not checked for a while, may not work well
         all_exchanges = ["ASX", "NASDAQ"]
         shortlists, industry_momentums, industry_scores = dict(), dict(), dict()
         for each_exchange in all_exchanges:
@@ -307,6 +317,9 @@ if __name__ == "__main__":
 
     if arguments["update"]:
         update_stocks()
+
+    if arguments["stock"]:
+        print(f'Force checking one stock only: {arguments["stock"]}')
 
     if arguments["scan"]:
         check_update_date()
