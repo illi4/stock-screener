@@ -28,7 +28,7 @@ def get_first_true_idx(list):
 
 
 def check_market():
-    exchange = "ASX"    # only supporting asx for now, easy to replicate for NASDAQ if needed
+    exchange = config["market"]   # only supporting asx for now, need to recheck for nasdaq
     market_ticker = get_market_index_ticker(exchange)
     market_ohlc_daily, market_volume_daily = get_stock_data(market_ticker, reporting_date_start)
     is_market_bearish, _ = market_bearish(market_ohlc_daily, market_volume_daily, output=True)
@@ -39,7 +39,7 @@ def check_market():
 
 def check_positions(method_name):
     alerted_positions = set()
-    exchange = "NASDAQ"    # only supporting NASDAQ for now, easy to replicate for other if needed
+    exchange = config["market"]    # only supporting NASDAQ for now, easy to replicate for other if needed
 
     stock_suffix = get_stock_suffix(exchange)
 
@@ -152,9 +152,9 @@ def check_positions(method_name):
                         f"{stock_code} ({exchange}): SAR flip"
                     )
                 '''
-                #TODO! Check for diamonds (rsi conditions)
+                # TODO! Check for diamonds (rsi conditions) if the wave colour is automated
 
-                # Also check the bearish cross
+                # Check the bearish cross
                 ma7 = MA(ohlc_daily, 7)
                 ma30 = MA(ohlc_daily, 30)
                 mergedDf = ohlc_daily.merge(ma7, left_index=True, right_index=True)

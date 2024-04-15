@@ -152,6 +152,11 @@ def get_stock_data(code, reporting_date_start):
     df = pd.DataFrame.from_dict(
         data
     )  # question - will it give me data after 5pm on the curr day?
+
+    # Could return an empty df - skip if so
+    if df.empty:
+        return None, None
+
     df = df[["date", "open", "high", "low", "close", "volume"]]
     df["date"] = pd.to_datetime(df["date"])
     df.columns = ["timestamp", "open", "high", "low", "close", "volume"]
