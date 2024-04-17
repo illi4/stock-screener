@@ -49,7 +49,11 @@ def update_stocks():
     exchange = config["market"]
 
     if arguments["date"] is None:
-        checked_workday = get_current_workday()
+        if not config["locality"]["shift_update_day"]:
+            checked_workday = get_current_workday()
+        else:
+            checked_workday = get_previous_workday()
+            print(f'(i) Shifting update date to previous workday per config')
     else:
         checked_workday = arguments["date"].strftime("%Y-%m-%d")
 
