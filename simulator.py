@@ -11,7 +11,7 @@ from libs.signal import red_day_on_volume
 import pandas as pd
 from datetime import datetime, timedelta
 import numpy as np
-from libs.stocktools import get_stock_suffix, get_stock_data
+from libs.stocktools import get_stock_data, Market
 import argparse
 from itertools import groupby
 
@@ -717,7 +717,7 @@ def interate_over_variant_main_mode(results_dict):
 
 def iterate_over_variant_tp_mode(results_dict):
     # Initiate the simulation object
-    sim = simulation(capital)
+    sim = simulation(config["simulator"]["capital"])
 
     # Starting for a variant
     start_date_dt, end_date_dt, current_date_dt = get_dates(start_date, end_date)
@@ -800,7 +800,7 @@ def iterate_over_variant_tp_mode(results_dict):
             )
 
     # Calculate metrics and print the results
-    calculate_metrics(sim, capital)
+    calculate_metrics(sim, config["simulator"]["capital"])
     print_metrics(sim)
 
     # Saving the result in the overall dictionary
@@ -861,11 +861,8 @@ if __name__ == "__main__":
     # ^^^ -2 years ago from start is ok
     reporting_start_date = reporting_start_date.strftime("%Y-%m-%d")
 
-    # This is working ok
-    exchange = config["market"]
-
     sheet_name = config["logging"]["gsheet_name"]
-    tab_name = f'{exchange}_{arguments["method"]}'
+    tab_name = config["logging"]["gsheet_tab_name"]
 
     ws = gsheetsobj.sheet_to_df(sheet_name, tab_name)
 
@@ -898,11 +895,16 @@ if __name__ == "__main__":
     if arguments["mode"] == "tp":
         current_variant = "control"
         stock_names = [item.stock for key, item in ws.iterrows()]
+        stock_markets = [item.market for key, item in ws.iterrows()]
+
         stock_prices = dict()
-        suffix = get_stock_suffix(exchange)
-        for stock in stock_names:
-            print(f"getting stock data for {stock}{suffix}")
-            stock_info = get_stock_data(f"{stock}{suffix}", reporting_start_date)
+
+        for i, stock in enumerate(stock_names):
+            # Create a market object
+            market = Market(stock_markets[i])
+
+            print(f"getting stock data for {stock}{market.stock_suffix}")
+            stock_info = get_stock_data(f"{stock}{market.stock_suffix}", reporting_start_date)
             stock_prices[stock] = stock_info
 
         for current_tp_variant_name, current_tp_variant in take_profit_variants.items():

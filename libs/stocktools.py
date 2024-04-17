@@ -37,6 +37,31 @@ industry_mapping_nasdaq = {
     "Real Estate": "IYR",
 }
 
+# Class for the market with its parameters
+class Market:
+    def __init__(self, market_code):
+        self.market_code = market_code
+        supported_markets = ['ASX', 'NASDAQ', 'NYSE']
+
+        if self.market_code not in supported_markets:
+            print(f"Supported markets are: {', '.join(supported_markets)}")
+
+        if self.market_code == "NASDAQ":
+            self.exchange_url_part = "NASDAQ"
+            self.related_market_ticker = "ONEQ"  # nasdaq ETF
+            self.stock_suffix = ''
+        elif self.market_code == "ASX":
+            self.exchange_url_part = "AU"
+            self.related_market_ticker = "AXJO.INDX"
+            self.stock_suffix = '.AU'
+        elif self.market_code == "NYSE":
+            self.exchange_url_part = "NYSE"
+            self.related_market_ticker = "CETF"
+            self.stock_suffix = ''
+
+    def set_abbreviation(self, abbreviation):  # example of using stuff in classes
+        self.abbreviation = abbreviation
+
 
 def get_industry_mapping(exchange):
     if exchange == "NASDAQ":
@@ -45,28 +70,16 @@ def get_industry_mapping(exchange):
         return industry_mapping_asx
 
 
-def get_stock_suffix(exchange):
-    # Defines stock suffix for YFinance
-    if exchange == "NASDAQ":
-        return ""
-    elif exchange == "ASX":
-        return ".AU"
-
-
 # Using proper api
-def get_exchange_symbols(exchange, checked_workday):
+def get_exchange_symbols(market_object, checked_workday):
     global session
 
     stocks = []
-    if exchange == "NASDAQ":
-        exchange_url_part = "NASDAQ"
-    elif exchange == "ASX":
-        exchange_url_part = "AU"
 
     if session is None:
         session = requests.Session()
 
-    url = f"https://eodhistoricaldata.com/api/eod-bulk-last-day/{exchange_url_part}?api_token={eod_key}&fmt=json&filter=extended&date={checked_workday}"
+    url = f"https://eodhistoricaldata.com/api/eod-bulk-last-day/{market_object.exchange_url_part}?api_token={eod_key}&fmt=json&filter=extended&date={checked_workday}"
     params = {"api_token": eod_key}
     max_attempts = 5
     attempt = 0
@@ -103,31 +116,12 @@ def get_exchange_symbols(exchange, checked_workday):
             price=elem["close"],
             volume=elem["volume"],
             type=elem["type"],
-            exchange=exchange,
+            exchange=market_object.market_code,
         )
         stocks.append(stock)
 
     return stocks
 
-
-def get_nasdaq_symbols(checked_workday):
-    stocks = get_exchange_symbols("NASDAQ", checked_workday)
-    return stocks
-
-
-def get_asx_symbols(checked_workday):
-    stocks = get_exchange_symbols("ASX", checked_workday)
-    return stocks
-
-
-def get_market_index_ticker(exchange):
-    if exchange.lower() == 'asx':
-        return "AXJO.INDX"
-    elif exchange.lower() == 'nasdaq':
-        return "ONEQ"  # nasdaq ETF
-    else:
-        print("Unknown market")
-        exit(0)
 
 def get_stock_data(code, reporting_date_start):
     global session

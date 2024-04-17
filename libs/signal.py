@@ -411,6 +411,7 @@ def market_bearish(
     ohlc_with_indicators_daily,
     volume_daily,
     output=False,
+    verbose_market_name=''
 ):
     """
     :param ohlc_with_indicators_daily: daily OHLC with indicators (pandas df)
@@ -438,7 +439,7 @@ def market_bearish(
 
     if output:
         print(
-            f"- Market below MA200: [{market_below_ma_200}] | MA10 decreasing: [{ma_10_decreasing}]"
+            f"- Market {verbose_market_name} below MA200: [{market_below_ma_200}] | MA10 decreasing: [{ma_10_decreasing}]"
         )
 
     negative_confirmation = [
