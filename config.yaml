@@ -17,6 +17,7 @@ filters:
 
 locality:
   tzinfo: Australia/Sydney
+  shift_update_day: True  # shift update day by 1 by default, useful for being located in AU and trading US
 
 simulator:  # note - does not apply to the legacy simulator, only works with the current one
   capital: 100000
