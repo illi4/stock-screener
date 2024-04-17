@@ -15,7 +15,7 @@ from libs.signal import bullish_mri_based, market_bearish, bullish_anx_based
 from libs.stocktools import (
     get_stock_data,
     ohlc_daily_to_weekly,
-    get_exchange_symbols, 
+    get_exchange_symbols,
     Market
 )
 from libs.db import (
