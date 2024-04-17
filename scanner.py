@@ -13,13 +13,10 @@ from libs.helpers import (
 )
 from libs.signal import bullish_mri_based, market_bearish, bullish_anx_based
 from libs.stocktools import (
-    get_asx_symbols,
-    get_nasdaq_symbols,
     get_stock_data,
     ohlc_daily_to_weekly,
     get_exchange_symbols,
-    get_stock_suffix,
-    get_market_index_ticker,
+    Market
 )
 from libs.db import (
     bulk_add_stocks,
@@ -45,8 +42,7 @@ def rewrite_stocks(exchange, stocks):
     print("Update finished")
 
 
-def update_stocks():
-    exchange = config["market"]
+def update_stocks(active_markets):
 
     if arguments["date"] is None:
         if not config["locality"]["shift_update_day"]:
@@ -59,35 +55,27 @@ def update_stocks():
 
     print(f"Updating info on traded stocks as of {checked_workday}")
 
-    if exchange == "ASX":
-        stocks = get_asx_symbols(checked_workday)
-        rewrite_stocks(exchange, stocks)
-    elif exchange == "NASDAQ":
-        stocks = get_nasdaq_symbols(checked_workday)
-        rewrite_stocks(exchange, stocks)
-    elif exchange == "ALL":
-        for each_exchange in ["ASX", "NASDAQ"]:
-            print(f"Processing {each_exchange}...")
-            stocks = get_exchange_symbols(each_exchange, checked_workday)
-            rewrite_stocks(each_exchange, stocks)
+    for market in active_markets:
+        print(f'Updating stock list for {market.market_code}')
+        stocks = get_exchange_symbols(market, checked_workday)
+        rewrite_stocks(market.market_code, stocks)
 
+def check_update_date(active_markets):
 
-def check_update_date():
-    exchange = config["market"]
-
-    try:
-        last_update_date = get_update_date(exchange)
-        diff = dates_diff(last_update_date)
-        if diff > 1:
+    for market in active_markets:
+        try:
+            last_update_date = get_update_date(market.market_code)
+            diff = dates_diff(last_update_date)
+            if diff > 1:
+                print(
+                    "Warning: Stocks list was not updated today, the volume filter could work incorrectly. "
+                    "Please consider running the --update first..."
+                )
+                sleep(3)
+        except:
             print(
-                "Warning: Stocks list was not updated today, the volume filter could work incorrectly. "
-                "Please consider running the --update first..."
+                "Warning: failed to check the update date for correctness"
             )
-            sleep(3)
-    except:
-        print(
-            "Warning: failed to check the update date for correctness"
-        )
 
 def last_volume_5D_MA(volume_daily):
     volume_ma_20 = MA(volume_daily, 20, colname="volume")
@@ -149,8 +137,8 @@ def process_market_data_at_date(market_ohlc_daily, market_volume_daily):
     return market_ohlc_daily_shifted, market_volume_daily_shifted
 
 
-def scan_stock(stocks, exchange, method):
-    stock_suffix = get_stock_suffix(exchange)
+def scan_stock(stocks, market, method):
+    stock_suffix = market.stock_suffix
 
     try:
         shortlisted_stocks = []
@@ -223,10 +211,9 @@ def scan_stock(stocks, exchange, method):
         exit(0)
 
 
-def scan_exchange_stocks(exchange, method):
+def scan_exchange_stocks(market, method):
     # Check the market conditions
-    market_ticker = get_market_index_ticker(exchange)
-    market_ohlc_daily, market_volume_daily = get_stock_data(market_ticker, reporting_date_start)
+    market_ohlc_daily, market_volume_daily = get_stock_data(market.related_market_ticker, reporting_date_start)
     market_ohlc_daily, market_volume_daily = process_market_data_at_date(market_ohlc_daily, market_volume_daily)
     is_market_bearish, _ = market_bearish(market_ohlc_daily, market_volume_daily, output=True)
 
@@ -237,14 +224,13 @@ def scan_exchange_stocks(exchange, method):
     # Get the stocks for scanning
     if arguments["stock"] is None:
         stocks = get_stocks(
-            exchange=exchange,
+            exchange=market.market_code,
             price_min=config["pricing"]["min"],
             price_max=config["pricing"]["max"],
             min_volume=config["filters"]["minimum_volume_level"],
         )
     else:
         stocks = get_stocks(
-            exchange=exchange,
             code=arguments["stock"]
         )
 
@@ -252,7 +238,6 @@ def scan_exchange_stocks(exchange, method):
     if arguments["num"] is not None:
         print(f"Limiting to the first {arguments['num']} stocks")
         stocks = stocks[: arguments["num"]]
-
 
     # Get industry bullishness scores: disabled as it was not helpful
     # industry_momentum, industry_score = get_industry_momentum(exchange)
@@ -264,7 +249,7 @@ def scan_exchange_stocks(exchange, method):
         f'and with volume of at least {format_number(config["filters"]["minimum_volume_level"])}\n'
     )
 
-    shortlist = scan_stock(stocks, exchange, method)
+    shortlist = scan_stock(stocks, market, method)
 
     # Short the stocks by volume desc
     sorted_stocks = sorted(shortlist, key=lambda tup: tup[2], reverse=True)
@@ -273,39 +258,28 @@ def scan_exchange_stocks(exchange, method):
     return shortlist, industry_momentum, industry_score
 
 
-def scan_stocks():
+def scan_stocks(active_markets):
 
-    if config["market"] != "ALL":
-        shortlist, industry_momentum, industry_score = scan_exchange_stocks(
-            config["market"], arguments["method"]
-        )
+    shortlists, industry_momentums, industry_scores = dict(), dict(), dict()
+
+    for market in active_markets:
+        (
+                shortlists[market.market_code],
+                industry_momentums[market.market_code],
+                industry_scores[market.market_code],
+        ) = scan_exchange_stocks(market, arguments["method"])  # need to pass the whole object
+
+    for market in active_markets:
         print()
-        if len(shortlist) > 0:
-            report_on_shortlist(shortlist, industry_score, config["market"])
+        print(f"Results for {market.market_code}")
+        if len(shortlists[market.market_code]) > 0:
+            report_on_shortlist(
+                shortlists[market.market_code],
+                industry_scores[market.market_code],
+                market.market_code,
+            )
         else:
-            print(f"No shortlisted stocks")
-
-    else: # Have not checked for a while, may not work well
-        all_exchanges = ["ASX", "NASDAQ"]
-        shortlists, industry_momentums, industry_scores = dict(), dict(), dict()
-        for each_exchange in all_exchanges:
-            (
-                shortlists[each_exchange],
-                industry_momentums[each_exchange],
-                industry_scores[each_exchange],
-            ) = scan_exchange_stocks(each_exchange, arguments["method"])
-
-        for each_exchange in all_exchanges:
-            print()
-            print(f"Results for {each_exchange}")
-            if len(shortlists[each_exchange]) > 0:
-                report_on_shortlist(
-                    shortlists[each_exchange],
-                    industry_scores[each_exchange],
-                    each_exchange,
-                )
-            else:
-                print(f"No shortlisted stocks")
+            print(f"No shortlisted stocks for {market.market_code}")
 
 
 if __name__ == "__main__":
@@ -315,19 +289,19 @@ if __name__ == "__main__":
     arguments = define_args()
     reporting_date_start = get_data_start_date(arguments["date"])
 
-    if config["market"] == "ALL":
-        print("All markets are not supported, please specify the market.")
-        exit(0)
+    # Initiate market objects
+    active_markets = []
+    for market_code in config["markets"]:
+        active_markets.append(Market(market_code))
 
     if arguments["update"]:
-        update_stocks()
-
+        update_stocks(active_markets)
     if arguments["stock"]:
         print(f'Force checking one stock only: {arguments["stock"]}')
 
     if arguments["scan"]:
-        check_update_date()
-        scan_stocks()
+        check_update_date(active_markets)
+        scan_stocks(active_markets)
 
     print()
     end_time = time()

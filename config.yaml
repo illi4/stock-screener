@@ -1,6 +1,8 @@
 #### Configuration file ####
 
-market: NASDAQ  # supported: ASX, NASDAQ
+markets: # Supported: ASX, NASDAQ, NYSE. In a list so that scanner can work on multiple markets.
+  - NASDAQ
+  - NYSE
 
 pricing:
   min: 0.005  # minimum price to filter stocks when running scanner
@@ -29,8 +31,11 @@ simulator:  # note - does not apply to the legacy simulator, only works with the
 
 logging:
   gsheet_name: "Trading journal R&D 2024"
-  gsheet_columns: # Different for ANX and MRI
+  gsheet_tab_name: "US_anx"
+  gsheet_actual_price_col: "F"
+  gsheet_columns: # Different for ANX and MRI (!)
     - stock
+    - market
     - trade_type
     - entry_date
     - entry_price_planned

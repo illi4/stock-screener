@@ -6,7 +6,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 import libs.gsheetobj as gsheetsobj
-from libs.stocktools import get_stock_data, get_stock_suffix, get_market_index_ticker
+from libs.stocktools import get_stock_data, Market
 from libs.techanalysis import MA, SAR
 import arrow
 from datetime import timedelta
@@ -27,11 +27,10 @@ def get_first_true_idx(list):
     return [i for i, x in enumerate(list) if filtr(x)][0]
 
 
-def check_market():
-    exchange = config["market"]   # only supporting asx for now, need to recheck for nasdaq
-    market_ticker = get_market_index_ticker(exchange)
-    market_ohlc_daily, market_volume_daily = get_stock_data(market_ticker, reporting_date_start)
-    is_market_bearish, _ = market_bearish(market_ohlc_daily, market_volume_daily, output=True)
+def check_market(market):
+    market_ohlc_daily, market_volume_daily = get_stock_data(market.related_market_ticker, reporting_date_start)
+    is_market_bearish, _ = market_bearish(market_ohlc_daily, market_volume_daily, output=True,
+                                          verbose_market_name=market.related_market_ticker)
     if is_market_bearish:
         print("Overall market sentiment is bearish, exit all the open positions")
         exit(0)
@@ -39,12 +38,9 @@ def check_market():
 
 def check_positions(method_name):
     alerted_positions = set()
-    exchange = config["market"]    # only supporting NASDAQ for now, easy to replicate for other if needed
-
-    stock_suffix = get_stock_suffix(exchange)
 
     sheet_name = config["logging"]["gsheet_name"]
-    tab_name = f'{exchange}_{method_name}'
+    tab_name = config["logging"]["gsheet_tab_name"]
 
     ws = gsheetsobj.sheet_to_df(sheet_name, tab_name)
 
@@ -58,6 +54,9 @@ def check_positions(method_name):
             stock_code = row["Stock"]
             entry_date_value = row["Entry date"]
 
+            # For each stock, have to initiate a method with market params
+            market = Market(row["Market"])
+
             try:
                 entry_date = arrow.get(entry_date_value, "DD/MM/YYYY").datetime.date()
             except arrow.parser.ParserMatchError:
@@ -65,9 +64,11 @@ def check_positions(method_name):
                 continue  # continue with the next iteration in the for cycle
 
             ohlc_daily, volume_daily = get_stock_data(
-                f"{stock_code}{stock_suffix}", reporting_date_start
+                f"{stock_code}{market.stock_suffix}", reporting_date_start
             )
 
+            # MRI method
+            # Was not checked for correctness of execution after the last update
             if method_name == 'mri':
                 ma10 = MA(ohlc_daily, 10)
                 mergedDf = ohlc_daily.merge(ma10, left_index=True, right_index=True)
@@ -114,28 +115,28 @@ def check_positions(method_name):
                         # results for 4th day open and 6th day open
                         # for 'not moving for 3d / 5d' (first index is 0)
                         alerted_positions.add(
-                            f"{stock_code} ({exchange}) [{entry_date} -> {exit_date}] "
+                            f"{stock_code} ({market.market_code}) [{entry_date} -> {exit_date}] "
                             f"wanted price: {round(wanted_price, 3)} | actual price: {round(opened_price, 3)}"
                         )
                         print(
-                            f"{stock_code} ({exchange}) [{entry_date}]: alert"
+                            f"{stock_code} ({market.market_code}) [{entry_date}]: alert"
                         )
                     except IndexError:
                         alerted_positions.add(
-                            f"{stock_code} ({exchange}) [{entry_date} -> {exit_date}]"
+                            f"{stock_code} ({market.market_code}) [{entry_date} -> {exit_date}]"
                         )
-                        print(f"{stock_code} ({exchange}): alert (market pre-open)")
+                        print(f"{stock_code} ({market.market_code}): alert (market pre-open)")
 
                 else:
                     print(
-                        f"{stock_code} ({exchange}) [{entry_date}]: on track"
+                        f"{stock_code} ({market.market_code}) [{entry_date}]: on track"
                     )
 
             elif method_name == 'anx':
-                (
-                    ohlc_with_indicators_daily,
-                    ohlc_with_indicators_weekly,
-                ) = generate_indicators_daily_weekly(ohlc_daily)
+                #(
+                #    ohlc_with_indicators_daily,
+                #    ohlc_with_indicators_weekly,
+                #) = generate_indicators_daily_weekly(ohlc_daily)
 
                 # Get SAR and check for flips # that doesn't seem to work well
                 # Maybe revisit https://www.tradingview.com/script/OkACQQgL-Lucid-SAR/
@@ -171,20 +172,28 @@ def check_positions(method_name):
                 alert = condition.any()
                 if alert:
                     alerted_positions.add(
-                        f"{stock_code} ({exchange}): bearish cross"
+                        f"{stock_code} ({market.market_code}): bearish cross"
                     )
 
     return alerted_positions
 
 
 if __name__ == "__main__":
+
     arguments = define_args_method_only()
 
-    print("Checking the market")
-    check_market()
+    # Initiate market objects
+    active_markets = []
+    for market_code in config["markets"]:
+        active_markets.append(Market(market_code))
+
+    print("Checking the markets...")
+    for market in active_markets:
+        check_market(market)
 
     print("Checking positions...")
-    alerted_positions = check_positions(method_name=arguments['method'])
+    alerted_positions = check_positions(method_name=arguments["method"])
+
     print()
     if len(alerted_positions) == 0:
         print("No alerts")
