@@ -10,7 +10,7 @@ def get_data_start_date(input_date=None):
     else:
         current_date = arrow.get(input_date.strftime("%Y-%m-%d"), "YYYY-MM-DD")
 
-    shifted_date = current_date.shift(months=-12)
+    shifted_date = current_date.shift(months=-12*4) # need this for MA200 calculation
     data_start_date = shifted_date.format("YYYY-MM-DD")
 
     return data_start_date
@@ -56,6 +56,13 @@ def define_args():
     )
     parser.add_argument(
         "--scan", action="store_true", help="Scan for potential signals"
+    )
+    # Added an option to run scanner on weekly interval rather than daily
+    parser.add_argument(
+        "--weekly",
+        default=False,
+        action="store_true",
+        help="Fix interval",
     )
     parser.add_argument(
         "-date",

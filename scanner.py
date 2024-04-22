@@ -163,7 +163,11 @@ def scan_stock(stocks, market, method):
             ):
                 continue
 
-
+            # Define the interval
+            if arguments["weekly"]:
+                interval = 'weekly'
+            else:
+                interval = config['timeframe']['default']
 
             # Check for confirmation depending on the method
             if method == 'mri':
@@ -180,6 +184,7 @@ def scan_stock(stocks, market, method):
                     ohlc_with_indicators_daily,
                     volume_daily,
                     ohlc_with_indicators_weekly,
+                    interval=interval,
                     output=True,
                     stock_name=stock.name,
                 )
@@ -213,13 +218,16 @@ def scan_stock(stocks, market, method):
 
 def scan_exchange_stocks(market, method):
     # Check the market conditions
+
+    '''
+    # Commented out as this is not useful with this approach
     market_ohlc_daily, market_volume_daily = get_stock_data(market.related_market_ticker, reporting_date_start)
     market_ohlc_daily, market_volume_daily = process_market_data_at_date(market_ohlc_daily, market_volume_daily)
     is_market_bearish, _ = market_bearish(market_ohlc_daily, market_volume_daily, output=True)
-
     if is_market_bearish:
         print("Overall market sentiment is bearish, not scanning individual stocks")
         exit(0)
+    '''
 
     # Get the stocks for scanning
     if arguments["stock"] is None:

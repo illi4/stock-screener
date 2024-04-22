@@ -34,6 +34,7 @@ For ASX, the best time to run it is in the evening after market closure to prepa
   - Use `method` to specify the method used (`mri` or `anx`). 
   - Use `stock` if you want to force check one stock only. E.g. `-stock=NVDA`. 
 - To simulate scanning as of a particular date, use the `-date` parameter (the format is `YYYY-MM-DD`). For example, `python scanner.py --update -date=2021-01-05`.
+- For applying anx on weekly, add a flad `--weekly`, e.g. `python scanner.py --scan -method=anx --weekly`. 
 - Helper scripts (note: requires configuring Google credentials in order to work). Use `-method` parameter as this will influence which spreadsheet is used. 
    - `monitor.py` to run daily to check whether the exit condition was hit for active entries.
    - `paperfill.py` to run daily to fill in the values for paper trade entries automatically. 

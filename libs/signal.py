@@ -173,9 +173,11 @@ def bullish_sars(ohlc_with_indicators_weekly):
     return ohlc_with_indicators_weekly['trend'].iloc[-1] == 1
 
 
-def price_above_ma(ohlc_with_indicators_daily, ma_values, ma_length):
+def price_above_ma(df, ma_values, ma_length):
+    print(df["close"].iloc[-1], ma_values[f"ma{ma_length}"].iloc[-1]) #HERE#
+
     condition = (
-        ohlc_with_indicators_daily["close"].iloc[-1]
+        df["close"].iloc[-1]
         > ma_values[f"ma{ma_length}"].iloc[-1]
     )
     return condition
@@ -305,6 +307,7 @@ def bullish_anx_based(
     ohlc_with_indicators_daily,
     volume_daily,
     ohlc_with_indicators_weekly,
+    interval,
     output=True,
     stock_name="",
 ):
@@ -312,6 +315,7 @@ def bullish_anx_based(
     :param ohlc_with_indicators_daily: daily OHLC with indicators (pandas df)
     :param volume_daily: volume values (pandas df)
     :param ohlc_with_indicators_weekly: weekly OHLC with indicators (pandas df)
+    :param interval: daily or weekly interval
     :param output: should the output be printed
     :param stock_name: name of a stock
     :return:
@@ -325,16 +329,27 @@ def bullish_anx_based(
     bullish_sars_condition = bullish_sars(ohlc_with_indicators_weekly)
     '''
 
+    # Define which dataframe to use depending on the interval
+    if interval == 'daily':
+        active_df = ohlc_with_indicators_daily.copy()
+    elif interval == 'weekly':
+        active_df = ohlc_with_indicators_weekly.copy()
+    else:
+        print(f'Unknown interval {interval}')
+        exit(0)
+
     # Factor: price is above MA200
-    ma200 = MA(ohlc_with_indicators_daily, 200)
-    price_above_ma_condition = price_above_ma(ohlc_with_indicators_daily, ma200, 200)
+    ma200 = MA(active_df, 200)
+
+    price_above_ma_condition = price_above_ma(active_df, ma200, 200)
 
     # Factor: bullish MA cross (MA7 and MA30)
-    ma7 = MA(ohlc_with_indicators_daily, 7)
-    ma30 = MA(ohlc_with_indicators_daily, 30)
+    ma7 = MA(active_df, 7)
+    ma30 = MA(active_df, 30)
     recent_bullish_cross_condition = recent_bullish_cross(ma7, ma30, 7, 30)
 
     # Factor: Close for the last week is not more than X% from the 4 weeks ago
+    # Applies like this on any interval
     not_overextended = weekly_not_overextended(ohlc_with_indicators_weekly)
 
     if output:
