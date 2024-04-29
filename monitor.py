@@ -13,6 +13,8 @@ from datetime import timedelta
 from libs.helpers import get_data_start_date, define_args_method_only
 from libs.signal import market_bearish
 
+from tqdm import tqdm
+
 from scanner import generate_indicators_daily_weekly
 import pandas as pd
 from datetime import datetime
@@ -44,7 +46,7 @@ def check_positions(method_name):
 
     ws = gsheetsobj.sheet_to_df(sheet_name, tab_name)
 
-    for index, row in ws.iterrows():
+    for index, row in tqdm(ws.iterrows(), total=len(ws), desc='Processing', unit='stock(s)'):
         if (
             row["Outcome"] == ""
         ):  # exclude the ones where we have results already, check if price falls below MA10
@@ -53,7 +55,6 @@ def check_positions(method_name):
 
             stock_code = row["Stock"]
             entry_date_value = row["Entry date"]
-
             # For each stock, have to initiate a method with market params
             market = Market(row["Market"])
 
