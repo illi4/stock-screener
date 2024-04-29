@@ -2,7 +2,6 @@
 
 markets: # Supported: ASX, NASDAQ, NYSE. In a list so that scanner can work on multiple markets.
   - NASDAQ
-  - NYSE
 
 pricing:
   min: 0.005  # minimum price to filter stocks when running scanner
