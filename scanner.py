@@ -42,17 +42,22 @@ def rewrite_stocks(exchange, stocks):
     print("Update finished")
 
 
-def update_stocks(active_markets):
-
+def get_current_date():
     if arguments["date"] is None:
         if not config["locality"]["shift_update_day"]:
-            checked_workday = get_current_workday()
+            current_date = get_current_workday()
         else:
-            checked_workday = get_previous_workday()
+            current_date = get_previous_workday()
             print(f'(i) Shifting update date to previous workday per config')
     else:
-        checked_workday = arguments["date"].strftime("%Y-%m-%d")
+        current_date = arguments["date"].strftime("%Y-%m-%d")
 
+    return current_date
+
+
+def update_stocks(active_markets):
+
+    checked_workday = get_current_date()
     print(f"Updating info on traded stocks as of {checked_workday}")
 
     for market in active_markets:
@@ -103,13 +108,9 @@ def generate_indicators_daily_weekly(ohlc_daily):
 
 
 def report_on_shortlist(shortlist, industry_score, exchange):
-    if arguments["date"] is None:
-        as_of = "today"
-    else:
-        as_of = arguments["date"].strftime("%Y-%m-%d")
-
+    checked_workday = get_current_date()
     print(
-        f"{len(shortlist)} shortlisted stocks (sorted by 5-day MA vol) as of {as_of}:"
+        f"{len(shortlist)} shortlisted stocks (sorted by 5-day MA vol) as of {checked_workday}:"
     )
     for stock in shortlist:
         print(f"{stock[0]} ({stock[1]}) | {format_number(stock[2])} volume")
