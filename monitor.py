@@ -17,7 +17,7 @@ from tqdm import tqdm
 
 from scanner import generate_indicators_daily_weekly
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from libs.read_settings import read_config
 config = read_config()
@@ -69,7 +69,7 @@ def check_positions(method_name):
             )
 
             # MRI method
-            # Was not checked for correctness of execution after the last update
+            # Was not checked for correctness of execution after the last update, may not work
             if method_name == 'mri':
                 ma10 = MA(ohlc_daily, 10)
                 mergedDf = ohlc_daily.merge(ma10, left_index=True, right_index=True)
@@ -134,14 +134,14 @@ def check_positions(method_name):
                     )
 
             elif method_name == 'anx':
-                #(
-                #    ohlc_with_indicators_daily,
-                #    ohlc_with_indicators_weekly,
-                #) = generate_indicators_daily_weekly(ohlc_daily)
+                '''
+                (
+                    ohlc_with_indicators_daily,
+                    ohlc_with_indicators_weekly,
+                ) = generate_indicators_daily_weekly(ohlc_daily)
 
                 # Get SAR and check for flips # that doesn't seem to work well
                 # Maybe revisit https://www.tradingview.com/script/OkACQQgL-Lucid-SAR/
-                '''
                 ohlc_with_indicators_weekly = SAR(ohlc_with_indicators_weekly)
                 ohlc_with_indicators_weekly["start_of_week"] = ohlc_with_indicators_weekly["start_of_week"].dt.date
                 ohlc_with_indicators_weekly = ohlc_with_indicators_weekly[
@@ -151,11 +151,10 @@ def check_positions(method_name):
                 # Just a simplified approach
                 if -1 in ohlc_with_indicators_weekly["trend"].values:
                     alerted_positions.add(
-                        f"{stock_code} ({exchange}): SAR flip"
+                        f"{stock_code} ({exchange}): possible SAR flip"
                     )
                 '''
-                # TODO! Check for diamonds (rsi conditions) if the wave colour is automated
-
+                
                 # Check the bearish cross
                 ma7 = MA(ohlc_daily, 7)
                 ma30 = MA(ohlc_daily, 30)
@@ -172,9 +171,14 @@ def check_positions(method_name):
                 condition = ((mergedDf['ma7'] < mergedDf['ma30']) & (mergedDf['ma7'].shift(-1) > mergedDf['ma30'].shift(-1)))
                 alert = condition.any()
                 if alert:
-                    alerted_positions.add(
-                        f"{stock_code} ({market.market_code}): bearish cross"
-                    )
+                    cross_date = mergedDf.loc[condition, 'timestamp'].iloc[0]
+                    days_diff = (datetime.now().date() - cross_date).days
+                    
+                    # Add alert only if the bearish cross date is within 5 days from today
+                    if days_diff <= 5:
+                        alerted_positions.add(
+                            f"{stock_code} ({market.market_code}): bearish cross on {cross_date}"
+                        )
 
     return alerted_positions
 
