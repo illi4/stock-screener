@@ -168,8 +168,16 @@ def check_positions(method_name):
                     mergedDf["timestamp"] >= entry_date
                 ]  # only look from the entry date
 
-                condition = ((mergedDf['ma7'] < mergedDf['ma30']) & (mergedDf['ma7'].shift(-1) > mergedDf['ma30'].shift(-1)))
-                alert = condition.any()
+                # Define the crossover condition
+                condition = (mergedDf['ma7'].shift(1) > mergedDf['ma30'].shift(1)) & (
+                            mergedDf['ma7'] < mergedDf['ma30'])
+
+                # Get the rows where the condition is True
+                crossovers = mergedDf[condition]
+
+                # Check if there is any crossover
+                alert = not crossovers.empty
+
                 if alert:
                     cross_date = mergedDf.loc[condition, 'timestamp'].iloc[0]
                     days_diff = (datetime.now().date() - cross_date).days
@@ -177,7 +185,11 @@ def check_positions(method_name):
                     # Add alert only if the bearish cross date is within 5 days from today
                     if days_diff <= 5:
                         alerted_positions.add(
-                            f"{stock_code} ({market.market_code}): bearish cross on {cross_date}"
+                            f"(!) {stock_code} ({market.market_code}): recent bearish cross on {cross_date} ({days_diff} days ago)"
+                        )
+                    else:
+                        alerted_positions.add(
+                            f"{stock_code} ({market.market_code}): historical bearish cross on {cross_date} ({days_diff} days ago)"
                         )
 
     return alerted_positions
