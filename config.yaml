@@ -42,10 +42,9 @@ logging:
     - control_exit_date
     - exit_price_planned
     - main_exit_price
-    - exit_date_test_a
-    - exit_price_test_a
     - outcome
     - control_result_%
+    - max_level_reached
     - exit_price_portion
     - threshold_1_expected_price
     - threshold_1_actual_price
@@ -56,14 +55,13 @@ logging:
     - threshold_3_expected_price
     - threshold_3_actual_price
     - threshold_3_exit_portion
-    - max_level_reached
-    - pre_formation_run_value
-    - sustainable_growth
-    - significant_volume_spike
-    - decreasing_volume_in_formation
-    - tilted_formation
-    - morningstar_uncertainty
-    - good_news_on_day
-    - analyst_target_price
-    - gap_bw_current_and_target
+    - ma_200_decreasing
+    - weekly_mri_count
+    - weekly_mri_direction
+    - under_td_resistance
+    - broken_td_resistance_before_entry
+    - broken_td_resistance_after_entry
+    - close_to_resistance
+    - setup_type
+    - fisher_distance
     - comments

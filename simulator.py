@@ -28,9 +28,9 @@ pd.set_option("display.max_columns", None)
 take_profit_variants = {
     "tp_d": [0.5, 1, 1.5],  # this is our baseline, the rest is preserved this for historical purposes
     #"_repeated_to_control": [0.25, 0.45, 0.9], #
-    #"tp_b": [0.5, 1],
-    #"tp_c": [0.15, 0.5, 0.9, 1.75],
-    #"tp_e": [0.25, 0.45, 0.9, 1.45],
+    "tp_b": [0.1, 0.2],
+    "tp_c": [0.1],
+    "tp_e": [0.05],
     #"tp_g": [0.25, 0.9, 1.45, 1.75],
     # "tp_h": [1.45, 1.75, 1.95],
     # "tp_k1": [0.45, 1.75, 1.95],
@@ -165,7 +165,6 @@ def prepare_data(ws):
         "entry_price_actual",
         "exit_price_planned",
         "main_exit_price",
-        "exit_price_test_a",
         "threshold_1_expected_price",
         "threshold_1_actual_price",
         "threshold_2_expected_price",
