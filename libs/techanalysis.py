@@ -145,16 +145,16 @@ def coppock_curve(df: pd.DataFrame, wma_length: int = 10, long_roc_length: int =
     """
     df = df.copy()
 
-    # Calculate the Rate of Change (ROC)
-    df['ROC_long'] = df['close'].pct_change(periods=long_roc_length) * 100
-    df['ROC_short'] = df['close'].pct_change(periods=short_roc_length) * 100
+    # Calculate the Rate of Change (ROC) and handle potential anomalies
+    df['ROC_long'] = df['close'].pct_change(periods=long_roc_length).replace([np.inf, -np.inf], np.nan).fillna(0) * 100
+    df['ROC_short'] = df['close'].pct_change(periods=short_roc_length).replace([np.inf, -np.inf], np.nan).fillna(0) * 100
 
     # Calculate the Coppock Curve (sum of the two ROCs)
     df['Coppock'] = df['ROC_long'] + df['ROC_short']
 
     # Calculate the Weighted Moving Average (WMA)
     def weighted_moving_average(series, window):
-        weights = pd.Series(range(1, window + 1))
+        weights = np.arange(1, window + 1)
         return series.rolling(window).apply(lambda prices: np.dot(prices, weights) / weights.sum(), raw=True)
 
     df['Coppock_WMA'] = weighted_moving_average(df['Coppock'], wma_length)
