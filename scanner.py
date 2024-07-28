@@ -247,7 +247,7 @@ def scan_exchange_stocks(market, method):
         exit(0)
 
     # Get the stocks for scanning
-    if arguments["stock"] is None:
+    if arguments["stocks"] is None:
         stocks = get_stocks(
             exchange=market.market_code,
             price_min=config["pricing"]["min"],
@@ -255,8 +255,9 @@ def scan_exchange_stocks(market, method):
             min_volume=config["filters"]["minimum_volume_level"],
         )
     else:
+        # Pass the parameter
         stocks = get_stocks(
-            code=arguments["stock"]
+            codes=arguments["stocks"]
         )
 
     # Limit per arguments as required
@@ -312,8 +313,8 @@ if __name__ == "__main__":
 
     if arguments["update"]:
         update_stocks(active_markets)
-    if arguments["stock"]:
-        print(f'Force checking one stock only: {arguments["stock"]}')
+    if arguments["stocks"]:
+        print(f'Force checking these stock only: {arguments["stocks"]}')
 
     if arguments["scan"]:
         check_update_date(active_markets)
