@@ -25,7 +25,7 @@ from libs.db import (
     get_stocks,
     get_update_date,
 )
-from libs.techanalysis import td_indicators, MA
+from libs.techanalysis import td_indicators, MA, fisher_distance
 import pandas as pd
 from time import time, sleep
 
@@ -164,7 +164,12 @@ def scan_stock(stocks, market, method):
             ):
                 continue
 
+            # Show extra information for reference
+            #print(ohlc_with_indicators_daily.tail())
+            #ohlc_with_indicators_weekly['fisher_dist'] = fisher_distance(ohlc_with_indicators_weekly)
+            #print(ohlc_with_indicators_weekly.tail(10))
 
+            ###HERE###
 
             # Check for confirmation depending on the method
             if method == 'mri':

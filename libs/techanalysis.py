@@ -86,6 +86,50 @@ def ADX(df, length=14):
     return adx_df
 
 
+def fisher_distance(df: pd.DataFrame, fisher_length: int = 9, ema_length: int = 50) -> pd.DataFrame:
+    """
+    Calculate the Fisher Transform with Distance from EMA.
+
+    Parameters:
+    df (pd.DataFrame): DataFrame containing 'Close' price column.
+    fisher_length (int, optional): The lookback period for the Fisher Transform. Defaults to 9.
+    ema_length (int, optional): The period for the EMA calculation. Defaults to 50.
+
+    Returns:
+    pd.DataFrame: A DataFrame containing the calculated Fisher values.
+    """
+    df = df.copy()
+    df['ema'] = df['close'].ewm(span=ema_length, adjust=False).mean()
+    df['distFromEMA'] = df['close'] - df['ema']
+
+    high = df['distFromEMA'].rolling(window=fisher_length).max()
+    low = df['distFromEMA'].rolling(window=fisher_length).min()
+
+    def round_(val):
+        if val > 0.99:
+            return 0.999
+        elif val < -0.99:
+            return -0.999
+        else:
+            return val
+
+    value = np.zeros(len(df))
+    for i in range(1, len(df)):
+        if pd.notna(high[i]) and pd.notna(low[i]):
+            max_diff = max(high[i] - low[i], 0.001)
+            norm_value = 0.66 * ((df['distFromEMA'][i] - low[i]) / max_diff - 0.5) + 0.67 * value[i-1]
+            value[i] = round_(norm_value)
+
+    fish1 = np.zeros(len(df))
+    for i in range(1, len(df)):
+        fish1[i] = 0.5 * np.log((1 + value[i]) / max(1 - value[i], 0.001)) + 0.5 * fish1[i-1]
+
+    df['fish1'] = fish1
+    df['fish2'] = df['fish1'].shift(1)
+
+    return df[['fish1']]
+
+
 def MA(df, length, colname="close"):
     """
     Function to calculate MA (Moving Average)
