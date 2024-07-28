@@ -26,7 +26,7 @@ from libs.db import (
     get_stocks,
     get_update_date,
 )
-from libs.techanalysis import td_indicators, MA, fisher_distance
+from libs.techanalysis import td_indicators, MA, fisher_distance, coppock_curve
 import pandas as pd
 from time import time, sleep
 
@@ -114,7 +114,7 @@ def report_on_shortlist(shortlist, exchange):
         f"{len(shortlist)} shortlisted stocks (sorted by 5-day MA vol) as of {checked_workday}:"
     )
     for stock in shortlist:
-        print(f"{stock.code} ({stock.name}) | Volume {stock.volume} | fisherDaily {stock.fisherDaily:.2} | fisherWeekly {stock.fisherWeekly:.2}")
+        print(f"{stock.code} ({stock.name}) | Volume {stock.volume} | fisherDaily {stock.fisherDaily:.2f} | fisherWeekly {stock.fisherWeekly:.2f} | coppockDaily {stock.coppockDaily:.2f} | coppockWeekly {stock.coppockWeekly:.2f}")
 
 
 def process_data_at_date(ohlc_daily, volume_daily):
@@ -144,6 +144,8 @@ def calculate_extra_metrics(ohlc_with_indicators_daily, ohlc_with_indicators_wee
 
         metric_values['fisherDaily'] = fisher_distance(ohlc_with_indicators_daily).iloc[-1].values[0]
         metric_values['fisherWeekly'] = fisher_distance(ohlc_with_indicators_weekly).iloc[-1].values[0]
+        metric_values['coppockDaily'] = coppock_curve(ohlc_with_indicators_daily).iloc[-1].values[0]
+        metric_values['coppockWeekly'] = coppock_curve(ohlc_with_indicators_weekly).iloc[-1].values[0]
 
         return metric_values
 
@@ -154,7 +156,7 @@ def scan_stock(stocks, market, method): ###HERE###
     shortlisted_stocks = []
     # placeholder for shortlisted stocks and their attributes
     # each stock will be a named tuple with the following definition:
-    Stock = namedtuple('Stock', ['code', 'name', 'volume', 'fisherDaily', 'fisherWeekly'])
+    Stock = namedtuple('Stock', ['code', 'name', 'volume', 'fisherDaily', 'fisherWeekly', 'coppockDaily', 'coppockWeekly'])
 
     # Iterate through the list of stocks
     for i, stock in enumerate(stocks):
@@ -177,12 +179,6 @@ def scan_stock(stocks, market, method): ###HERE###
             or ohlc_with_indicators_weekly is None
         ):
             continue
-
-
-        #print(ohlc_with_indicators_daily.tail())
-        #ohlc_with_indicators_weekly['fisher_dist'] = fisher_distance(ohlc_with_indicators_weekly)
-        #print(ohlc_with_indicators_weekly.tail(10))
-
 
         # Check for confirmation depending on the method
         if method == 'mri':
@@ -222,7 +218,10 @@ def scan_stock(stocks, market, method): ###HERE###
                           name=stock.name,
                           volume=volume_MA_5D,
                           fisherDaily=metric_data['fisherDaily'],
-                          fisherWeekly=metric_data['fisherWeekly'])
+                          fisherWeekly=metric_data['fisherWeekly'],
+                          coppockDaily=metric_data['coppockDaily'],
+                          coppockWeekly=metric_data['coppockWeekly']
+                          )
                 )
 
             else:
