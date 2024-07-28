@@ -86,6 +86,82 @@ def ADX(df, length=14):
     return adx_df
 
 
+def fisher_distance(df: pd.DataFrame, fisher_length: int = 9, ema_length: int = 50) -> pd.DataFrame:
+    """
+    Calculate the Fisher Transform with Distance from EMA.
+
+    Parameters:
+    df (pd.DataFrame): DataFrame containing 'close' price column.
+    fisher_length (int, optional): The lookback period for the Fisher Transform. Defaults to 9.
+    ema_length (int, optional): The period for the EMA calculation. Defaults to 50.
+
+    Returns:
+    pd.DataFrame: A DataFrame containing the calculated Fisher values.
+    """
+    df = df.copy()
+    df['ema'] = df['close'].ewm(span=ema_length, adjust=False).mean()
+    df['distFromEMA'] = df['close'] - df['ema']
+
+    high = df['distFromEMA'].rolling(window=fisher_length).max()
+    low = df['distFromEMA'].rolling(window=fisher_length).min()
+
+    def round_(val):
+        if val > 0.99:
+            return 0.999
+        elif val < -0.99:
+            return -0.999
+        else:
+            return val
+
+    value = np.zeros(len(df))
+    for i in range(1, len(df)):
+        if pd.notna(high[i]) and pd.notna(low[i]):
+            max_diff = max(high[i] - low[i], 0.001)
+            norm_value = 0.66 * ((df['distFromEMA'][i] - low[i]) / max_diff - 0.5) + 0.67 * value[i-1]
+            value[i] = round_(norm_value)
+
+    fisher_dist = np.zeros(len(df))
+    for i in range(1, len(df)):
+        fisher_dist[i] = 0.5 * np.log((1 + value[i]) / max(1 - value[i], 0.001)) + 0.5 * fisher_dist[i-1]
+
+    df['distance'] = fisher_dist
+    #df['trigger'] = df['distance'].shift(1)  # this is unnecessary
+
+    return df[['distance']]
+
+
+def coppock_curve(df: pd.DataFrame, wma_length: int = 10, long_roc_length: int = 14, short_roc_length: int = 11) -> pd.DataFrame:
+    """
+    Calculate the Coppock Curve.
+
+    Parameters:
+    df (pd.DataFrame): DataFrame containing 'close' price column.
+    wma_length (int, optional): The smoothing length for the WMA. Defaults to 10.
+    long_roc_length (int, optional): The lookback period for the long ROC. Defaults to 14.
+    short_roc_length (int, optional): The lookback period for the short ROC. Defaults to 11.
+
+    Returns:
+    pd.DataFrame: A DataFrame containing the calculated Coppock Curve values.
+    """
+    df = df.copy()
+
+    # Calculate the Rate of Change (ROC) and handle potential anomalies
+    df['ROC_long'] = df['close'].pct_change(periods=long_roc_length).replace([np.inf, -np.inf], np.nan).fillna(0) * 100
+    df['ROC_short'] = df['close'].pct_change(periods=short_roc_length).replace([np.inf, -np.inf], np.nan).fillna(0) * 100
+
+    # Calculate the Coppock Curve (sum of the two ROCs)
+    df['Coppock'] = df['ROC_long'] + df['ROC_short']
+
+    # Calculate the Weighted Moving Average (WMA)
+    def weighted_moving_average(series, window):
+        weights = np.arange(1, window + 1)
+        return series.rolling(window).apply(lambda prices: np.dot(prices, weights) / weights.sum(), raw=True)
+
+    df['Coppock_WMA'] = weighted_moving_average(df['Coppock'], wma_length)
+
+    return df[['Coppock_WMA']]  # df[['Close', 'ROC_long', 'ROC_short', 'Coppock', 'Coppock_WMA']]
+
+
 def MA(df, length, colname="close"):
     """
     Function to calculate MA (Moving Average)

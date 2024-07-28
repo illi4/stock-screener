@@ -74,7 +74,7 @@ def define_args():
         help="Method of shortlisting (mri or anx)"
     )
     parser.add_argument(
-        "-stock", type=str, required=False, help="Force checking one stock only"
+        "-stocks", type=str, required=False, help="Force checking specific stocks only"
     )
 
     args = parser.parse_args()
@@ -84,6 +84,8 @@ def define_args():
         arguments["update"] = False
     if not arguments["scan"]:
         arguments["scan"] = False
+    if arguments["stocks"] is not None:
+        arguments["stocks"] = arguments["stocks"].upper()
 
     # Process the date
     if arguments["date"] is not None:
