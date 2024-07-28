@@ -1,6 +1,7 @@
 # Suppress warnings from urllib and gspread
 import warnings
 warnings.filterwarnings("ignore")
+from collections import namedtuple
 
 from libs.helpers import (
     define_args,
@@ -113,7 +114,7 @@ def report_on_shortlist(shortlist, exchange):
         f"{len(shortlist)} shortlisted stocks (sorted by 5-day MA vol) as of {checked_workday}:"
     )
     for stock in shortlist:
-        print(f"{stock[0]} ({stock[1]}) | {format_number(stock[2])} volume")
+        print(f"{stock.code} ({stock.name}) | Volume {stock.volume} | fisherDaily {stock.fisherDaily:.2} | fisherWeekly {stock.fisherWeekly:.2}")
 
 
 def process_data_at_date(ohlc_daily, volume_daily):
@@ -138,83 +139,102 @@ def process_market_data_at_date(market_ohlc_daily, market_volume_daily):
     return market_ohlc_daily_shifted, market_volume_daily_shifted
 
 
-def scan_stock(stocks, market, method):
+def calculate_extra_metrics(ohlc_with_indicators_daily, ohlc_with_indicators_weekly):
+        metric_values = dict()
+
+        metric_values['fisherDaily'] = fisher_distance(ohlc_with_indicators_daily).iloc[-1].values[0]
+        metric_values['fisherWeekly'] = fisher_distance(ohlc_with_indicators_weekly).iloc[-1].values[0]
+
+        return metric_values
+
+
+def scan_stock(stocks, market, method): ###HERE###
+
     stock_suffix = market.stock_suffix
+    shortlisted_stocks = []
+    # placeholder for shortlisted stocks and their attributes
+    # each stock will be a named tuple with the following definition:
+    Stock = namedtuple('Stock', ['code', 'name', 'volume', 'fisherDaily', 'fisherWeekly'])
 
-    try:
-        shortlisted_stocks = []
-        for i, stock in enumerate(stocks):
-            print(f"\n{stock.code} [{stock.name}] ({i + 1}/{len(stocks)})")
-            ohlc_daily, volume_daily = get_stock_data(
-                f"{stock.code}{stock_suffix}", reporting_date_start
-            )
-            if ohlc_daily is None:
-                print("No data on the asset")
-                continue  # skip this asset if there is no data
+    # Iterate through the list of stocks
+    for i, stock in enumerate(stocks):
+        print(f"\n{stock.code} [{stock.name}] ({i + 1}/{len(stocks)})")
+        ohlc_daily, volume_daily = get_stock_data(
+            f"{stock.code}{stock_suffix}", reporting_date_start
+        )
+        if ohlc_daily is None:
+            print("No data on the asset")
+            continue  # skip this asset if there is no data
 
-            ohlc_daily, volume_daily = process_data_at_date(ohlc_daily, volume_daily)
+        ohlc_daily, volume_daily = process_data_at_date(ohlc_daily, volume_daily)
 
-            (
+        (
+            ohlc_with_indicators_daily,
+            ohlc_with_indicators_weekly,
+        ) = generate_indicators_daily_weekly(ohlc_daily)
+        if (
+            ohlc_with_indicators_daily is None
+            or ohlc_with_indicators_weekly is None
+        ):
+            continue
+
+
+        #print(ohlc_with_indicators_daily.tail())
+        #ohlc_with_indicators_weekly['fisher_dist'] = fisher_distance(ohlc_with_indicators_weekly)
+        #print(ohlc_with_indicators_weekly.tail(10))
+
+
+        # Check for confirmation depending on the method
+        if method == 'mri':
+            confirmation, _ = bullish_mri_based(
                 ohlc_with_indicators_daily,
+                volume_daily,
                 ohlc_with_indicators_weekly,
-            ) = generate_indicators_daily_weekly(ohlc_daily)
-            if (
-                ohlc_with_indicators_daily is None
-                or ohlc_with_indicators_weekly is None
-            ):
-                continue
+                consider_volume_spike=True,
+                output=True,
+                stock_name=stock.name,
+            )
+        elif method == 'anx':
+            confirmation, _ = bullish_anx_based(
+                ohlc_with_indicators_daily,
+                volume_daily,
+                ohlc_with_indicators_weekly,
+                output=True,
+                stock_name=stock.name,
+            )
 
-            # Show extra information for reference
-            #print(ohlc_with_indicators_daily.tail())
-            #ohlc_with_indicators_weekly['fisher_dist'] = fisher_distance(ohlc_with_indicators_weekly)
-            #print(ohlc_with_indicators_weekly.tail(10))
 
-            ###HERE###
+        if confirmation:
+            print(f"{stock.name} [v] meeting shortlisting conditions")
+            volume_MA_5D = last_volume_5D_MA(volume_daily)
 
-            # Check for confirmation depending on the method
-            if method == 'mri':
-                confirmation, _ = bullish_mri_based(
-                    ohlc_with_indicators_daily,
-                    volume_daily,
-                    ohlc_with_indicators_weekly,
-                    consider_volume_spike=True,
-                    output=True,
-                    stock_name=stock.name,
+            if volume_MA_5D > config["filters"]["minimum_volume_level"]:
+                print(
+                    f'\n{stock.name} [v] meeting minimum volume level conditions '
+                    f'({format_number(volume_MA_5D)} > {format_number(config["filters"]["minimum_volume_level"])})'
                 )
-            elif method == 'anx':
-                confirmation, _ = bullish_anx_based(
-                    ohlc_with_indicators_daily,
-                    volume_daily,
-                    ohlc_with_indicators_weekly,
-                    output=True,
-                    stock_name=stock.name,
+                # Calculate extra metrics only for shortlisted stocks for a faster process
+                metric_data = calculate_extra_metrics(ohlc_with_indicators_daily, ohlc_with_indicators_weekly)
+
+                # Append the shortlist with a stock and its characteristics
+                shortlisted_stocks.append(
+                    Stock(code=stock.code,
+                          name=stock.name,
+                          volume=volume_MA_5D,
+                          fisherDaily=metric_data['fisherDaily'],
+                          fisherWeekly=metric_data['fisherWeekly'])
                 )
-
-
-            if confirmation:
-                print(f"{stock.name} [v] meeting shortlisting conditions")
-                volume_MA_5D = last_volume_5D_MA(volume_daily)
-
-                if volume_MA_5D > config["filters"]["minimum_volume_level"]:
-                    print(
-                        f'\n{stock.name} [v] meeting minimum volume level conditions '
-                        f'({format_number(volume_MA_5D)} > {format_number(config["filters"]["minimum_volume_level"])})'
-                    )
-                    shortlisted_stocks.append((stock.code, stock.name, volume_MA_5D))
-                else:
-                    print(
-                        f'\n{stock.name} [x] not meeting minimum volume level conditions '
-                        f'({format_number(volume_MA_5D)} < {format_number(config["filters"]["minimum_volume_level"])})'
-                    )
 
             else:
-                print(f"\n{stock.name} [x] not meeting shortlisting conditions")
+                print(
+                    f'\n{stock.name} [x] not meeting minimum volume level conditions '
+                    f'({format_number(volume_MA_5D)} < {format_number(config["filters"]["minimum_volume_level"])})'
+                )
 
-        return shortlisted_stocks
+        else:
+            print(f"\n{stock.name} [x] not meeting shortlisting conditions")
 
-    except KeyboardInterrupt:
-        print("KeyboardInterrupt: exiting")
-        exit(0)
+    return shortlisted_stocks
 
 
 def scan_exchange_stocks(market, method):
@@ -253,11 +273,10 @@ def scan_exchange_stocks(market, method):
 
     shortlist = scan_stock(stocks, market, method)  # this needs to be reworked to use named tuples
 
-    # Short the stocks by volume desc
-    sorted_stocks = sorted(shortlist, key=lambda tup: tup[2], reverse=True)
-    shortlist = [(stock[0], stock[1], stock[2]) for stock in sorted_stocks]
+    # Sort the list by volume in decreasing order
+    sorted_stocks = sorted(shortlist, key=lambda stock: stock.volume, reverse=True)
 
-    return shortlist
+    return sorted_stocks
 
 
 def scan_stocks(active_markets):
