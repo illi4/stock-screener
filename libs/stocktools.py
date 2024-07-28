@@ -8,35 +8,6 @@ import time
 session = None  # to use in requests
 eod_key = os.environ.get("API_KEY")
 
-# Leaving as is, but this is not used anymore
-industry_mapping_asx = {
-    "Energy": "XEJ",
-    "Basic Materials": "XMJ",
-    "Industrials": "XNJ",
-    "Consumer Cyclical": "XDJ",
-    "Consumer Defensive": "XSJ",
-    "Healthcare": "XHJ",
-    "Financial Services": "XIJ",
-    "Technology": "XFJ",
-    "Communication Services": "XTJ",
-    "Utilities": "XUJ",
-    "Real Estate": "XPJ",
-}
-
-industry_mapping_nasdaq = {
-    "Energy": "XLE",
-    "Basic Materials": "XLB",
-    "Industrials": "XLI",
-    "Consumer Cyclical": "XLY",
-    "Consumer Defensive": "XLP",
-    "Healthcare": "XLV",
-    "Financial Services": "XLF",
-    "Technology": "XLK",
-    "Communication Services": "XTL",
-    "Utilities": "XLU",
-    "Real Estate": "IYR",
-}
-
 # Class for the market with its parameters
 class Market:
     def __init__(self, market_code):

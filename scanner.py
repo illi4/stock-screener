@@ -107,7 +107,7 @@ def generate_indicators_daily_weekly(ohlc_daily):
     return ohlc_with_indicators_daily, ohlc_with_indicators_weekly
 
 
-def report_on_shortlist(shortlist, industry_score, exchange):
+def report_on_shortlist(shortlist, exchange):
     checked_workday = get_current_date()
     print(
         f"{len(shortlist)} shortlisted stocks (sorted by 5-day MA vol) as of {checked_workday}:"
@@ -245,35 +245,28 @@ def scan_exchange_stocks(market, method):
         print(f"Limiting to the first {arguments['num']} stocks")
         stocks = stocks[: arguments["num"]]
 
-    # Get industry bullishness scores: disabled as it was not helpful
-    # industry_momentum, industry_score = get_industry_momentum(exchange)
-    industry_momentum, industry_score = None, None
-
     total_number = len(stocks)
     print(
         f'Scanning {total_number} stocks priced {config["pricing"]["min"]} from to {config["pricing"]["max"]} '
         f'and with volume of at least {format_number(config["filters"]["minimum_volume_level"])}\n'
     )
 
-    shortlist = scan_stock(stocks, market, method)
+    shortlist = scan_stock(stocks, market, method)  # this needs to be reworked to use named tuples
 
     # Short the stocks by volume desc
     sorted_stocks = sorted(shortlist, key=lambda tup: tup[2], reverse=True)
     shortlist = [(stock[0], stock[1], stock[2]) for stock in sorted_stocks]
 
-    return shortlist, industry_momentum, industry_score
+    return shortlist
 
 
 def scan_stocks(active_markets):
 
-    shortlists, industry_momentums, industry_scores = dict(), dict(), dict()
+    # Create shortlists placeholder for each market
+    shortlists = dict()
 
     for market in active_markets:
-        (
-                shortlists[market.market_code],
-                industry_momentums[market.market_code],
-                industry_scores[market.market_code],
-        ) = scan_exchange_stocks(market, arguments["method"])  # need to pass the whole object
+        shortlists[market.market_code] = scan_exchange_stocks(market, arguments["method"])  # need to pass the whole object
 
     for market in active_markets:
         print()
@@ -281,7 +274,6 @@ def scan_stocks(active_markets):
         if len(shortlists[market.market_code]) > 0:
             report_on_shortlist(
                 shortlists[market.market_code],
-                industry_scores[market.market_code],
                 market.market_code,
             )
         else:
