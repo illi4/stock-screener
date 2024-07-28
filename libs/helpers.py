@@ -84,6 +84,8 @@ def define_args():
         arguments["update"] = False
     if not arguments["scan"]:
         arguments["scan"] = False
+    if arguments["stock"] is not None:
+        arguments["stock"] = arguments["stock"].upper()
 
     # Process the date
     if arguments["date"] is not None:
