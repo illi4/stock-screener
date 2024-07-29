@@ -24,7 +24,7 @@ simulator:  # note - does not apply to the legacy simulator, only works with the
   capital: 100000
   commission: 0
   simultaneous_positions: # variants to go through if several
-    - 5
+    - 4
   failsafe_trigger_level: 0.15  # 15% to reach. Note: failsafe trigger is not actually used after thorough testing.
   failsafe_exit_level: 0.05  # 5% to throwback.
 
@@ -60,8 +60,10 @@ logging:
     - weekly_mri_direction
     - under_td_resistance
     - broken_td_resistance_before_entry
-    - broken_td_resistance_after_entry
     - close_to_resistance
-    - setup_type
-    - fisher_distance
+    - how_it_looks
+    - fisher_daily
+    - fisher_weekly
+    - coppock_daily
+    - coppock_weekly
     - comments

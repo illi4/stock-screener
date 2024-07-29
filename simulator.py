@@ -26,11 +26,11 @@ pd.set_option("display.max_columns", None)
 # Take profit level variations
 # Would be used iterating over control with simultaneous_positions variations too
 take_profit_variants = {
-    "tp_d": [0.5, 1, 1.5],  # this is our baseline, the rest is preserved this for historical purposes
+    "main": [0.5, 1, 1.5],  # this is our baseline, the rest is preserved this for historical purposes
     #"_repeated_to_control": [0.25, 0.45, 0.9], #
-    "tp_b": [0.1, 0.2],
-    "tp_c": [0.1],
-    "tp_e": [0.05],
+    #"tp_b": [0.1, 0.2],
+    "conservative": [0.05],
+    "conservative_plus": [0.03, 0.05, 0.1],
     #"tp_g": [0.25, 0.9, 1.45, 1.75],
     # "tp_h": [1.45, 1.75, 1.95],
     # "tp_k1": [0.45, 1.75, 1.95],
@@ -252,6 +252,7 @@ class simulation:
         self.failed_entry_day_stocks.pop(stock, None)
         self.failsafe_stock_trigger.pop(stock, None)
         self.failsafe_active_dates.pop(stock, None)
+
 
 def add_entry_no_profit_thresholds(sim, stock):
     if len(sim.current_positions) + 1 > current_simultaneous_positions:
