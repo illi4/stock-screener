@@ -2,6 +2,7 @@ from peewee import *
 import peewee
 import datetime
 import arrow
+from peewee import DoesNotExist
 
 from libs.read_settings import read_config
 config = read_config()
@@ -55,6 +56,19 @@ def check_earliest_price_date():
     except peewee.OperationalError:
         print("Price table does not exist. Creating it now.")
         create_price_table()
+        return None
+
+def get_price_from_db(stock, date):
+    try:
+        price_data = Price.get((Price.stock == stock) & (Price.date == date))
+        return {
+            'open': price_data.open,
+            'high': price_data.high,
+            'low': price_data.low,
+            'close': price_data.close
+        }
+    except DoesNotExist:
+        print(f"No price data found for {stock} on {date}")
         return None
 
 def delete_all_prices():

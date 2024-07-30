@@ -24,7 +24,7 @@ from libs.read_settings import read_config
 config = read_config()
 
 from libs.simulation import Simulation
-from libs.db import check_earliest_price_date, delete_all_prices, bulk_add_prices, create_price_table
+from libs.db import check_earliest_price_date, delete_all_prices, bulk_add_prices, get_price_from_db
 
 pd.set_option("display.max_columns", None)
 
@@ -828,6 +828,13 @@ def iterate_over_variant_tp_mode(results_dict):
     return results_dict, sim
 '''
 
+def check_profit_levels(current_positions, current_date_dt, take_profit_variant):
+    for stock in current_positions:
+        price_data = get_price_from_db(stock, current_date_dt)
+        print(stock, current_date_dt, price_data)
+
+
+
 def run_simulation(results_dict, take_profit_variant):
     # Initiate the simulation object with a starting capital
     sim = Simulation(capital=config["simulator"]["capital"])
@@ -864,6 +871,13 @@ def run_simulation(results_dict, take_profit_variant):
         day_entries = ws.loc[ws["entry_date"] == current_date_dt]
         for key, row in day_entries.iterrows():
             process_entry(sim, row["stock"])
+
+        # Check whether stocks reach the profit level for each stock
+        if len(sim.current_positions) > 0:
+            check_profit_levels(sim.current_positions, current_date_dt, take_profit_variant)
+            exit(0)
+
+        #HERE#
 
         # Exits
         # Take profit levels also handled here using the max level reached column

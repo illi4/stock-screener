@@ -41,6 +41,18 @@ class Simulation:
         self.failsafe_stock_trigger = dict()
         self.failsafe_active_dates = dict()  # for dates check
 
+        # New object
+        self.take_profit_info = {}
+
+    # New function, assumes certain structure
+    def set_take_profit_levels(self, stock, take_profit_variant):
+        self.take_profit_info[stock] = {
+            'levels': [{'level': level['level'], 'exit_proportion': level['exit_proportion'], 'reached': False}
+                       for level in take_profit_variant['take_profit_values']],
+            'total_exit_proportion': 0,
+            'total_profit': 0
+        }
+
     def snapshot_balance(self, current_date_dt):
         self.balances[
             current_date_dt.strftime("%d/%m/%Y")
