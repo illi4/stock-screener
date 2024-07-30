@@ -5,6 +5,8 @@
 import warnings
 warnings.filterwarnings("ignore")
 
+from peewee import IntegrityError
+
 import csv
 import libs.gsheetobj as gsheetsobj
 from libs.signal import red_day_on_volume
@@ -22,6 +24,7 @@ from libs.read_settings import read_config
 config = read_config()
 
 from libs.simulation import Simulation
+from libs.db import check_earliest_price_date, delete_all_prices, bulk_add_prices, create_price_table
 
 pd.set_option("display.max_columns", None)
 
@@ -59,6 +62,9 @@ def define_args():
     )
     parser.add_argument(
         "--failsafe", action="store_true", help="Activate the failsafe approach"
+    )
+    parser.add_argument(
+        "--forced_price_update", action="store_true", help="Activate the failsafe approach"
     )
 
     parser.add_argument(
@@ -105,19 +111,10 @@ def define_args():
 
     args = parser.parse_args()
     arguments = vars(args)
-    #arguments["mode"] = arguments["mode"].lower()
-    if not arguments["plot"]:
-        arguments["plot"] = False
-    if not arguments["failsafe"]:
-        arguments["failsafe"] = False
-    if not arguments["show_monthly"]:
-        arguments["show_monthly"] = False
 
-    # Check for consistency
-    # if arguments["mode"] == 'tp' and arguments["show_monthly"]:
-    #     print('Error: show_monthly option is only supported in the main mode')
-    # if arguments["mode"] == 'tp' and arguments["exit_variation_a"]:
-    #     print('Error: exit_variation_a option is only supported in the main mode')
+    # Convert specific arguments to boolean, defaulting to False if not provided
+    boolean_args = ["plot", "failsafe", "show_monthly", "forced_price_update"]
+    arguments.update({arg: bool(arguments.get(arg)) for arg in boolean_args})
 
     return arguments
 
@@ -935,6 +932,73 @@ def filter_dataframe(df, config):
     return df
 
 
+# Get and save stock prices if not available for running the simulation
+def get_stock_prices(sheet_df, prices_start_date):
+    stock_names = [item.stock for key, item in sheet_df.iterrows()]
+    stock_markets = [item.market for key, item in sheet_df.iterrows()]
+
+    # Convert prices_start_date to date if it's not already
+    if isinstance(prices_start_date, str):
+        prices_start_date = datetime.strptime(prices_start_date, '%Y-%m-%d').date()
+    elif isinstance(prices_start_date, datetime):
+        prices_start_date = prices_start_date.date()
+
+    # Check if the Price table exists and get the earliest date
+    earliest_date = check_earliest_price_date()
+
+    # Ensure earliest_date is also a date object for comparison
+    if earliest_date:
+        if isinstance(earliest_date, datetime):
+            earliest_date = earliest_date.date()
+        elif isinstance(earliest_date, str):
+            earliest_date = datetime.strptime(earliest_date, '%Y-%m-%d').date()
+
+        # Check if the earliest date in the database is within 5 days of the start date
+        date_difference = abs((earliest_date - prices_start_date).days)
+        if (date_difference <= 5) and not arguments["forced_price_update"]:
+            print(f"Data within 5 days of {prices_start_date} already exists in the database. Skipping update.")
+            return {}
+
+    # If the dates don't match or the table was just created, proceed with updating
+    delete_all_prices()  # Clear existing data
+
+    stock_prices = {}
+    prices_to_add = []
+    added_records = set()  # To keep track of unique (stock, date) combinations
+
+    for i, stock in enumerate(stock_names):
+        market = Market(stock_markets[i])
+        print(f"Getting stock data for {stock}{market.stock_suffix}")
+        stock_df = get_stock_data(f"{stock}{market.stock_suffix}", prices_start_date)
+        stock_df = stock_df[0]  # this is the actual dataframe
+
+        stock_prices[stock] = stock_df.to_dict('records')
+
+        # Prepare data for bulk insert, avoiding duplicates
+        for _, row in stock_df.iterrows():
+            record_key = (stock, row['timestamp'])
+            if record_key not in added_records:
+                prices_to_add.append({
+                    'stock': stock,
+                    'date': row['timestamp'].to_pydatetime(),
+                    'open': row['open'],
+                    'high': row['high'],
+                    'low': row['low'],
+                    'close': row['close']
+                })
+                added_records.add(record_key)
+
+    # Bulk insert the new price data
+    if prices_to_add:
+        try:
+            bulk_add_prices(prices_to_add)
+        except IntegrityError as e:
+            print(f"Error inserting prices: {e}")
+            print("Some records may already exist in the database. Continuing with available data.")
+
+    return stock_prices
+
+
 ############## MAIN CODE ###############
 if __name__ == "__main__":
 
@@ -947,12 +1011,12 @@ if __name__ == "__main__":
     start_date = arguments["start"]
     end_date = arguments["end"]
 
-    # reporting_start_date = datetime.strptime(start_date, "%Y-%m-%d") - timedelta(
-    #     days=2 * 365
-    # )
+    # Price data start date is required in advance because we are calculating on a weekly scale
+    prices_start_date = datetime.strptime(start_date, "%Y-%m-%d") - timedelta(
+        days=2 * 365
+    )
     # ^^^ -2 years ago from start is ok for data handling
-    #reporting_start_date = reporting_start_date.strftime("%Y-%m-%d")
-
+    prices_start_date = prices_start_date.strftime("%Y-%m-%d")
 
     # Get the sheet to a dataframe
     sheet_name = config["logging"]["gsheet_name"]
@@ -972,6 +1036,9 @@ if __name__ == "__main__":
 
     # Filter the dataset per the config for the numerical parameters
     ws = filter_dataframe(ws, config)
+
+    # Get information on the price data if the date is new
+    get_stock_prices(ws, prices_start_date)
 
     #ws = ws[ws['stock'] == 'AGIO']
 

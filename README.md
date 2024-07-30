@@ -39,7 +39,7 @@ For ASX, the best time to run it is in the evening after market closure to prepa
    - `monitor.py` to run daily to check whether the exit condition was hit for active entries.
    - `paperfill.py` to run daily to fill in the values for paper trade entries automatically. Also fills in values for a few technical indicators if not populated. 
    - `simulator.py` simulates outcomes per the spreadsheet.  
-     - Current experiment: exit price variation if using stop under the formation. Use the argument `--exit_variation_a`
+     - Use `--forced_price_update` to rewrite prices data in the db. 
    - `simulator_legacy.py` works with the older 21 R&D spreadsheet and also has an optional argument `--market` which would include market MA200/MA10 conditions when running simulation **in the tp mode**. You don't need to run this. 
   This argument is there because the rule on using market conditions was already integrated in methodology and used for the stock selection with scanner.  
 - The monitor would notify: 

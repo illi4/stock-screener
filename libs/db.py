@@ -23,10 +23,47 @@ class Stock(BaseModel):
     type = CharField(null=True)
     date = DateTimeField(default=datetime.datetime.now)
 
+class Price(BaseModel):
+    stock = CharField()
+    date = DateTimeField()
+    open = FloatField()
+    high = FloatField()
+    low = FloatField()
+    close = FloatField()
+
+    class Meta:
+        indexes = (
+            (('stock', 'date'), True),  # Unique index
+        )
+
+def create_price_table():
+    Price.create_table()
+
 
 def create_stock_table():
     Stock.create_table()
 
+
+def check_earliest_price_date():
+    try:
+        earliest_price = Price.select(fn.MIN(Price.date)).scalar()
+        if earliest_price:
+            return earliest_price.date()  # Return just the date part
+        return None
+    except Price.DoesNotExist:
+        return None
+    except peewee.OperationalError:
+        print("Price table does not exist. Creating it now.")
+        create_price_table()
+        return None
+
+def delete_all_prices():
+    Price.delete().execute()
+
+def bulk_add_prices(prices_list):
+    with db.atomic():
+        for batch in chunked(prices_list, 100):
+            Price.insert_many(batch).execute()
 
 def delete_all_stocks(exchange):
     query = Stock.delete().where(Stock.exchange == exchange)

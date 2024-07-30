@@ -150,7 +150,7 @@ def calculate_extra_metrics(ohlc_with_indicators_daily, ohlc_with_indicators_wee
         return metric_values
 
 
-def scan_stock(stocks, market, method): ###HERE###
+def scan_stock(stocks, market, method):
 
     stock_suffix = market.stock_suffix
     shortlisted_stocks = []
