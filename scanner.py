@@ -114,7 +114,7 @@ def report_on_shortlist(shortlist, exchange):
         f"{len(shortlist)} shortlisted stocks (sorted by 5-day MA vol) as of {checked_workday}:"
     )
     for stock in shortlist:
-        print(f"{stock.code} ({stock.name}) | Volume {stock.volume} | fisherDaily {stock.fisherDaily:.2f} | fisherWeekly {stock.fisherWeekly:.2f} | coppockDaily {stock.coppockDaily:.2f} | coppockWeekly {stock.coppockWeekly:.2f}")
+        print(f"{stock.code} ({stock.name}) | Volume {stock.volume}") # | fisherDaily {stock.fisherDaily:.2f} | fisherWeekly {stock.fisherWeekly:.2f} | coppockDaily {stock.coppockDaily:.2f} | coppockWeekly {stock.coppockWeekly:.2f}")
 
 
 def process_data_at_date(ohlc_daily, volume_daily):
