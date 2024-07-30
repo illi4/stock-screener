@@ -1,7 +1,7 @@
 ### Note: works with the R&D spreadsheet format (Trading journal R&D 2021)
 # Simulates trading progress and results over time using a spreadsheet with various considerations
 # Will save the result to simulator_result.csv
-# Use example: python simulator.py -mode=main -exchange=asx -start=2021-02-01 -end=2021-07-01
+# Use example: python simulator_v05.py -mode=main -exchange=asx -start=2021-02-01 -end=2021-07-01
 
 import libs.gsheetobj as gsheetsobj
 from libs.signal import red_day_on_volume

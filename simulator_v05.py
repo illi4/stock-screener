@@ -1,5 +1,5 @@
 # Simulates trading progress and results over time using a spreadsheet with various considerations
-# Will save the output result to simulator_result.csv
+# Will save the result to simulator_result.csv
 
 # Suppress warnings from urllib and gspread
 import warnings
@@ -20,8 +20,6 @@ import matplotlib.pyplot as plt
 
 from libs.read_settings import read_config
 config = read_config()
-
-from libs.simulation import Simulation
 
 pd.set_option("display.max_columns", None)
 
@@ -46,14 +44,13 @@ take_profit_variants = {
 
 def define_args():
     # Take profit levels variation is only supported for the control group, thus the modes are different
-    # Removing this as not used now, only one mode using the sheet
-    # parser.add_argument(
-    #     "-mode",
-    #     type=str,
-    #     required=True,
-    #     help="Mode to run the simulation in (main|tp). Main mode means taking profit as per the spreadsheet setup.",
-    #     choices=["main", "tp"],
-    # )
+    parser.add_argument(
+        "-mode",
+        type=str,
+        required=True,
+        help="Mode to run the simulation in (main|tp). Main mode means taking profit as per the spreadsheet setup.",
+        choices=["main", "tp"],
+    )
     parser.add_argument(
         "--plot", action="store_true", help="Plot the latest simulation"
     )
@@ -87,25 +84,23 @@ def define_args():
         help="End date to run for (YYYY-MM-DD format)",
     )
 
-    # Not used
-    # # Arguments to overwrite default settings for filtering
-    # parser.add_argument(
-    #     "--red_day_exit",
-    #     action="store_true",
-    #     help="Exit when entry day is red (in tp mode only)",
-    # )
+    # Arguments to overwrite default settings for filtering
+    parser.add_argument(
+        "--red_day_exit",
+        action="store_true",
+        help="Exit when entry day is red (in tp mode only)",
+    )
 
-    # Not used
     # Test for the exit price variation experimentation
-    # parser.add_argument(
-    #     "--exit_variation_a",
-    #     action="store_true",
-    #     help="Exit approach experiment A (main mode only)",
-    # )
+    parser.add_argument(
+        "--exit_variation_a",
+        action="store_true",
+        help="Exit approach experiment A (main mode only)",
+    )
 
     args = parser.parse_args()
     arguments = vars(args)
-    #arguments["mode"] = arguments["mode"].lower()
+    arguments["mode"] = arguments["mode"].lower()
     if not arguments["plot"]:
         arguments["plot"] = False
     if not arguments["failsafe"]:
@@ -114,18 +109,18 @@ def define_args():
         arguments["show_monthly"] = False
 
     # Check for consistency
-    # if arguments["mode"] == 'tp' and arguments["show_monthly"]:
-    #     print('Error: show_monthly option is only supported in the main mode')
-    # if arguments["mode"] == 'tp' and arguments["exit_variation_a"]:
-    #     print('Error: exit_variation_a option is only supported in the main mode')
+    if arguments["mode"] == 'tp' and arguments["show_monthly"]:
+        print('Error: show_monthly option is only supported in the main mode')
+    if arguments["mode"] == 'tp' and arguments["exit_variation_a"]:
+        print('Error: exit_variation_a option is only supported in the main mode')
 
     return arguments
 
 
-# def process_filter_args():
-#     red_entry_day_exit = True if arguments["red_day_exit"] else False
-#     failsafe = True if arguments["failsafe"] else False
-#     return red_entry_day_exit, failsafe
+def process_filter_args():
+    red_entry_day_exit = True if arguments["red_day_exit"] else False
+    failsafe = True if arguments["failsafe"] else False
+    return red_entry_day_exit, failsafe
 
 
 def p2f(s):
@@ -167,7 +162,6 @@ def data_filter_by_dates(ws, start_date, end_date):
 
 def prepare_data(ws):
     # Convert types
-    # This should be in gsheetobj
     num_cols = [
         "entry_price_planned",
         "entry_price_actual",
@@ -178,12 +172,7 @@ def prepare_data(ws):
         "threshold_2_expected_price",
         "threshold_2_actual_price",
         "threshold_3_expected_price",
-        "threshold_3_actual_price",
-        "weekly_mri_count",
-        "fisher_daily",
-        "fisher_weekly",
-        "coppock_daily",
-        "coppock_weekly"
+        "threshold_3_actual_price" 
     ]
     ws[num_cols] = ws[num_cols].apply(pd.to_numeric, errors="coerce")
 
@@ -209,8 +198,65 @@ def prepare_data(ws):
     return ws
 
 
+class simulation:
+    def __init__(self, capital):
+        self.current_capital = capital
+        self.minimum_value = capital
+        self.positions_held = 0
+        self.current_positions = set()
+        self.capital_values = []
+        self.winning_trades_number, self.losing_trades_number = 0, 0
+        self.winning_trades, self.losing_trades = [], []
+        self.all_trades = []  # to derive further metrics
+        self.worst_trade_adjusted, self.best_trade_adjusted = 0, 0
+        self.balances = dict()
+        self.capital_values.append(self.current_capital)
+        (
+            self.growth,
+            self.win_rate,
+            self.max_drawdown,
+            self.mom_growth,
+            self.max_negative_strike,
+        ) = (
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        # We need to have capital part 'snapshot' as of the time of position entry
+        self.capital_per_position = dict()
+        # For thresholds
+        self.left_of_initial_entries = dict()  # list of initial entries
+        self.thresholds_reached = dict()  # for the thresholds reached
+        self.entry_prices = dict()  # for the entry prices
+        self.entry_dates = dict()  # for the entry dates
+        # Another dict for capital values and dates detailed
+        self.detailed_capital_values = dict()
+        # A dict for failed entry days whatever the condition is
+        self.failed_entry_day_stocks = dict()
+        # For the failsafe checks
+        self.failsafe_stock_trigger = dict()
+        self.failsafe_active_dates = dict()  # for dates check
 
-def process_entry(sim, stock):
+    def snapshot_balance(self, current_date_dt):
+        self.balances[
+            current_date_dt.strftime("%d/%m/%Y")
+        ] = self.current_capital  # for the end date
+        print("balances:", self.balances)
+
+    def remove_stock_traces(self, stock):
+        self.left_of_initial_entries.pop(stock, None)
+        self.thresholds_reached.pop(stock, None)
+        self.entry_prices.pop(stock, None)
+        self.capital_per_position.pop(stock)
+        self.thresholds_reached[stock] = []
+        self.failed_entry_day_stocks.pop(stock, None)
+        self.failsafe_stock_trigger.pop(stock, None)
+        self.failsafe_active_dates.pop(stock, None)
+
+
+def add_entry_no_profit_thresholds(sim, stock):
     if len(sim.current_positions) + 1 > current_simultaneous_positions:
         print(f"max possible positions held, skipping {stock}")
     else:
@@ -232,113 +278,63 @@ def process_entry(sim, stock):
         )
 
 
-### NOPE that won't do as for comprehensive testing I need to process price at a particular date and maybe fully exit at the point
-def process_exit(sim, stock_code, row, take_profit_values):
-    if stock_code in sim.current_positions:
-        sim.current_positions.remove(stock_code)
+def add_exit_no_profit_thresholds(sim, stock, elem):
+    if stock in sim.current_positions:
+        sim.current_positions.remove(stock)
         sim.positions_held -= 1
-
-        print(f"-> exit {stock_code}")
 
         stock_threshold_results = dict()
 
         # Select appropriate exit price
-        # Just using one
-        # if arguments["exit_variation_a"]:
-        #     exit_price_to_use = elem["exit_price_test_a"]
-        # else:
-        #     exit_price_to_use = elem["main_exit_price"]
+        if arguments["exit_variation_a"]:
+            exit_price_to_use = elem["exit_price_test_a"]
+        else:
+            exit_price_to_use = elem["main_exit_price"]
 
-        # Calculate result based on thresholds
+        # Calculate result based on three thresholds
         main_part_result = (
-                                   row["main_exit_price"] - row["entry_price_actual"]
-        ) / row["entry_price_actual"]
+            exit_price_to_use - elem["entry_price_actual"]
+        ) / elem["entry_price_actual"]
 
-        # Initialize the total result for the stock to zero
-        total_result = 0
-
-        # Get the maximum price reached as a multiplier
-        max_level_reached_multiplier = row["max_level_reached"]  # e.g. 0.2 for 20%
-
-        # Calculate the maximum price based on the entry price
-        max_price_reached = row["entry_price_actual"] * (1 + max_level_reached_multiplier)
-
-        # Convert the proportions to a percentage multiplier
-        # Note: Assuming all proportions sum to 100%.
-        remaining_proportion = 1.0
-
-        # Iterate through levels in the config
-        for level in sorted(take_profit_values, key=lambda x: float(x['level'].strip('%')), reverse=False):
-            # Parse the level and exit proportion
-            level_multiplier = float(level['level'].strip('%')) / 100
-            exit_proportion = float(level['exit_proportion'].strip('%')) / 100
-
-            # Calculate the exit price for this level
-            level_price = row["entry_price_actual"] * (1 + level_multiplier)
-
-            # Determine if this level was reached
-            if max_price_reached >= level_price:
-                # Calculate the partial result for this level
-                part_result = (
-                    (level_price - row["entry_price_actual"]) / row["entry_price_actual"]
-                ) * exit_proportion
-                total_result += part_result
-                remaining_proportion -= exit_proportion
-                print(f"-> {stock_code} reached: {level_multiplier:.2%} | TP exit proportion {exit_proportion:.2%}")
-            else:
-                # Break if the max level reached is less than the current level
-                break
-
-        # Calculate the result for the main exit price if there is any remaining proportion
-        if remaining_proportion > 0:
-            main_part_result = (
-                (row["main_exit_price"] - row["entry_price_actual"]) / row["entry_price_actual"]
-            ) * remaining_proportion
-            total_result += main_part_result
-            print(f"-> {stock_code} main exit price proportion: {remaining_proportion:.2%}")
-
-        # OLD CODE
-        '''
         for i in range(0, 3):
             threshold_result = (
-                                       row[f"threshold_{i + 1}_actual_price"] - row["entry_price_actual"]
-            ) / row["entry_price_actual"]
-            threshold_outcome = threshold_result * row[f"threshold_{i + 1}_exit_portion"]
+                elem[f"threshold_{i+1}_actual_price"] - elem["entry_price_actual"]
+            ) / elem["entry_price_actual"]
+            threshold_outcome = threshold_result * elem[f"threshold_{i+1}_exit_portion"]
             threshold_outcome = (
                 0 if str(threshold_outcome) == "nan" else threshold_outcome
             )
             stock_threshold_results[i + 1] = threshold_outcome
 
-        result = main_part_result * row["exit_price_portion"] + sum(
+        result = main_part_result * elem["exit_price_portion"] + sum(
             stock_threshold_results.values()
         )
-        '''
 
-        if total_result >= 0:
+        if result >= 0:
             sim.winning_trades_number += 1
-            sim.winning_trades.append(total_result)
+            sim.winning_trades.append(result)
             if (sim.best_trade_adjusted is None) or (
-                total_result / current_simultaneous_positions > sim.best_trade_adjusted
+                result / current_simultaneous_positions > sim.best_trade_adjusted
             ):
-                sim.best_trade_adjusted = total_result / current_simultaneous_positions
-        elif total_result < 0:
+                sim.best_trade_adjusted = result / current_simultaneous_positions
+        elif result < 0:
             sim.losing_trades_number += 1
-            sim.losing_trades.append(total_result)
+            sim.losing_trades.append(result)
             if (sim.worst_trade_adjusted is None) or (
-                total_result / current_simultaneous_positions < sim.worst_trade_adjusted
+                result / current_simultaneous_positions < sim.worst_trade_adjusted
             ):
-                sim.worst_trade_adjusted = total_result / current_simultaneous_positions
+                sim.worst_trade_adjusted = result / current_simultaneous_positions
 
         # Add to all trades
-        sim.all_trades.append(total_result)
+        sim.all_trades.append(result)
 
         print(
-            f"-> exit {stock_code} | result: {total_result:.2%} | positions held {sim.positions_held}"
+            f"-> exit {stock} | result: {result:.2%} | positions held {sim.positions_held}"
         )
-        position_size = sim.capital_per_position[stock_code]
+        position_size = sim.capital_per_position[stock]
         print(f"allocated to the position originally: ${position_size}")
 
-        capital_gain = position_size * total_result
+        capital_gain = position_size * result
         print(f"capital gain/loss: ${capital_gain}".replace("$-", "-$"))
         print(f"capital state pre exit: ${sim.current_capital}")
 
@@ -348,7 +344,7 @@ def process_exit(sim, stock_code, row, take_profit_values):
         print(f"balance: ${sim.current_capital}")
 
         sim.capital_values.append(sim.current_capital)
-        sim.capital_per_position.pop(stock_code)
+        sim.capital_per_position.pop(stock)
 
 
 def median_mom_growth(balances):
@@ -358,12 +354,6 @@ def median_mom_growth(balances):
     mom_growth = diff_list / balances_shifted
     return np.median(mom_growth)
 
-def avg_mom_growth(balances):
-    balances = np.array(balances)
-    diff_list = np.diff(balances)
-    balances_shifted = balances[:-1]
-    mom_growth = diff_list / balances_shifted
-    return np.mean(mom_growth)
 
 def longest_negative_strike(arr):
     # Function to return the longest strike of negative numbers
@@ -378,9 +368,9 @@ def longest_negative_strike(arr):
 
 def calculate_metrics(sim, capital):
     print(f"Current capital {sim.current_capital}, starting capital {capital}")
-    #print(
-    #    f"Positions {current_simultaneous_positions}, tp variant {current_tp_variant_name}"
-    #)
+    print(
+        f"Positions {current_simultaneous_positions}, tp variant {current_tp_variant_name}"
+    )
     sim.growth = (sim.current_capital - capital) / capital
     if sim.winning_trades_number > 0:
         sim.win_rate = (sim.winning_trades_number) / (
@@ -391,7 +381,6 @@ def calculate_metrics(sim, capital):
     sim.max_drawdown = calculate_max_drawdown(sim.capital_values)
     balances = [v for k, v in sim.balances.items()]
     sim.mom_growth = median_mom_growth(balances)
-    sim.average_mom_growth = avg_mom_growth(balances)
     sim.max_negative_strike = longest_negative_strike(sim.all_trades)
 
 
@@ -412,7 +401,6 @@ def update_results_dict(
     results_dict,
     sim,
     current_simultaneous_positions,
-    take_profit_variant_name,
     current_variant="control",
     extra_suffix="",
 ):
@@ -426,12 +414,11 @@ def update_results_dict(
         max_drawdown=sim.max_drawdown * 100,
         max_negative_strike=sim.max_negative_strike,
         median_mom_growth=sim.mom_growth * 100,
-        average_mom_growth=sim.average_mom_growth * 100,
         simultaneous_positions=current_simultaneous_positions,
         variant_group=current_variant,
     )
     results_dict[
-        f"{current_variant}_{current_simultaneous_positions}pos_{take_profit_variant_name}{extra_suffix}"
+        f"{current_variant}_{current_simultaneous_positions}pos{extra_suffix}"
     ] = result_current_dict
     return results_dict
 
@@ -678,11 +665,9 @@ def get_dates(start_date, end_date):
     return start_date_dt, end_date_dt, current_date_dt
 
 
-# OLD
-'''
 def interate_over_variant_main_mode(results_dict):
     # Initiate the simulation object with a starting capital
-    sim = Simulation(config["simulator"]["capital"])
+    sim = simulation(config["simulator"]["capital"])
 
     # Starting for a variant
     start_date_dt, end_date_dt, current_date_dt = get_dates(start_date, end_date)
@@ -731,7 +716,7 @@ def interate_over_variant_main_mode(results_dict):
     )
     return results_dict, sim
 
-# OLD
+
 def iterate_over_variant_tp_mode(results_dict):
     # Initiate the simulation object
     sim = simulation(config["simulator"]["capital"])
@@ -829,64 +814,6 @@ def iterate_over_variant_tp_mode(results_dict):
         extra_suffix=f"_tp{current_tp_variant_name}",
     )
     return results_dict, sim
-'''
-
-def run_simulation(results_dict, take_profit_variant):
-    # Initiate the simulation object with a starting capital
-    sim = Simulation(capital=config["simulator"]["capital"])
-
-    # Show some info
-    print(f"Take profit variant {take_profit_variant['variant_name']} | max positions {current_simultaneous_positions}")
-
-    # Starting for a variant
-    start_date_dt, end_date_dt, current_date_dt = get_dates(start_date, end_date)
-
-    # Balance for the start of the period which will then be updated
-    sim.balances[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
-    sim.detailed_capital_values[
-        start_date_dt.strftime("%d/%m/%Y")
-    ] = sim.current_capital
-
-    # Iterating over days
-    while current_date_dt < end_date_dt:
-
-        previous_date_month = current_date_dt.strftime("%m")
-        current_date_dt = current_date_dt + timedelta(days=1)
-        current_date_month = current_date_dt.strftime("%m")
-
-        # Update monthly balances, will be used to run the final sim
-        if previous_date_month != current_date_month:
-            sim.balances[current_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
-        sim.detailed_capital_values[
-            current_date_dt.strftime("%d/%m/%Y")
-        ] = sim.current_capital
-
-        print(current_date_dt, "| positions: ", sim.current_positions)
-
-        # Entries
-        day_entries = ws.loc[ws["entry_date"] == current_date_dt]
-        for key, row in day_entries.iterrows():
-            process_entry(sim, row["stock"])
-
-        # Exits
-        # Take profit levels also handled here using the max level reached column
-        day_exits = ws.loc[ws[f"control_exit_date"] == current_date_dt]
-        for key, row in day_exits.iterrows():
-            process_exit(sim, row["stock"], row, take_profit_variant['take_profit_values'])
-
-    # Add the final balance at the end of the date
-    # sim.snapshot_balance(current_date_dt) # nope, makes MoM calc convoluted
-
-    # Calculate metrics and print the results
-    calculate_metrics(sim, config["simulator"]["capital"])
-    print_metrics(sim)
-
-    # Saving the result in the overall dictionary
-    results_dict = update_results_dict(
-        results_dict, sim, current_simultaneous_positions, take_profit_variant['variant_name']
-    )
-    return results_dict, sim
-
 
 
 def show_monthly_breakdown(result, positions):
@@ -920,41 +847,22 @@ def show_monthly_breakdown(result, positions):
         print(f'(i) results have been written to {csv_filename}')
         print()
 
-
-# Apply filters from config to the DataFrame
-def filter_dataframe(df, config):
-    filters = config["simulator"]["numerical_filters"]
-    for column, conditions in filters.items():
-        if isinstance(conditions, dict):  # Ensure conditions is a dictionary
-            if 'min' in conditions:
-                df = df[df[column] >= conditions['min']]
-            if 'max' in conditions:
-                df = df[df[column] <= conditions['max']]
-        else:
-            print(f"Error: Filter conditions for {column} are not specified correctly.")
-    return df
-
-
-############## MAIN CODE ###############
 if __name__ == "__main__":
 
     arguments = define_args()
-    #red_entry_day_exit, failsafe = process_filter_args()
+    red_entry_day_exit, failsafe = process_filter_args()
 
     print("reading the values...")
 
-    # Dates for simulation
+    # Dates
     start_date = arguments["start"]
     end_date = arguments["end"]
+    reporting_start_date = datetime.strptime(start_date, "%Y-%m-%d") - timedelta(
+        days=2 * 365
+    )
+    # ^^^ -2 years ago from start is ok
+    reporting_start_date = reporting_start_date.strftime("%Y-%m-%d")
 
-    # reporting_start_date = datetime.strptime(start_date, "%Y-%m-%d") - timedelta(
-    #     days=2 * 365
-    # )
-    # ^^^ -2 years ago from start is ok for data handling
-    #reporting_start_date = reporting_start_date.strftime("%Y-%m-%d")
-
-
-    # Get the sheet to a dataframe
     sheet_name = config["logging"]["gsheet_name"]
     tab_name = config["logging"]["gsheet_tab_name"]
 
@@ -963,33 +871,13 @@ if __name__ == "__main__":
     ws.columns = config["logging"]["gsheet_columns"]
     ws = prepare_data(ws)
 
-    # Dict to save all the results, start with empty
+    # Dict to hold all the results
     results_dict = dict()
 
-    # Dates filtering for the dataset in the sheet
+    # Dates filtering for the dataset
     start_date_dt, end_date_dt, current_date_dt = get_dates(start_date, end_date)
     ws = data_filter_by_dates(ws, start_date_dt, end_date_dt)
 
-    # Filter the dataset per the config for the numerical parameters
-    ws = filter_dataframe(ws, config)
-
-    #ws = ws[ws['stock'] == 'AGIO']
-
-    # > Iterate over take profit variants and number of positions
-    for current_simultaneous_positions in config["simulator"]["simultaneous_positions"]:
-        for take_profit_variant in config["simulator"]["take_profit_variants"]:
-            results_dict, latest_sim = run_simulation(
-                results_dict, take_profit_variant
-            )
-
-            # Show breakdown
-            if arguments["show_monthly"]:
-                show_monthly_breakdown(latest_sim.detailed_capital_values,
-                                       positions=config["simulator"]["simultaneous_positions"])
-
-    # < Stop iterations
-
-    '''
     # > Iterating through days and variants for the fixed TP levels per the control & spreadsheet
     current_tp_variant_name = None
     if arguments["mode"] == "main":
@@ -1034,10 +922,8 @@ if __name__ == "__main__":
             )
 
     # < Finished iterating
-    '''
 
     # Finalisation
-
     # Write the output to a dataframe and a spreadsheet
     resulting_dataframes = []
     for k, v in results_dict.items():
@@ -1061,15 +947,14 @@ if __name__ == "__main__":
             "max_negative_strike",
             "win_rate",
             "median_mom_growth",
-            "average_mom_growth",
             "winning_trades_number",
             "worst_trade_adjusted",
         ]
     ]
 
     # just an info bit
-    #if arguments["mode"] == "tp":
-    #    print(f"take profit variants tested: {take_profit_variants}")
+    if arguments["mode"] == "tp":
+        print(f"take profit variants tested: {take_profit_variants}")
 
     # save to csv
     final_result.to_csv("sim_summary.csv", index=False)

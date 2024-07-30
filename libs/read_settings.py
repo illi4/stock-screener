@@ -3,7 +3,7 @@ import yaml  # to access settings
 # Path to your YAML configuration file
 config_file_path = "config.yaml"
 
-# Retreive info and return params
+# Retrieve info and return params
 # To access specific values from the loaded configuration: use loaded_config["pricing"]["min"] etc. )
 def read_config():
 
