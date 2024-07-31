@@ -42,6 +42,8 @@ class Simulation:
         # For the failsafe checks
         self.failsafe_stock_trigger = dict()
         self.failsafe_active_dates = dict()  # for dates check
+        # For stop losses
+        self.stop_loss_prices = {}
 
         # New object
         self.take_profit_info = {}
@@ -90,6 +92,11 @@ class Simulation:
                 if commission > 0:
                     print(f'-- commission ${commission}')
                     self.update_capital(self.current_capital - commission)
+
+
+    def set_stop_loss(self, stock, stop_loss_price):
+        self.stop_loss_prices[stock] = stop_loss_price
+        print(f"-- stop loss for {stock} set at ${stop_loss_price:.2f}")
 
 
     def update_trade_statistics(self, trade_result_percent, positions_num):

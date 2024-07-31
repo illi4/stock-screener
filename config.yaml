@@ -74,8 +74,13 @@ simulator:
   simultaneous_positions: # variants to go through, could be multiple to consider
     - 4
   #  - 5
-  failsafe_trigger_level: 0.15  # 15% to reach. Note: failsafe trigger is not actually used after thorough testing.
+  failsafe_trigger_level: 0.15  # 15% to reach. Note: failsafe trigger is not actually used after thorough testing, remove
   failsafe_exit_level: 0.05  # 5% to throwback.
+  stop_loss_level: 0.55
+  # stop loss to fully exit. this is calculated from the candle previous to entry day (when we have signal) low
+  # ^^^ decimal representation e.g. 0.05 equals 5%
+  # seems that 5% may be too conservative, needs further testing
+
   ### Filters to use
   numerical_filters:
     fisher_daily:
@@ -84,26 +89,27 @@ simulator:
     fisher_weekly:
       min: -500
       max: 500
+
   ### Take profit variants
   take_profit_variants:
 #  - variant_name: "not_taking_profit"
 #    take_profit_values:
 #      - level: 1000%  # ridiculously high so that the baseline is kind of not taking profit; not using
 #        exit_proportion: 100%
-#  - variant_name: "baseline"  # similar to the current approach
-#    take_profit_values:
-#      - level: 50%
-#        exit_proportion: 25%
-#      - level: 100%
-#        exit_proportion: 25%
-#      - level: 150%
-#        exit_proportion: 25%
+  - variant_name: "baseline"  # similar to the current approach
+    take_profit_values:
+      - level: 50%
+        exit_proportion: 25%
+      - level: 100%
+        exit_proportion: 25%
+      - level: 150%
+        exit_proportion: 25%
   - variant_name: "conservative"
     take_profit_values:
       - level: 5%
         exit_proportion: 25%
       - level: 10%
-        exit_proportion: 50%
+        exit_proportion: 25%
 #  - variant_name: "ultra_conservative"  # similar to the current approach
 #    take_profit_values:
 #      - level: 10%

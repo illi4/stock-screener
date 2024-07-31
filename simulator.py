@@ -234,7 +234,13 @@ def prepare_data(ws):
     return ws
 
 
-def process_entry(sim, stock, entry_price, take_profit_variant):
+def get_lowest_price_before_entry(stock, entry_date):
+    previous_date = entry_date - timedelta(days=1)
+    price_info = get_price_from_db(stock, previous_date)
+    return price_info['low']
+
+
+def process_entry(sim, stock, entry_price, take_profit_variant, current_date):
     sim.set_take_profit_levels(stock, take_profit_variant)
 
     if len(sim.current_positions) + 1 > current_simultaneous_positions:
@@ -246,9 +252,18 @@ def process_entry(sim, stock, entry_price, take_profit_variant):
         sim.entry_prices[stock] = entry_price
         sim.set_take_profit_levels(stock, take_profit_variant)
 
-        print(f"-> ENTER {stock} | positions held {sim.positions_held}")
-        print(f'-- commission ${config["simulator"]["commission"]}')
+        # Calculate and set stop loss price
+        lowest_price_before_entry = get_lowest_price_before_entry(stock, current_date)
+
+        stop_loss_price = lowest_price_before_entry * (1 - config["simulator"]["stop_loss_level"])
+        sim.set_stop_loss(stock, stop_loss_price)
+
         sim.current_capital -= config["simulator"]["commission"]
+
+        # Show info
+        print(f"-> ENTER {stock} | positions held: {sim.positions_held}")
+        print(f'-- commission ${config["simulator"]["commission"]}')
+        print(f"-- stop loss set @ ${stop_loss_price:.2f}")
         print(f"-- current capital on entry: ${sim.current_capital}, allocated to the position: ${sim.capital_per_position[stock]}")
 
 
@@ -267,16 +282,19 @@ def calculate_profit_contribution(take_profit_info):
         if level['reached']
     )
 
-def process_exit(sim, stock_code, price_data):
+def process_exit(sim, stock_code, price_data, forced_price=None):
     if stock_code in sim.current_positions:
 
         entry_price = sim.entry_prices[stock_code]
         total_position_size = sim.capital_per_position[stock_code]
 
-        final_exit_proportion = 1 - sim.take_profit_info[stock_code]['taken_profit_proportion']
-        final_price_change = (price_data['open'] - entry_price) / entry_price
+        # Check if we need to use specific price
+        exit_price = forced_price if forced_price is not None else price_data['open']
 
-        print(f"-> Full exit ({stock_code}) current price: ${price_data['open']:.2f} | entry ${entry_price:.2f} | change {final_price_change:.2%}")
+        final_exit_proportion = 1 - sim.take_profit_info[stock_code]['taken_profit_proportion']
+        final_price_change = (exit_price - entry_price) / entry_price
+
+        print(f"-> Full exit ({stock_code}) exit price: ${exit_price:.2f} | entry ${entry_price:.2f} | change {final_price_change:.2%}")
 
         # Calculate the contribution from the take profit levels
         # This is representing the growth from the overall original amount, accounted for the proportion of TP levels
@@ -363,11 +381,31 @@ def get_dates(start_date, end_date):
     return start_date_dt, end_date_dt, current_date_dt
 
 
-def check_profit_levels(sim, current_positions, current_date_dt, take_profit_variant):
-    for stock in current_positions:
+def check_profit_levels(sim, current_date_dt, take_profit_variant):
+    for stock in sim.current_positions:
         price_data = get_price_from_db(stock, current_date_dt)
         if price_data:
             sim.check_and_update_take_profit(stock, price_data['high'], price_data['open'], take_profit_variant, config["simulator"]["commission"])
+
+def check_stop_loss(sim, current_date_dt):
+
+    stops_hit = []
+
+    for stock in sim.current_positions:
+        price_data = get_price_from_db(stock, current_date_dt)
+        # check if the low for the day is below stop loss level
+        stop_loss_hit = (price_data['low'] < sim.stop_loss_prices[stock])
+        if stop_loss_hit:
+            # calculate which price to use. some stocks gap down significantly
+            stopped_out_price = min(sim.stop_loss_prices[stock], price_data['open'])
+            print(f'-> STOP LOSS HIT ({stock}) @ ${stopped_out_price:.2f}')
+            # add this to stops_hit
+            stops_hit.append(dict(stock=stock, stopped_out_price=stopped_out_price, price_data=price_data))
+
+    # Process exits for the stocks
+    for hits in stops_hit:
+        process_exit(sim, hits['stock'], hits['price_data'], forced_price=hits['stopped_out_price'])
+
 
 def run_simulation(results_dict, take_profit_variant):
     sim = Simulation(capital=config["simulator"]["capital"])
@@ -392,11 +430,13 @@ def run_simulation(results_dict, take_profit_variant):
         # Entries
         day_entries = ws.loc[ws["entry_date"] == current_date_dt]
         for key, row in day_entries.iterrows():
-            process_entry(sim, row["stock"], row["entry_price_actual"], take_profit_variant)
+            process_entry(sim, row["stock"], row["entry_price_actual"], take_profit_variant, current_date_dt)
 
         # Check whether stocks reach the profit level for each stock
+        # Also check for stop losses
         if len(sim.current_positions) > 0:
-            check_profit_levels(sim, sim.current_positions, current_date_dt, take_profit_variant)
+            check_profit_levels(sim, current_date_dt, take_profit_variant)
+            check_stop_loss(sim, current_date_dt)
 
         # Exits
         day_exits = ws.loc[ws[f"control_exit_date"] == current_date_dt]
