@@ -291,7 +291,9 @@ def process_exit(sim, stock_code, price_data, forced_price=None):
         final_exit_proportion = 1 - sim.take_profit_info[stock_code]['taken_profit_proportion']
         final_price_change = (exit_price - entry_price) / entry_price
 
-        print(f"-> Full exit ({stock_code}) exit price: ${exit_price:.2f} | entry ${entry_price:.2f} | change {final_price_change:.2%}")
+        # Print some stats
+        print(f"-> Full exit ({stock_code}) [${total_position_size:.2f} position size]")
+        print(f"-- exit price: ${exit_price:.2f} | entry ${entry_price:.2f} | change {final_price_change:.2%}")
 
         # Calculate the contribution from the take profit levels
         # This is representing the growth from the overall original amount, accounted for the proportion of TP levels
