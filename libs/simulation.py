@@ -124,50 +124,28 @@ class Simulation:
                 max_drawdown = drawdown
         return max_drawdown
 
-    def calculate_median_mom_growth(self):
-        balances = np.array(self.capital_values)
-        diff_list = np.diff(balances)
-        balances_shifted = balances[:-1]
-        mom_growth = diff_list / balances_shifted
-        return np.median(mom_growth)
-
     def calculate_avg_mom_growth(self):
-        balances = np.array(self.capital_values)
-        diff_list = np.diff(balances)
-        balances_shifted = balances[:-1]
-        mom_growth = diff_list / balances_shifted
-        return np.mean(mom_growth)
+        balances = list(self.balances.values())
+        if len(balances) < 2:
+            return 0
 
-    def calculate_longest_negative_strike(self):
-        max_negative_strike = 0
-        for g, k in groupby(self.all_trades, key=lambda x: x < 0):
-            vals = list(k)
-            negative_strike_length = len(vals)
-            if g and negative_strike_length > max_negative_strike:
-                max_negative_strike = negative_strike_length
-        return max_negative_strike
-
-    def calculate_metrics(self):
-        self.growth = (self.current_capital - self.capital_values[0]) / self.capital_values[0]
-        self.win_rate = self.winning_trades_number / (self.winning_trades_number + self.losing_trades_number) if (self.winning_trades_number + self.losing_trades_number) > 0 else 0
-        self.max_drawdown = self.calculate_max_drawdown()
-        self.mom_growth = self.calculate_median_mom_growth()
-        self.average_mom_growth = self.calculate_avg_mom_growth()
-        self.max_negative_strike = self.calculate_longest_negative_strike()
+        total_growth = (balances[-1] - balances[0]) / balances[0]
+        num_months = len(balances) - 1
+        avg_mom_growth = total_growth / num_months
+        return avg_mom_growth
 
     def calculate_median_mom_growth(self):
-        balances = np.array(self.capital_values)
-        diff_list = np.diff(balances)
-        balances_shifted = balances[:-1]
-        mom_growth = diff_list / balances_shifted
-        return np.median(mom_growth)
+        balances = list(self.balances.values())
+        if len(balances) < 2:
+            return 0
 
-    def calculate_avg_mom_growth(self):
-        balances = np.array(self.capital_values)
-        diff_list = np.diff(balances)
-        balances_shifted = balances[:-1]
-        mom_growth = diff_list / balances_shifted
-        return np.mean(mom_growth)
+        mom_growths = []
+        for i in range(1, len(balances)):
+            mom_growth = (balances[i] - balances[i-1]) / balances[i-1]
+            mom_growths.append(mom_growth)
+
+        median_mom_growth = np.median(mom_growths)
+        return median_mom_growth
 
     def calculate_longest_negative_strike(self):
         max_negative_strike = 0
