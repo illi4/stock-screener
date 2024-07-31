@@ -421,11 +421,14 @@ def run_simulation(results_dict, take_profit_variant):
         current_date_dt = current_date_dt + timedelta(days=1)
         current_date_month = current_date_dt.strftime("%m")
 
+        print(current_date_dt, "| positions: ", sim.current_positions)
+
+        # Process pending stop loss updates at the beginning of each day
+        sim.process_pending_stop_loss_updates()
+
         if previous_date_month != current_date_month:
             sim.balances[current_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
         sim.detailed_capital_values[current_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
-
-        print(current_date_dt, "| positions: ", sim.current_positions)
 
         # Entries
         day_entries = ws.loc[ws["entry_date"] == current_date_dt]

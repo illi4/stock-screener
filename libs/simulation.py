@@ -42,23 +42,25 @@ class Simulation:
         # For the failsafe checks
         self.failsafe_stock_trigger = dict()
         self.failsafe_active_dates = dict()  # for dates check
-        # For stop losses
+        # For stop losses etc
         self.stop_loss_prices = {}
-
-        # New object
         self.take_profit_info = {}
+        # For executing stop trail updates on the day AFTER the take profit is reached
+        self.pending_stop_loss_updates = {}
 
     # New function, assumes certain structure
     def set_take_profit_levels(self, stock, take_profit_variant):
         self.take_profit_info[stock] = {
-            'levels': [{'level': level['level'], 'exit_proportion': level['exit_proportion'],
+            'levels': [{'level': level['level'],
+                        'exit_proportion': level['exit_proportion'],
                         'reached': False,
                         'price': None,
-                        'actual_level': None
+                        'actual_level': None,
+                        'move_stop_price': level.get('move_stop_price', False),
+                        'move_stop_from_tp_level': level.get('move_stop_from_tp_level', None)
                         }
                        for level in take_profit_variant['take_profit_values']],
-            'taken_profit_proportion': 0,
-            #'total_profit': 0
+            'taken_profit_proportion': 0
         }
 
     def check_and_update_take_profit(self, stock, high_price, open_price, take_profit_variant, commission):
@@ -89,15 +91,32 @@ class Simulation:
 
                 #print(self.take_profit_info[stock])
 
+                # Update stop (change to trailing stop) if required for this level
+                if level['move_stop_price']:
+                    move_stop_percentage = float(level['move_stop_from_tp_level'].strip('%')) / 100
+                    new_stop_level = price_to_use * (1 - move_stop_percentage)
+                    self.pending_stop_loss_updates[stock] = new_stop_level
+                    print(f"-- scheduled stop level update for {stock} to ${new_stop_level:.2f}")
+
                 if commission > 0:
                     print(f'-- commission ${commission}')
                     self.update_capital(self.current_capital - commission)
+
+
+    def process_pending_stop_loss_updates(self):
+        for stock, new_stop_level in self.pending_stop_loss_updates.items():
+            if stock in self.current_positions:
+                self.update_stop_level(stock, new_stop_level)
+        self.pending_stop_loss_updates.clear()
 
 
     def set_stop_loss(self, stock, stop_loss_price):
         self.stop_loss_prices[stock] = stop_loss_price
         print(f"-- stop loss for {stock} set at ${stop_loss_price:.2f}")
 
+    def update_stop_level(self, stock, new_stop_level):
+        self.stop_loss_prices[stock] = new_stop_level
+        print(f"-- Moved stop level for {stock} to ${new_stop_level:.2f}")
 
     def update_trade_statistics(self, trade_result_percent, positions_num):
         self.all_trades.append(trade_result_percent)
