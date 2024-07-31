@@ -232,45 +232,6 @@ def process_exit(sim, stock_code, price_data, partial=False):
         sim.update_trade_statistics(total_profit)
 
 
-
-def median_mom_growth(balances):
-    balances = np.array(balances)
-    diff_list = np.diff(balances)
-    balances_shifted = balances[:-1]
-    mom_growth = diff_list / balances_shifted
-    return np.median(mom_growth)
-
-def avg_mom_growth(balances):
-    balances = np.array(balances)
-    diff_list = np.diff(balances)
-    balances_shifted = balances[:-1]
-    mom_growth = diff_list / balances_shifted
-    return np.mean(mom_growth)
-
-def longest_negative_strike(arr):
-    # Function to return the longest strike of negative numbers
-    max_negative_strike = 0
-    for g, k in groupby(arr, key=lambda x: x < 0):
-        vals = list(k)
-        negative_strike_length = len(vals)
-        if g and negative_strike_length > max_negative_strike:
-            max_negative_strike = negative_strike_length
-    return max_negative_strike
-
-
-def print_metrics(sim):
-    print()
-    print(f"capital growth/loss: {sim.growth:.2%}")
-    print(
-        f"win rate: {sim.win_rate:.2%} | winning_trades: {sim.winning_trades_number} | losing trades: {sim.losing_trades_number}"
-    )
-    print(
-        f"best trade (adjusted for sizing) {sim.best_trade_adjusted:.2%} | worst trade (adjusted for sizing) {sim.worst_trade_adjusted:.2%}"
-    )
-    print(f"max_drawdown: {sim.max_drawdown:.2%}")
-    print(f"max_negative_strike: {sim.max_negative_strike}")
-
-
 def update_results_dict(
     results_dict,
     sim,
@@ -594,7 +555,7 @@ def run_simulation(results_dict, take_profit_variant):
 
     # Calculate metrics and print the results
     sim.calculate_metrics()
-    print_metrics(sim)
+    sim.print_metrics()
 
     # Saving the result in the overall dictionary
     results_dict = update_results_dict(
