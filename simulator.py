@@ -16,7 +16,7 @@ import argparse
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
-from openpyxl.styles import Font
+from openpyxl.styles import Font, numbers
 
 # For plotting
 import matplotlib.pyplot as plt
@@ -890,6 +890,7 @@ if __name__ == "__main__":
     wb = Workbook()
     ws1 = wb.active
     ws1.title = "Summary"
+
     for r in dataframe_to_rows(final_result, index=False, header=True):
         ws1.append(r)
 
@@ -912,11 +913,6 @@ if __name__ == "__main__":
             img.width = 900
             img.height = 500
             ws3.add_image(img, f'A{row}')
-
-            # Add caption
-            caption_cell = ws3.cell(row=row+26, column=1)  # Adjust row as needed
-            caption_cell.value = f"Capital Over Time - {variant_name}"
-            caption_cell.font = Font(bold=True)
 
             row += 30  # Spacing between plots
 
