@@ -47,8 +47,9 @@ class Simulation:
         self.take_profit_info = {}
         # For executing stop trail updates on the day AFTER the take profit is reached
         self.pending_stop_loss_updates = {}
+        self.trailing_stop_active = {}  # for reporting purposes
 
-    # New function, assumes certain structure
+
     def set_take_profit_levels(self, stock, take_profit_variant):
         self.take_profit_info[stock] = {
             'levels': [{'level': level['level'],
@@ -116,6 +117,7 @@ class Simulation:
 
     def update_stop_level(self, stock, new_stop_level):
         self.stop_loss_prices[stock] = new_stop_level
+        self.trailing_stop_active[stock] = True
         print(f"-- Moved stop level for {stock} to ${new_stop_level:.2f}")
 
     def update_trade_statistics(self, trade_result_percent, positions_num):

@@ -317,11 +317,14 @@ def process_exit(sim, stock_code, price_data, forced_price=None):
         sim.current_capital -= config["simulator"]["commission"]
         print(f"Capital {previous_capital} -> {sim.current_capital}")
 
+        # Delete traces
         sim.current_positions.remove(stock_code)
         sim.positions_held -= 1
         del sim.capital_per_position[stock_code]
         del sim.take_profit_info[stock_code]
+        sim.trailing_stop_active.pop(stock_code, None)
 
+        # Results update
         sim.update_capital(sim.current_capital)
         sim.update_trade_statistics(overall_result, current_simultaneous_positions)
 
@@ -398,7 +401,10 @@ def check_stop_loss(sim, current_date_dt):
         if stop_loss_hit:
             # calculate which price to use. some stocks gap down significantly
             stopped_out_price = min(sim.stop_loss_prices[stock], price_data['open'])
-            print(f'-> STOP LOSS HIT ({stock}) @ ${stopped_out_price:.2f}')
+
+            # different messaging if we have stop loss vs trailing stop
+            msg = 'STOP PROFIT' if sim.trailing_stop_active.get(stock, False) else 'STOP LOSS'
+            print(f'-> {msg} HIT ({stock}) @ ${stopped_out_price:.2f}')
             # add this to stops_hit
             stops_hit.append(dict(stock=stock, stopped_out_price=stopped_out_price, price_data=price_data))
 
