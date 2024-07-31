@@ -355,7 +355,7 @@ def update_results_dict(
         max_negative_strike=sim.max_negative_strike,
         median_mom_growth=sim.mom_growth,
         average_mom_growth=sim.average_mom_growth,
-        simultaneous_positions=current_simultaneous_positions,
+        max_positions=current_simultaneous_positions,
         variant_group=current_variant,
     )
     results_dict[
@@ -655,7 +655,7 @@ if __name__ == "__main__":
     final_result = final_result[
         [
             "variant",
-            "simultaneous_positions",
+            "max_positions",
             "variant_group",
             "growth",
             "max_drawdown",
@@ -671,7 +671,7 @@ if __name__ == "__main__":
 
     # Format percentage and number columns
     percentage_cols = ["growth", "max_drawdown", "win_rate", "median_mom_growth", "average_mom_growth", "best_trade_adjusted", "worst_trade_adjusted"]
-    number_cols = ["winning_trades_number", "losing_trades_number"]
+    number_cols = ["max_positions", "winning_trades_number", "losing_trades_number"]
 
     final_result[percentage_cols] = final_result[percentage_cols].applymap(format_percentage)
     final_result[number_cols] = final_result[number_cols].applymap(format_number)
