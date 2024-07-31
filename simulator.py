@@ -260,43 +260,52 @@ def exit_all_positions(sim, current_date_dt):
         else:
             print(f"Warning: No price data found for {stock} on {current_date_dt}. Skipping exit.")
 
+def calculate_profit_contribution(take_profit_info):
+    return sum(
+        float(level['actual_level']) * float(level['exit_proportion'].strip('%')) / 100  # proportion is in string from config
+        for level in take_profit_info['levels']
+        if level['reached']
+    )
 
-def process_exit(sim, stock_code, price_data, partial=False):
+def process_exit(sim, stock_code, price_data):
     if stock_code in sim.current_positions:
-        if partial:
-            # Handle partial exit
-            exit_proportion = sim.take_profit_info[stock_code]['total_exit_proportion']
-            total_profit = sim.take_profit_info[stock_code]['total_profit']
-        else:
-            # Full exit
-            exit_proportion = 1.0
-            total_profit = (price_data['open'] - sim.entry_prices[stock_code]) / sim.entry_prices[stock_code]  # use open price on the exit day
 
-        position_size = sim.capital_per_position[stock_code]
-        exit_size = position_size * exit_proportion
-        capital_gain = exit_size * total_profit
+        entry_price = sim.entry_prices[stock_code]
+        total_position_size = sim.capital_per_position[stock_code]
 
-        sim.current_capital += capital_gain
+        final_exit_proportion = 1 - sim.take_profit_info[stock_code]['taken_profit_proportion']
+        final_price_change = (price_data['open'] - entry_price) / entry_price
+
+        print(f"-> Full exit ({stock_code}) current price: ${price_data['open']:.2f} | entry ${entry_price:.2f} | change {final_price_change:.2%}")
+
+        # Calculate the contribution from the take profit levels
+        # This is representing the growth from the overall original amount, accounted for the proportion of TP levels
+        tp_contribution = calculate_profit_contribution(sim.take_profit_info[stock_code])
+        print(f'-- take profit contribution {tp_contribution:.2%}')
+
+        # Calculate the final exit part contribution
+        last_exit_contribution = final_price_change*final_exit_proportion
+        print(f'-- final exit contribution {last_exit_contribution:.2%}')
+
+        overall_result = tp_contribution + last_exit_contribution
+        print(f'-- overall result {overall_result:.2%}')
+
+        # Calculate the outcome
+        profit_amount = total_position_size * (overall_result)
+        print(f'-- profit/loss ${profit_amount:.2f}')
+
+        previous_capital = sim.current_capital
+        sim.current_capital += profit_amount
         sim.current_capital -= config["simulator"]["commission"]
+        print(f"Capital {previous_capital} -> {sim.current_capital}")
 
-        positions_at_exit = sim.positions_held
-        #print(f"-> EXIT {stock_code}: {'partial' if partial else 'full'} | proportion {exit_proportion:.2%} | Result: {total_profit:.2%} | Positions held: {sim.positions_held}")
-        #print(f"-> Position size at the exit: {position_size}")
+        sim.current_positions.remove(stock_code)
+        sim.positions_held -= 1
+        del sim.capital_per_position[stock_code]
+        del sim.take_profit_info[stock_code]
 
-        if not partial:
-            print(f"-> Price at the full exit: {price_data['open']} | entry {sim.entry_prices[stock_code]}")
-            sim.current_positions.remove(stock_code)
-            sim.positions_held -= 1
-            del sim.capital_per_position[stock_code]
-            del sim.take_profit_info[stock_code]
-        else:
-            sim.capital_per_position[stock_code] -= exit_size
-
-        sim.update_capital(sim.current_capital)  # Update capital values
-        print(f"Capital after exit: ${sim.current_capital}")
-
-        # Update trade statistics
-        sim.update_trade_statistics(total_profit, positions_at_exit)
+        sim.update_capital(sim.current_capital)
+        sim.update_trade_statistics(overall_result, current_simultaneous_positions)
 
 
 def update_results_dict(
@@ -358,9 +367,7 @@ def check_profit_levels(sim, current_positions, current_date_dt, take_profit_var
     for stock in current_positions:
         price_data = get_price_from_db(stock, current_date_dt)
         if price_data:
-            if sim.check_and_update_take_profit(stock, price_data['high'], price_data['open'], take_profit_variant):
-                # Process partial exit
-                process_exit(sim, stock, price_data, partial=True)  # take_profit_variant['take_profit_values']
+            sim.check_and_update_take_profit(stock, price_data['high'], price_data['open'], take_profit_variant, config["simulator"]["commission"])
 
 def run_simulation(results_dict, take_profit_variant):
     sim = Simulation(capital=config["simulator"]["capital"])
@@ -552,7 +559,7 @@ if __name__ == "__main__":
     ws = data_filter_by_dates(ws, start_date_dt, end_date_dt)
 
     ### TEST TEST
-    ws = ws[ws['stock'] == 'GOGL']
+    #ws = ws[ws['stock'] == 'AGIO']
 
     # Filter the dataset per the config for the numerical parameters
     ws = filter_dataframe(ws, config)
@@ -625,7 +632,6 @@ if __name__ == "__main__":
 
     # Format monthly breakdown values
     monthly_breakdown.iloc[:, 1:] = monthly_breakdown.iloc[:, 1:].applymap(format_number)
-
 
     # Create Excel file with three sheets
     wb = Workbook()

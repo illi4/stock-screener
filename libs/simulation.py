@@ -49,52 +49,59 @@ class Simulation:
     # New function, assumes certain structure
     def set_take_profit_levels(self, stock, take_profit_variant):
         self.take_profit_info[stock] = {
-            'levels': [{'level': level['level'], 'exit_proportion': level['exit_proportion'], 'reached': False}
+            'levels': [{'level': level['level'], 'exit_proportion': level['exit_proportion'],
+                        'reached': False,
+                        'price': None,
+                        'actual_level': None
+                        }
                        for level in take_profit_variant['take_profit_values']],
-            'total_exit_proportion': 0,
-            'total_profit': 0
+            'taken_profit_proportion': 0,
+            #'total_profit': 0
         }
 
-    # New function
-    def check_and_update_take_profit(self, stock, high_price, open_price, take_profit_variant):
+    def check_and_update_take_profit(self, stock, high_price, open_price, take_profit_variant, commission):
         if stock not in self.take_profit_info:
             return False
 
         entry_price = self.entry_prices[stock]
-        take_profit_hit = False
 
+        # Check each level
         for i, level in enumerate(take_profit_variant['take_profit_values']):
             take_profit_percentage = float(level['level'].strip('%')) / 100
             level_price = entry_price * (1 + take_profit_percentage)
 
             if high_price >= level_price and not self.take_profit_info[stock]['levels'][i]['reached']:
+
                 price_to_use = max(level_price, open_price)  # if opens higher than the level price, use the open
-                exit_proportion = float(level['exit_proportion'].strip('%')) / 100
-                price_change = (price_to_use - entry_price) / entry_price
+                exit_proportion = float(level['exit_proportion'].strip('%')) / 100  # this is the proportion of total position
+                actual_level = (price_to_use - entry_price) / entry_price
 
                 print(f"-> Taking partial ({exit_proportion:.0%}) profit at {take_profit_percentage:.0%} level @ {price_to_use} ({stock})")
+                print(f"-> actual reflected % is {actual_level:.0%}")
 
                 self.take_profit_info[stock]['levels'][i]['reached'] = True
-                self.take_profit_info[stock]['total_exit_proportion'] += exit_proportion
-                self.take_profit_info[stock]['total_profit'] += price_change * exit_proportion
-                print(f"-> Adding to the profit result: {price_change}*{exit_proportion} = {price_change * exit_proportion}")
-                print(f"-> Total profit result so far: {self.take_profit_info[stock]['total_profit']}")
+                self.take_profit_info[stock]['levels'][i]['price'] = price_to_use
+                self.take_profit_info[stock]['levels'][i]['actual_level'] = actual_level
+                self.take_profit_info[stock]['taken_profit_proportion'] += exit_proportion
 
-                take_profit_hit = True
+                #print(self.take_profit_info[stock])
 
-        return take_profit_hit
+                if commission > 0:
+                    print(f'Reducing capital because of the commission of ${commission}')
+                    self.update_capital(self.current_capital - commission)
 
-    def update_trade_statistics(self, profit, positions_at_exit):
-        self.all_trades.append(profit)
-        if profit >= 0:
+
+    def update_trade_statistics(self, trade_result_percent, positions_num):
+        self.all_trades.append(trade_result_percent)
+        if trade_result_percent >= 0:
             self.winning_trades_number += 1
-            self.winning_trades.append(profit)
-            adjusted_profit = profit / positions_at_exit
+            self.winning_trades.append(trade_result_percent)
+            adjusted_profit = trade_result_percent / positions_num
             self.best_trade_adjusted = max(self.best_trade_adjusted, adjusted_profit)
         else:
             self.losing_trades_number += 1
-            self.losing_trades.append(profit)
-            adjusted_profit = profit / positions_at_exit
+            self.losing_trades.append(trade_result_percent)
+            adjusted_profit = trade_result_percent / positions_num
             self.worst_trade_adjusted = min(self.worst_trade_adjusted, adjusted_profit)
 
     def snapshot_balance(self, current_date_dt):
