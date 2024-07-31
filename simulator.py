@@ -17,10 +17,14 @@ import pandas as pd
 from openpyxl import Workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 from openpyxl.styles import Font
-from openpyxl.utils import get_column_letter
+
+# For plotting
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from openpyxl.drawing.image import Image
+import io
 
 parser = argparse.ArgumentParser()
-import matplotlib.pyplot as plt
 
 from libs.read_settings import read_config
 config = read_config()
@@ -29,6 +33,44 @@ from libs.simulation import Simulation
 from libs.db import check_earliest_price_date, delete_all_prices, bulk_add_prices, get_price_from_db
 
 pd.set_option("display.max_columns", None)
+
+def create_variant_plot(sim, variant_name):
+    # Convert dates to datetime objects
+    dates = [datetime.strptime(date, "%d/%m/%Y") for date in sim.detailed_capital_values.keys()]
+    values = list(sim.detailed_capital_values.values())
+
+    # Add termination value as a step change
+    last_date = dates[-1]
+    next_month = (last_date.replace(day=1) + timedelta(days=32)).replace(day=1)
+
+    plt.figure(figsize=(12, 6))
+
+    # Plot the main line
+    plt.step(dates, values, where='post')
+
+    # Add the final step
+    plt.step([last_date, next_month], [values[-1], sim.current_capital], where='post')
+
+    plt.title(f"Capital Over Time - {variant_name}")
+    plt.xlabel("Date")
+    plt.ylabel("Capital")
+
+    # Set x-axis to show only the first of each month
+    plt.gca().xaxis.set_major_locator(mdates.MonthLocator())
+    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%01'))
+
+    # Extend x-axis slightly to show the final step
+    plt.xlim(dates[0], next_month + timedelta(days=1))
+
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+
+    # Save plot to a bytes buffer
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', dpi=300)
+    buf.seek(0)
+    plt.close()
+    return buf
 
 def adjust_column_width(worksheet):
     for col in worksheet.columns:
@@ -844,7 +886,7 @@ if __name__ == "__main__":
     monthly_breakdown = monthly_breakdown.sort_values('Date')
     monthly_breakdown['Date'] = monthly_breakdown['Date'].dt.strftime('%d/%m/%Y')
 
-    # Create Excel file with two sheets
+    # Create Excel file with three sheets
     wb = Workbook()
     ws1 = wb.active
     ws1.title = "Summary"
@@ -860,11 +902,25 @@ if __name__ == "__main__":
         adjust_column_width(ws)
         set_font_size(ws, 12)
 
+    # Add plots if the plot argument is provided
+    if arguments["plot"]:
+        ws3 = wb.create_sheet(title="Plots")
+        row = 1
+        for variant_name, sim in simulations.items():
+            img_buf = create_variant_plot(sim, variant_name)
+            img = Image(img_buf)
+            img.width = 900
+            img.height = 500
+            ws3.add_image(img, f'A{row}')
+
+            # Add caption
+            caption_cell = ws3.cell(row=row+26, column=1)  # Adjust row as needed
+            caption_cell.value = f"Capital Over Time - {variant_name}"
+            caption_cell.font = Font(bold=True)
+
+            row += 30  # Spacing between plots
+
     # Save the Excel file
     excel_filename = "sim_summary.xlsx"
     wb.save(excel_filename)
-    print(f"(i) Summary and monthly breakdown saved to {excel_filename}")
-
-    # plotting
-    if arguments["plot"]:
-        plot_latest_sim(latest_sim)
+    print(f"(i) Detailed info saved to {excel_filename}")
