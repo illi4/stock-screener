@@ -77,7 +77,8 @@ class Simulation:
                 actual_level = (price_to_use - entry_price) / entry_price
 
                 print(f"-> Taking partial ({exit_proportion:.0%}) profit at {take_profit_percentage:.0%} level @ {price_to_use} ({stock})")
-                print(f"-> actual reflected % is {actual_level:.0%}")
+                print(f"-- day open price ${open_price} | level price ${level_price} | using ${price_to_use}")
+                print(f"-- actual reflected level reached % is {actual_level:.0%}")
 
                 self.take_profit_info[stock]['levels'][i]['reached'] = True
                 self.take_profit_info[stock]['levels'][i]['price'] = price_to_use
@@ -87,7 +88,7 @@ class Simulation:
                 #print(self.take_profit_info[stock])
 
                 if commission > 0:
-                    print(f'Reducing capital because of the commission of ${commission}')
+                    print(f'-- commission ${commission}')
                     self.update_capital(self.current_capital - commission)
 
 

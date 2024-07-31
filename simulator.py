@@ -247,9 +247,9 @@ def process_entry(sim, stock, entry_price, take_profit_variant):
         sim.set_take_profit_levels(stock, take_profit_variant)
 
         print(f"-> ENTER {stock} | positions held {sim.positions_held}")
-        print(f'accounting for the brokerage: ${config["simulator"]["commission"]}')
+        print(f'-- commission ${config["simulator"]["commission"]}')
         sim.current_capital -= config["simulator"]["commission"]
-        print(f"current capital on entry: ${sim.current_capital}, allocated to the position: ${sim.capital_per_position[stock]}")
+        print(f"-- current capital on entry: ${sim.current_capital}, allocated to the position: ${sim.capital_per_position[stock]}")
 
 
 def exit_all_positions(sim, current_date_dt):
