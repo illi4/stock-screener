@@ -279,6 +279,7 @@ def process_exit(sim, stock_code, price_data, partial=False):
         sim.current_capital += capital_gain
         sim.current_capital -= config["simulator"]["commission"]
 
+        positions_at_exit = sim.positions_held
         print(f"-> EXIT {stock_code}: {'partial' if partial else 'full'} | proportion {exit_proportion:.2%} | Result: {total_profit:.2%} | Positions held: {sim.positions_held}")
         print(f"-> Position size at the exit: {position_size}")
 
@@ -295,7 +296,7 @@ def process_exit(sim, stock_code, price_data, partial=False):
         print(f"Capital after exit: ${sim.current_capital}")
 
         # Update trade statistics
-        sim.update_trade_statistics(total_profit)
+        sim.update_trade_statistics(total_profit, positions_at_exit)
 
 
 def update_results_dict(

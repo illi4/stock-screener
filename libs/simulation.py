@@ -81,17 +81,18 @@ class Simulation:
 
         return take_profit_hit
 
-    # New function
-    def update_trade_statistics(self, profit):
+    def update_trade_statistics(self, profit, positions_at_exit):
         self.all_trades.append(profit)
         if profit >= 0:
             self.winning_trades_number += 1
             self.winning_trades.append(profit)
-            self.best_trade_adjusted = max(self.best_trade_adjusted, profit)
+            adjusted_profit = profit / positions_at_exit
+            self.best_trade_adjusted = max(self.best_trade_adjusted, adjusted_profit)
         else:
             self.losing_trades_number += 1
             self.losing_trades.append(profit)
-            self.worst_trade_adjusted = min(self.worst_trade_adjusted, profit)
+            adjusted_profit = profit / positions_at_exit
+            self.worst_trade_adjusted = min(self.worst_trade_adjusted, adjusted_profit)
 
     def snapshot_balance(self, current_date_dt):
         self.balances[
