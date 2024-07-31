@@ -88,7 +88,7 @@ class Simulation:
 
                 print(f"-> Taking partial ({exit_proportion:.0%}) profit at {take_profit_percentage:.0%} level @ ${price_to_use:.2f} ({stock})")
                 print(f"-- day open price ${open_price} | level price ${level_price:.2f} | using ${price_to_use:.2f}")
-                print(f"-- actual reflected level reached % is {actual_level:.0%}")
+                print(f"-- % mark: {actual_level:.0%}")
 
                 self.take_profit_info[stock]['levels'][i]['reached'] = True
                 self.take_profit_info[stock]['levels'][i]['price'] = price_to_use
