@@ -255,16 +255,14 @@ def process_entry(sim, stock, entry_price, take_profit_variant, current_date):
         # Calculate and set stop loss price
         lowest_price_before_entry = get_lowest_price_before_entry(stock, current_date)
 
-        stop_loss_price = lowest_price_before_entry * (1 - config["simulator"]["stop_loss_level"])
-        sim.set_stop_loss(stock, stop_loss_price)
-
-        sim.current_capital -= config["simulator"]["commission"]
-
         # Show info
         print(f"-> ENTER {stock} | positions held: {sim.positions_held}")
         print(f'-- commission ${config["simulator"]["commission"]}')
-        print(f"-- stop loss set @ ${stop_loss_price:.2f}")
         print(f"-- current capital on entry: ${sim.current_capital}, allocated to the position: ${sim.capital_per_position[stock]}")
+
+        stop_loss_price = lowest_price_before_entry * (1 - config["simulator"]["stop_loss_level"])
+        sim.set_stop_loss(stock, stop_loss_price)
+        sim.current_capital -= config["simulator"]["commission"]
 
 
 def exit_all_positions(sim, current_date_dt):
