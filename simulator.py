@@ -654,22 +654,21 @@ if __name__ == "__main__":
             "variant",
             "simultaneous_positions",
             "variant_group",
-            "best_trade_adjusted",
             "growth",
-            "losing_trades_number",
             "max_drawdown",
-            "max_negative_strike",
             "win_rate",
             "median_mom_growth",
             "average_mom_growth",
             "winning_trades_number",
+            "losing_trades_number",
+            "best_trade_adjusted",
             "worst_trade_adjusted",
         ]
     ]
 
     # Format percentage and number columns
-    percentage_cols = ["best_trade_adjusted", "growth", "max_drawdown", "win_rate", "median_mom_growth", "average_mom_growth", "worst_trade_adjusted"]
-    number_cols = ["losing_trades_number", "max_negative_strike", "winning_trades_number"]
+    percentage_cols = ["growth", "max_drawdown", "win_rate", "median_mom_growth", "average_mom_growth", "best_trade_adjusted", "worst_trade_adjusted"]
+    number_cols = ["winning_trades_number", "losing_trades_number"]
 
     final_result[percentage_cols] = final_result[percentage_cols].applymap(format_percentage)
     final_result[number_cols] = final_result[number_cols].applymap(format_number)
