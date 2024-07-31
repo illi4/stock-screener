@@ -7,7 +7,7 @@ warnings.filterwarnings("ignore")
 from peewee import IntegrityError
 
 import libs.gsheetobj as gsheetsobj
-from libs.signal import red_day_on_volume
+#from libs.signal import red_day_on_volume #not used
 from datetime import datetime, timedelta
 from libs.stocktools import get_stock_data, Market
 import argparse
@@ -326,183 +326,6 @@ def update_results_dict(
     return results_dict
 
 
-def add_entry_with_profit_thresholds(sim, stock, entry_price_actual, entry_date_actual):
-    if len(sim.current_positions) + 1 > current_simultaneous_positions:
-        print(f"max possible positions held, skipping {stock}")
-    else:
-        sim.positions_held += 1
-        sim.current_positions.add(stock)
-        sim.capital_per_position[stock] = (
-            sim.current_capital / current_simultaneous_positions
-        )
-
-        print(
-            "-> entry",
-            stock,
-            "| positions held",
-            sim.positions_held,
-        )
-        print(f"-> entry price: {entry_price_actual}")
-        print(f'accounting for the brokerage: ${config["simulator"]["commission"]}')
-        sim.current_capital -= config["simulator"]["commission"]
-        print(
-            f"current_capital: ${sim.current_capital}, allocated to the position: ${sim.capital_per_position[stock]}"
-        )
-
-        # on the entry, we have the full position
-        sim.left_of_initial_entries[stock] = 1
-        sim.entry_prices[stock] = entry_price_actual
-        sim.entry_dates[stock] = entry_date_actual
-
-        # also, on the entry we initiate the dict of thresholds hit for the item
-        # they will then be populated with like (0.25, ...)
-        sim.thresholds_reached[
-            stock
-        ] = set()  # appropriate as each would only be there once
-
-
-def failsafe_trigger_check(sim, stock_prices, current_date_dt):
-    for position in sim.current_positions:
-        if position not in sim.failsafe_stock_trigger:
-            current_df = stock_prices[position][0]
-            curr_row = current_df.loc[current_df["timestamp"] == current_date_dt]
-            failsafe_current_level = sim.entry_prices[position] * (1 + config["simulator"]["failsafe_trigger_level"])
-            if not curr_row.empty:
-                if curr_row["high"].iloc[0] >= failsafe_current_level:
-                    print(f"failsafe level reached for {position} @ {failsafe_current_level}")
-                    sim.failsafe_stock_trigger[position] = True
-                    sim.failsafe_active_dates[position] = current_date_dt
-
-
-def failsafe_trigger_rollback(sim, stock_prices, current_date_dt):
-    failback_triggers = []
-    for position in sim.current_positions:
-        current_df = stock_prices[position][0].copy()
-        current_df['next_open'] = current_df['open'].shift(-1)
-
-        curr_row = current_df.loc[current_df["timestamp"] == current_date_dt]
-
-        failsafe_rollback_level = sim.entry_prices[position] * (1 + config["simulator"]["failsafe_exit_level"])
-        if not curr_row.empty and (position in sim.failsafe_stock_trigger):
-            if sim.failsafe_stock_trigger[position]:
-                print(f'{position} failsafe levels check: curr_low {curr_row["low"].iloc[0]} | fsafe level: {failsafe_rollback_level} | failsafe_date {sim.failsafe_active_dates[position]}')
-                if (curr_row["low"].iloc[0] < failsafe_rollback_level) and (sim.failsafe_active_dates[position] != current_date_dt):
-                    print(f"failsafe rollback for {position} @ {failsafe_rollback_level} on {current_date_dt}")
-
-                    # We should use the correct price
-                    #price_to_use = min(curr_row["open"].iloc[0], failsafe_rollback_level) # old incorrect logic
-                    price_to_use = curr_row["next_open"].iloc[0]
-                    print(f'-- using the price {price_to_use}: next day open')
-
-                    failback_triggers.append([position, price_to_use])
-
-    return failback_triggers
-
-
-def thresholds_check(sim, stock_prices, current_date_dt):
-    for position in sim.current_positions:
-        current_df = stock_prices[position][0]
-        curr_row = current_df.loc[current_df["timestamp"] == current_date_dt]
-        if not curr_row.empty:
-            print(
-                f"current high for {position} {curr_row['high'].iloc[0]} | entry: {sim.entry_prices[position]}"
-            )
-            for each_threshold in current_tp_variant:
-                if curr_row["high"].iloc[0] > sim.entry_prices[position] * (
-                    1 + each_threshold
-                ):
-                    # Decrease the residual
-                    if each_threshold not in sim.thresholds_reached[position]:
-                        sim.left_of_initial_entries[position] -= (
-                            1 / current_simultaneous_positions
-                        )
-                    # Add the threshold
-                    sim.thresholds_reached[position].add(each_threshold)
-                    print(f"-- {position} reached {each_threshold:.2%}")
-
-
-def add_exit_with_profit_thresholds(
-    sim, stock, entry_price_actual, exit_price_actual, control_result_percent
-):
-    if stock in sim.current_positions:
-        position = stock
-        sim.current_positions.remove(stock)
-        sim.positions_held -= 1
-
-        # check what thresholds were reached. use entry and exit price and thresholds reached
-        number_thresholds_total = len(current_tp_variant)
-        number_thresholds_reached = len(sim.thresholds_reached[position])
-        divisor = number_thresholds_total + 1
-        portion_not_from_thresholds = divisor - number_thresholds_reached
-
-        exit_price_in_calc = exit_price_actual
-        print(
-            f"exit price used for {position}: {exit_price_in_calc}, entry price: {entry_price_actual}"
-        )
-
-        absolute_price_result = (
-            exit_price_in_calc - entry_price_actual
-        ) / entry_price_actual
-        result = absolute_price_result * portion_not_from_thresholds / divisor
-        print(
-            f"absolute price change result for {position}: {absolute_price_result:.2%} | "
-            f"multiplier (considering thresholds): {portion_not_from_thresholds}/{divisor}"
-        )
-        print(f"relative price change result for {position}: {result:.2%}")
-        print(
-            f"thresholds reached ({position}): {sim.thresholds_reached[position]}: {number_thresholds_reached} of {number_thresholds_total}"
-        )
-
-        # Correct brokerage
-        number_brokerage_commissions_paid = number_thresholds_reached + 1
-
-        for threshold_reached in sim.thresholds_reached[position]:
-            print(f"--- calc: extra result += {threshold_reached}/{divisor}")
-            result += threshold_reached / divisor
-
-        print(f"result ({position}) accounting for thresholds reached: {result:.2%}")
-
-        if result >= 0:
-            sim.winning_trades_number += 1
-            sim.winning_trades.append(result)
-            if (sim.best_trade_adjusted is None) or (
-                result / current_simultaneous_positions > sim.best_trade_adjusted
-            ):
-                sim.best_trade_adjusted = result / current_simultaneous_positions
-                print(f"best_trade_adjusted is now {sim.best_trade_adjusted}")
-        elif result < 0:
-            sim.losing_trades_number += 1
-            sim.losing_trades.append(result)
-            if (sim.worst_trade_adjusted is None) or (
-                result / current_simultaneous_positions < sim.worst_trade_adjusted
-            ):
-                sim.worst_trade_adjusted = result / current_simultaneous_positions
-
-        # Add to all trades
-        sim.all_trades.append(result)
-
-        print(
-            f"-> exit {stock} | result: {result:.2%} | positions held {sim.positions_held}"
-        )
-
-        position_size = sim.capital_per_position[stock]
-        print(f"allocated to the position originally: ${position_size}")
-        capital_gain = position_size * result
-        print(f"capital gain/loss: ${capital_gain}".replace("$-", "-$"))
-        print(f"capital state pre exit: ${sim.current_capital}")
-
-        sim.current_capital = sim.current_capital + capital_gain
-        print(
-            f'accounting for the brokerage: ${config["simulator"]["commission"] * number_brokerage_commissions_paid} ({config["simulator"]["commission"]}x{number_brokerage_commissions_paid})'
-        )
-        sim.current_capital -= config["simulator"]["commission"] * number_brokerage_commissions_paid
-        print(f"balance: ${sim.current_capital}")
-        sim.capital_values.append(sim.current_capital)
-
-        # Delete from the partial positions left, prices, thresholds for the element
-        sim.remove_stock_traces(stock)
-
-
 # plotting
 def plot_latest_sim(latest_sim):
     x, y = [], []
@@ -518,44 +341,6 @@ def plot_latest_sim(latest_sim):
         if index not in lst:
             label.set_visible(False)
     plt.show()
-
-
-def failed_entry_day_check(sim, stock_prices, stock_name, current_date_dt):
-    if len(sim.current_positions) + 1 > current_simultaneous_positions:
-        print(f"max possible positions held, skipping {stock_name}")
-    else:
-        if red_entry_day_exit:
-            stock_prices_df = stock_prices[stock_name][0]
-            stock_volume_df = stock_prices[stock_name][1]
-            curr_state_price = stock_prices_df.loc[
-                stock_prices_df["timestamp"] <= current_date_dt
-            ]
-            curr_state_volume = stock_volume_df.loc[
-                stock_volume_df["timestamp"] <= current_date_dt
-            ]
-            warning, _ = red_day_on_volume(
-                curr_state_price, curr_state_volume, output=True, stock_name=stock_name
-            )
-            if warning:
-                sim.failed_entry_day_stocks[stock_name] = True
-
-
-def failed_entry_day_process(sim, stock_prices, current_date_dt):
-    failed_entry_day_stocks_to_iterate = sim.failed_entry_day_stocks.copy()
-    for stock_name, elem in failed_entry_day_stocks_to_iterate.items():
-        print(f"Failed entry day for {stock_name}, exiting")
-        current_df = stock_prices[stock_name][0]
-        curr_row = current_df.loc[current_df["timestamp"] == current_date_dt]
-        if not curr_row.empty:
-            print(f"Current open for {stock_name}: {curr_row['open'].iloc[0]}")
-            add_exit_with_profit_thresholds(
-                sim,
-                stock_name,
-                sim.entry_prices[stock_name],
-                curr_row["open"].iloc[0],
-                None,
-            )
-
 
 def get_dates(start_date, end_date):
     try:
@@ -733,6 +518,7 @@ def get_stock_prices(sheet_df, prices_start_date):
 if __name__ == "__main__":
 
     arguments = define_args()
+
     #red_entry_day_exit, failsafe = process_filter_args()
 
     print("reading the values...")
@@ -764,7 +550,7 @@ if __name__ == "__main__":
     start_date_dt, end_date_dt, current_date_dt = get_dates(start_date, end_date)
     ws = data_filter_by_dates(ws, start_date_dt, end_date_dt)
 
-    # TEST TEST
+    ### TEST TEST
     #ws = ws[ws['stock'] == 'AGIO']
 
     # Filter the dataset per the config for the numerical parameters
@@ -786,15 +572,9 @@ if __name__ == "__main__":
             )
             simulations[variant_name] = latest_sim
 
-            # # Show breakdown
-            # if arguments["show_monthly"]:
-            #     show_monthly_breakdown(latest_sim.detailed_capital_values,
-            #                            positions=config["simulator"]["simultaneous_positions"])
-
     # < Stop iterations
 
-    # Finalisation
-
+    #### Finalisation
     # Write the output to a dataframe and a spreadsheet
     resulting_dataframes = []
     for k, v in results_dict.items():
