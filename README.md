@@ -36,7 +36,7 @@ For ASX, the best time to run it is in the evening after market closure to prepa
   - Use `num` to  limit amount of stocks scanned. E.g. `-num=100`. 
 - To simulate scanning as of a particular date, use the `-date` parameter (the format is `YYYY-MM-DD`). For example, `python scanner.py --update -date=2021-01-05`.
 - Helper scripts (note: requires configuring Google credentials in order to work). Use `-method` parameter as this will influence which spreadsheet is used. 
-   - `monitor.py` to run daily to check whether the exit condition was hit for active entries.
+   - `monitor.py` to run daily to check whether the exit condition was hit for active entries. E.g. `python monitor.py -method=anx`
    - `paperfill.py` to run daily to fill in the values for paper trade entries automatically. Also fills in values for a few technical indicators if not populated. 
    - `simulator.py` simulates outcomes per the spreadsheet.  
      - Use `--forced_price_update` to rewrite prices data in the db. 
