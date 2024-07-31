@@ -90,6 +90,12 @@ def set_font_size(worksheet, size):
         for cell in row:
             cell.font = Font(size=size)
 
+def format_percentage(value):
+    return f"{value:.2%}"
+
+def format_number(value):
+    return f"{value:.2f}"
+
 def define_args():
     # Take profit levels variation is only supported for the control group, thus the modes are different
     # Removing this as not used now, only one mode using the sheet
@@ -302,16 +308,16 @@ def update_results_dict(
     extra_suffix="",
 ):
     result_current_dict = dict(
-        growth=sim.growth * 100,
-        win_rate=sim.win_rate * 100,
+        growth=sim.growth,
+        win_rate=sim.win_rate,
         winning_trades_number=sim.winning_trades_number,
         losing_trades_number=sim.losing_trades_number,
-        best_trade_adjusted=sim.best_trade_adjusted * 100,
-        worst_trade_adjusted=sim.worst_trade_adjusted * 100,
-        max_drawdown=sim.max_drawdown * 100,
+        best_trade_adjusted=sim.best_trade_adjusted,
+        worst_trade_adjusted=sim.worst_trade_adjusted,
+        max_drawdown=sim.max_drawdown,
         max_negative_strike=sim.max_negative_strike,
-        median_mom_growth=sim.mom_growth * 100,
-        average_mom_growth=sim.average_mom_growth * 100,
+        median_mom_growth=sim.mom_growth,
+        average_mom_growth=sim.average_mom_growth,
         simultaneous_positions=current_simultaneous_positions,
         variant_group=current_variant,
     )
@@ -877,6 +883,13 @@ if __name__ == "__main__":
         ]
     ]
 
+    # Format percentage and number columns
+    percentage_cols = ["best_trade_adjusted", "growth", "max_drawdown", "win_rate", "median_mom_growth", "average_mom_growth", "worst_trade_adjusted"]
+    number_cols = ["losing_trades_number", "max_negative_strike", "winning_trades_number"]
+
+    final_result[percentage_cols] = final_result[percentage_cols].applymap(format_percentage)
+    final_result[number_cols] = final_result[number_cols].applymap(format_number)
+
     # Create the monthly breakdown DataFrame
     monthly_breakdown = create_monthly_breakdown(simulations)
 
@@ -885,6 +898,10 @@ if __name__ == "__main__":
     monthly_breakdown['Date'] = pd.to_datetime(monthly_breakdown['Date'], format='%d/%m/%Y')
     monthly_breakdown = monthly_breakdown.sort_values('Date')
     monthly_breakdown['Date'] = monthly_breakdown['Date'].dt.strftime('%d/%m/%Y')
+
+    # Format monthly breakdown values
+    monthly_breakdown.iloc[:, 1:] = monthly_breakdown.iloc[:, 1:].applymap(format_number)
+
 
     # Create Excel file with three sheets
     wb = Workbook()
