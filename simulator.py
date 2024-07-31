@@ -218,10 +218,10 @@ def process_entry(sim, stock, entry_price, take_profit_variant):
         sim.entry_prices[stock] = entry_price
         sim.set_take_profit_levels(stock, take_profit_variant)
 
-        print(f"-> entry {stock} | positions held {sim.positions_held}")
+        print(f"-> ENTER {stock} | positions held {sim.positions_held}")
         print(f'accounting for the brokerage: ${config["simulator"]["commission"]}')
         sim.current_capital -= config["simulator"]["commission"]
-        print(f"current_capital: ${sim.current_capital}, allocated to the position: ${sim.capital_per_position[stock]}")
+        print(f"current capital on entry: ${sim.current_capital}, allocated to the position: ${sim.capital_per_position[stock]}")
 
 
 def exit_all_positions(sim, current_date_dt):
@@ -263,10 +263,11 @@ def process_exit(sim, stock_code, price_data, partial=False):
         else:
             sim.capital_per_position[stock_code] -= exit_size
 
+        print(f"Capital after exit: ${sim.current_capital}")
+
         # Update trade statistics
         sim.update_trade_statistics(total_profit)
 
-        print(f"{'Partial' if partial else 'Full'} exit {stock_code} | Result: {total_profit:.2%} | Positions held: {sim.positions_held}")
 
 
 def median_mom_growth(balances):
@@ -959,7 +960,7 @@ if __name__ == "__main__":
     ws = data_filter_by_dates(ws, start_date_dt, end_date_dt)
 
     # TEST TEST
-    ws = ws[ws['stock'] == 'AGIO']
+    #ws = ws[ws['stock'] == 'AGIO']
 
     # Filter the dataset per the config for the numerical parameters
     ws = filter_dataframe(ws, config)
