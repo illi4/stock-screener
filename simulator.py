@@ -16,6 +16,8 @@ import pandas as pd
 from openpyxl import Workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 from openpyxl.styles import Font, numbers
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import Alignment
 
 # For plotting
 import matplotlib.pyplot as plt
@@ -72,17 +74,27 @@ def create_variant_plot(sim, variant_name):
     return buf
 
 def adjust_column_width(worksheet):
-    for col in worksheet.columns:
+    for column in worksheet.columns:
         max_length = 0
-        column = col[0].column_letter
-        for cell in col:
+        column_letter = get_column_letter(column[0].column)
+        for cell in column:
             try:
                 if len(str(cell.value)) > max_length:
-                    max_length = len(str(cell.value))
+                    max_length = len(cell.value)
             except:
                 pass
-        adjusted_width = (max_length + 2)
-        worksheet.column_dimensions[column].width = adjusted_width
+        adjusted_width = max_length + 2
+        worksheet.column_dimensions[column_letter].width = adjusted_width
+
+def set_font_size_and_alignment(worksheet, size):
+    for row in worksheet.iter_rows():
+        for cell in row:
+            if cell.row == 1:  # Header row
+                cell.font = Font(size=size, bold=True)
+                cell.value = cell.value.replace('_', ' ').title()
+            else:
+                cell.font = Font(size=size)
+            cell.alignment = Alignment(horizontal='center')
 
 def set_font_size(worksheet, size):
     for row in worksheet.iter_rows():
@@ -720,8 +732,8 @@ if __name__ == "__main__":
 
     # Adjust column width and set font size for both sheets
     for ws in [ws1, ws2]:
+        set_font_size_and_alignment(ws, 11)
         adjust_column_width(ws)
-        set_font_size(ws, 12)
 
     # Add plots if the plot argument is provided
     if arguments["plot"]:
