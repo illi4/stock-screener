@@ -10,12 +10,13 @@ from peewee import IntegrityError
 import csv
 import libs.gsheetobj as gsheetsobj
 from libs.signal import red_day_on_volume
-import pandas as pd
 from datetime import datetime, timedelta
-import numpy as np
 from libs.stocktools import get_stock_data, Market
 import argparse
-from itertools import groupby
+
+import pandas as pd
+from openpyxl import Workbook
+from openpyxl.utils.dataframe import dataframe_to_rows
 
 parser = argparse.ArgumentParser()
 import matplotlib.pyplot as plt
@@ -48,10 +49,10 @@ def define_args():
     parser.add_argument(
         "--forced_price_update", action="store_true", help="Activate the failsafe approach"
     )
-
-    parser.add_argument(
-        "--show_monthly", action="store_true", help="Show MoM capital value (only in main mode)"
-    )
+    #
+    # parser.add_argument(
+    #     "--show_monthly", action="store_true", help="Show MoM capital value (only in main mode)"
+    # )
 
     parser.add_argument(
         "-method",
@@ -95,7 +96,7 @@ def define_args():
     arguments = vars(args)
 
     # Convert specific arguments to boolean, defaulting to False if not provided
-    boolean_args = ["plot", "failsafe", "show_monthly", "forced_price_update"]
+    boolean_args = ["plot", "failsafe", "forced_price_update"]   # "show_monthly"
     arguments.update({arg: bool(arguments.get(arg)) for arg in boolean_args})
 
     return arguments
@@ -563,38 +564,51 @@ def run_simulation(results_dict, take_profit_variant):
     )
     return results_dict, sim
 
+def create_monthly_breakdown(simulations):
+    monthly_data = {}
+    for variant, sim in simulations.items():
+        for date, value in sim.balances.items():
+            date_obj = datetime.strptime(date, "%d/%m/%Y")
+            month_start = date_obj.replace(day=1).strftime("%d/%m/%Y")
+            if month_start not in monthly_data:
+                monthly_data[month_start] = {}
+            monthly_data[month_start][variant] = value
 
+    df = pd.DataFrame(monthly_data).T
+    df.index.name = 'Date'
+    df.reset_index(inplace=True)
+    return df
 
-def show_monthly_breakdown(result, positions):
-    # Open a file for writing
-    csv_filename = f'sim_monthly.csv'
-
-    with open(csv_filename, 'w', newline='') as csv_file:
-        csv_writer = csv.writer(csv_file)
-
-        # Write the header
-        csv_writer.writerow(['Date', 'Value'])
-
-        # Convert string dates to datetime objects
-        date_values = {datetime.strptime(date, '%d/%m/%Y'): value for date, value in result.items()}
-
-        print()
-        print('(!) Note: monthly results are only shown for the last simulation')
-        print('--- Monthly breakdown ---')
-
-        # Iterate over the dictionary and print values at the beginning of each month
-        current_month = None
-        for date, value in sorted(date_values.items()):
-            if date.month != current_month:
-                current_month = date.month
-                formatted_date = date.replace(day=1).strftime("%d/%m/%Y")
-                rounded_value = round(value, 1)
-                print(f'{formatted_date}: {rounded_value}')
-                csv_writer.writerow([formatted_date, rounded_value])
-
-        print('-------------------------')
-        print(f'(i) results have been written to {csv_filename}')
-        print()
+# def show_monthly_breakdown(result, positions):
+#     # Open a file for writing
+#     csv_filename = f'sim_monthly.csv'
+#
+#     with open(csv_filename, 'w', newline='') as csv_file:
+#         csv_writer = csv.writer(csv_file)
+#
+#         # Write the header
+#         csv_writer.writerow(['Date', 'Value'])
+#
+#         # Convert string dates to datetime objects
+#         date_values = {datetime.strptime(date, '%d/%m/%Y'): value for date, value in result.items()}
+#
+#         print()
+#         print('(!) Note: monthly results are only shown for the last simulation')
+#         print('--- Monthly breakdown ---')
+#
+#         # Iterate over the dictionary and print values at the beginning of each month
+#         current_month = None
+#         for date, value in sorted(date_values.items()):
+#             if date.month != current_month:
+#                 current_month = date.month
+#                 formatted_date = date.replace(day=1).strftime("%d/%m/%Y")
+#                 rounded_value = round(value, 1)
+#                 print(f'{formatted_date}: {rounded_value}')
+#                 csv_writer.writerow([formatted_date, rounded_value])
+#
+#         print('-------------------------')
+#         print(f'(i) results have been written to {csv_filename}')
+#         print()
 
 
 # Apply filters from config to the DataFrame
@@ -722,19 +736,23 @@ if __name__ == "__main__":
     # Get information on the price data if the date is new
     get_stock_prices(ws, prices_start_date)
 
-
-
     # > Iterate over take profit variants and number of positions
+    simulations = {}
+
     for current_simultaneous_positions in config["simulator"]["simultaneous_positions"]:
         for take_profit_variant in config["simulator"]["take_profit_variants"]:
+            # For logging
+            variant_name = f"{current_simultaneous_positions}pos_{take_profit_variant['variant_name']}"
+            # Run it
             results_dict, latest_sim = run_simulation(
                 results_dict, take_profit_variant
             )
+            simulations[variant_name] = latest_sim
 
-            # Show breakdown
-            if arguments["show_monthly"]:
-                show_monthly_breakdown(latest_sim.detailed_capital_values,
-                                       positions=config["simulator"]["simultaneous_positions"])
+            # # Show breakdown
+            # if arguments["show_monthly"]:
+            #     show_monthly_breakdown(latest_sim.detailed_capital_values,
+            #                            positions=config["simulator"]["simultaneous_positions"])
 
     # < Stop iterations
 
@@ -750,7 +768,33 @@ if __name__ == "__main__":
             pd.DataFrame.from_records(values_current, index=[0])
         )
 
-    final_result = pd.concat(df for df in resulting_dataframes)
+    # final_result = pd.concat(df for df in resulting_dataframes)
+    # final_result = final_result[
+    #     [
+    #         "variant",
+    #         "simultaneous_positions",
+    #         "variant_group",
+    #         "best_trade_adjusted",
+    #         "growth",
+    #         "losing_trades_number",
+    #         "max_drawdown",
+    #         "max_negative_strike",
+    #         "win_rate",
+    #         "median_mom_growth",
+    #         "average_mom_growth",
+    #         "winning_trades_number",
+    #         "worst_trade_adjusted",
+    #     ]
+    # ]
+    #
+    # # save to csv
+    # final_result.to_csv("sim_summary.csv", index=False)
+    # print()
+    # print("(i) summary saved to sim_summary.csv")
+
+    # Create the summary DataFrame
+    final_result = pd.concat(pd.DataFrame.from_records(v, index=[0]) for v in results_dict.values())
+    final_result['variant'] = results_dict.keys()
     final_result = final_result[
         [
             "variant",
@@ -769,10 +813,24 @@ if __name__ == "__main__":
         ]
     ]
 
-    # save to csv
-    final_result.to_csv("sim_summary.csv", index=False)
-    print()
-    print("(i) summary saved to sim_summary.csv")
+    # Create the monthly breakdown DataFrame
+    monthly_breakdown = create_monthly_breakdown(simulations)
+
+    # Create Excel file with two sheets
+    wb = Workbook()
+    ws1 = wb.active
+    ws1.title = "Summary"
+    for r in dataframe_to_rows(final_result, index=False, header=True):
+        ws1.append(r)
+
+    ws2 = wb.create_sheet(title="Monthly Breakdown")
+    for r in dataframe_to_rows(monthly_breakdown, index=False, header=True):
+        ws2.append(r)
+
+    # Save the Excel file
+    excel_filename = "sim_summary.xlsx"
+    wb.save(excel_filename)
+    print(f"(i) Summary and monthly breakdown saved to {excel_filename}")
 
     # plotting
     if arguments["plot"]:
