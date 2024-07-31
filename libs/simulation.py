@@ -50,19 +50,24 @@ class Simulation:
         self.trailing_stop_active = {}  # for reporting purposes
 
 
-    def set_take_profit_levels(self, stock, take_profit_variant):
+    def set_take_profit_levels(self, stock, take_profit_variant, entry_price):
         self.take_profit_info[stock] = {
             'levels': [{'level': level['level'],
                         'exit_proportion': level['exit_proportion'],
                         'reached': False,
-                        'price': None,
+                        'price': entry_price * (1 + float(level['level'].strip('%')) / 100),
                         'actual_level': None,
                         'move_stop_price': level.get('move_stop_price', False),
                         'move_stop_from_tp_level': level.get('move_stop_from_tp_level', None)
                         }
                        for level in take_profit_variant['take_profit_values']],
             'taken_profit_proportion': 0
-        }
+        } 
+
+        # Create a string of take profit prices
+        tp_prices = " | ".join([f"${level['price']:.2f}" for level in self.take_profit_info[stock]['levels']])
+        print(f"-- take profit prices: {tp_prices}")
+
 
     def check_and_update_take_profit(self, stock, high_price, open_price, take_profit_variant, commission):
         if stock not in self.take_profit_info:

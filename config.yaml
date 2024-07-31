@@ -95,10 +95,11 @@ simulator:
   ### Take profit variants
   take_profit_variants:
 
-  - variant_name: "current"
-    take_profit_values:
-      - level: 1000%  # ridiculously high so that the baseline is kind of not taking profit; not using
-        exit_proportion: 100%
+#  - variant_name: "current"
+#    take_profit_values:
+#      - level: 1000%  # ridiculously high so that the baseline is kind of not taking profit; not using
+#        exit_proportion: 100%
+
   - variant_name: "baseline"  # similar to the current approach
     take_profit_values:
       - level: 50%

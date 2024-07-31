@@ -241,7 +241,6 @@ def get_lowest_price_before_entry(stock, entry_date):
 
 
 def process_entry(sim, stock, entry_price, take_profit_variant, current_date):
-    sim.set_take_profit_levels(stock, take_profit_variant)
 
     if len(sim.current_positions) + 1 > current_simultaneous_positions:
         print(f"max possible positions held, skipping {stock}")
@@ -250,7 +249,7 @@ def process_entry(sim, stock, entry_price, take_profit_variant, current_date):
         sim.current_positions.add(stock)
         sim.capital_per_position[stock] = sim.current_capital / current_simultaneous_positions
         sim.entry_prices[stock] = entry_price
-        sim.set_take_profit_levels(stock, take_profit_variant)
+        sim.set_take_profit_levels(stock, take_profit_variant, entry_price)
 
         # Calculate and set stop loss price
         lowest_price_before_entry = get_lowest_price_before_entry(stock, current_date)
