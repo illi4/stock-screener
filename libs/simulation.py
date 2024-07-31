@@ -70,13 +70,16 @@ class Simulation:
             if high_price >= level_price and not self.take_profit_info[stock]['levels'][i]['reached']:
                 price_to_use = max(level_price, open_price)  # if opens higher than the level price, use the open
                 exit_proportion = float(level['exit_proportion'].strip('%')) / 100
-                profit = (price_to_use - entry_price) / entry_price
+                price_change = (price_to_use - entry_price) / entry_price
 
                 print(f"-> Taking partial ({exit_proportion:.0%}) profit at {take_profit_percentage:.0%} level @ {price_to_use} ({stock})")
 
                 self.take_profit_info[stock]['levels'][i]['reached'] = True
                 self.take_profit_info[stock]['total_exit_proportion'] += exit_proportion
-                self.take_profit_info[stock]['total_profit'] += profit * exit_proportion
+                self.take_profit_info[stock]['total_profit'] += price_change * exit_proportion
+                print(f"-> Adding to the profit result: {price_change}*{exit_proportion} = {price_change * exit_proportion}")
+                print(f"-> Total profit result so far: {self.take_profit_info[stock]['total_profit']}")
+
                 take_profit_hit = True
 
         return take_profit_hit

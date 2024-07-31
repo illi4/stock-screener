@@ -80,23 +80,23 @@ simulator:
   take_profit_variants:
 #  - variant_name: "not_taking_profit"
 #    take_profit_values:
-#      - level: 1000%  # ridiculously high so that the baseline is kind of not taking profit
+#      - level: 1000%  # ridiculously high so that the baseline is kind of not taking profit; not using
 #        exit_proportion: 100%
-  - variant_name: "baseline"  # similar to the current approach
-    take_profit_values:
-      - level: 50%
-        exit_proportion: 25%
-      - level: 100%
-        exit_proportion: 25%
-      - level: 150%
-        exit_proportion: 25%
+#  - variant_name: "baseline"  # similar to the current approach
+#    take_profit_values:
+#      - level: 50%
+#        exit_proportion: 25%
+#      - level: 100%
+#        exit_proportion: 25%
+#      - level: 150%
+#        exit_proportion: 25%
   - variant_name: "conservative"
     take_profit_values:
       - level: 5%
         exit_proportion: 25%
       - level: 10%
         exit_proportion: 60%
-  - variant_name: "ultra_conservative"  # similar to the current approach
-    take_profit_values:
-      - level: 10%
-        exit_proportion: 100%
+#  - variant_name: "ultra_conservative"  # similar to the current approach
+#    take_profit_values:
+#      - level: 10%
+#        exit_proportion: 100%

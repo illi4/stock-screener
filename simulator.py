@@ -280,8 +280,8 @@ def process_exit(sim, stock_code, price_data, partial=False):
         sim.current_capital -= config["simulator"]["commission"]
 
         positions_at_exit = sim.positions_held
-        print(f"-> EXIT {stock_code}: {'partial' if partial else 'full'} | proportion {exit_proportion:.2%} | Result: {total_profit:.2%} | Positions held: {sim.positions_held}")
-        print(f"-> Position size at the exit: {position_size}")
+        #print(f"-> EXIT {stock_code}: {'partial' if partial else 'full'} | proportion {exit_proportion:.2%} | Result: {total_profit:.2%} | Positions held: {sim.positions_held}")
+        #print(f"-> Position size at the exit: {position_size}")
 
         if not partial:
             print(f"-> Price at the full exit: {price_data['open']} | entry {sim.entry_prices[stock_code]}")
@@ -552,7 +552,7 @@ if __name__ == "__main__":
     ws = data_filter_by_dates(ws, start_date_dt, end_date_dt)
 
     ### TEST TEST
-    #ws = ws[ws['stock'] == 'AGIO']
+    ws = ws[ws['stock'] == 'GOGL']
 
     # Filter the dataset per the config for the numerical parameters
     ws = filter_dataframe(ws, config)
