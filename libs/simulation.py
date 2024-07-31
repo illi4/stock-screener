@@ -1,4 +1,6 @@
 # A class for the simulations
+import numpy as np
+from itertools import groupby
 
 class Simulation:
     def __init__(self, capital):
@@ -6,7 +8,7 @@ class Simulation:
         self.minimum_value = capital
         self.positions_held = 0
         self.current_positions = set()
-        self.capital_values = []
+        self.capital_values = [capital]
         self.winning_trades_number, self.losing_trades_number = 0, 0
         self.winning_trades, self.losing_trades = [], []
         self.all_trades = []  # to derive further metrics
@@ -106,3 +108,49 @@ class Simulation:
         self.failed_entry_day_stocks.pop(stock, None)
         self.failsafe_stock_trigger.pop(stock, None)
         self.failsafe_active_dates.pop(stock, None)
+
+    def update_capital(self, new_capital):
+        self.current_capital = new_capital
+        self.capital_values.append(new_capital)
+
+    def calculate_max_drawdown(self):
+        peak = self.capital_values[0]
+        max_drawdown = 0
+        for value in self.capital_values:
+            if value > peak:
+                peak = value
+            drawdown = (peak - value) / peak
+            if drawdown > max_drawdown:
+                max_drawdown = drawdown
+        return max_drawdown
+
+    def calculate_median_mom_growth(self):
+        balances = np.array(self.capital_values)
+        diff_list = np.diff(balances)
+        balances_shifted = balances[:-1]
+        mom_growth = diff_list / balances_shifted
+        return np.median(mom_growth)
+
+    def calculate_avg_mom_growth(self):
+        balances = np.array(self.capital_values)
+        diff_list = np.diff(balances)
+        balances_shifted = balances[:-1]
+        mom_growth = diff_list / balances_shifted
+        return np.mean(mom_growth)
+
+    def calculate_longest_negative_strike(self):
+        max_negative_strike = 0
+        for g, k in groupby(self.all_trades, key=lambda x: x < 0):
+            vals = list(k)
+            negative_strike_length = len(vals)
+            if g and negative_strike_length > max_negative_strike:
+                max_negative_strike = negative_strike_length
+        return max_negative_strike
+
+    def calculate_metrics(self):
+        self.growth = (self.current_capital - self.capital_values[0]) / self.capital_values[0]
+        self.win_rate = self.winning_trades_number / (self.winning_trades_number + self.losing_trades_number) if (self.winning_trades_number + self.losing_trades_number) > 0 else 0
+        self.max_drawdown = self.calculate_max_drawdown()
+        self.mom_growth = self.calculate_median_mom_growth()
+        self.average_mom_growth = self.calculate_avg_mom_growth()
+        self.max_negative_strike = self.calculate_longest_negative_strike()
