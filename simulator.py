@@ -206,146 +206,57 @@ def prepare_data(ws):
     return ws
 
 
+def process_entry(sim, stock, entry_price, take_profit_variant):
+    sim.set_take_profit_levels(stock, take_profit_variant)
 
-def process_entry(sim, stock):
     if len(sim.current_positions) + 1 > current_simultaneous_positions:
         print(f"max possible positions held, skipping {stock}")
     else:
         sim.positions_held += 1
         sim.current_positions.add(stock)
-        sim.capital_per_position[stock] = (
-            sim.current_capital / current_simultaneous_positions
-        )
-        print(
-            "-> entry",
-            stock,
-            "| positions held",
-            sim.positions_held,
-        )
+        sim.capital_per_position[stock] = sim.current_capital / current_simultaneous_positions
+        sim.entry_prices[stock] = entry_price
+        sim.set_take_profit_levels(stock, take_profit_variant)
+
+        print(f"-> entry {stock} | positions held {sim.positions_held}")
         print(f'accounting for the brokerage: ${config["simulator"]["commission"]}')
         sim.current_capital -= config["simulator"]["commission"]
-        print(
-            f"current_capital: ${sim.current_capital}, allocated to the position: ${sim.capital_per_position[stock]}"
-        )
+        print(f"current_capital: ${sim.current_capital}, allocated to the position: ${sim.capital_per_position[stock]}")
 
 
-### NOPE that won't do as for comprehensive testing I need to process price at a particular date and maybe fully exit at the point
-def process_exit(sim, stock_code, row, take_profit_values):
+def process_exit(sim, stock_code, price_data, partial=False):
     if stock_code in sim.current_positions:
-        sim.current_positions.remove(stock_code)
-        sim.positions_held -= 1
+        if partial:
+            # Handle partial exit
+            exit_proportion = sim.take_profit_info[stock_code]['total_exit_proportion']
+            total_profit = sim.take_profit_info[stock_code]['total_profit']
+        else:
+            # Full exit
+            exit_proportion = 1.0
+            total_profit = (price_data['open'] - sim.entry_prices[stock_code]) / sim.entry_prices[stock_code]  # use open price on the exit day
 
-        print(f"-> exit {stock_code}")
-
-        stock_threshold_results = dict()
-
-        # Select appropriate exit price
-        # Just using one
-        # if arguments["exit_variation_a"]:
-        #     exit_price_to_use = elem["exit_price_test_a"]
-        # else:
-        #     exit_price_to_use = elem["main_exit_price"]
-
-        # Calculate result based on thresholds
-        main_part_result = (
-                                   row["main_exit_price"] - row["entry_price_actual"]
-        ) / row["entry_price_actual"]
-
-        # Initialize the total result for the stock to zero
-        total_result = 0
-
-        # Get the maximum price reached as a multiplier
-        max_level_reached_multiplier = row["max_level_reached"]  # e.g. 0.2 for 20%
-
-        # Calculate the maximum price based on the entry price
-        max_price_reached = row["entry_price_actual"] * (1 + max_level_reached_multiplier)
-
-        # Convert the proportions to a percentage multiplier
-        # Note: Assuming all proportions sum to 100%.
-        remaining_proportion = 1.0
-
-        # Iterate through levels in the config
-        for level in sorted(take_profit_values, key=lambda x: float(x['level'].strip('%')), reverse=False):
-            # Parse the level and exit proportion
-            level_multiplier = float(level['level'].strip('%')) / 100
-            exit_proportion = float(level['exit_proportion'].strip('%')) / 100
-
-            # Calculate the exit price for this level
-            level_price = row["entry_price_actual"] * (1 + level_multiplier)
-
-            # Determine if this level was reached
-            if max_price_reached >= level_price:
-                # Calculate the partial result for this level
-                part_result = (
-                    (level_price - row["entry_price_actual"]) / row["entry_price_actual"]
-                ) * exit_proportion
-                total_result += part_result
-                remaining_proportion -= exit_proportion
-                print(f"-> {stock_code} reached: {level_multiplier:.2%} | TP exit proportion {exit_proportion:.2%}")
-            else:
-                # Break if the max level reached is less than the current level
-                break
-
-        # Calculate the result for the main exit price if there is any remaining proportion
-        if remaining_proportion > 0:
-            main_part_result = (
-                (row["main_exit_price"] - row["entry_price_actual"]) / row["entry_price_actual"]
-            ) * remaining_proportion
-            total_result += main_part_result
-            print(f"-> {stock_code} main exit price proportion: {remaining_proportion:.2%}")
-
-        # OLD CODE
-        '''
-        for i in range(0, 3):
-            threshold_result = (
-                                       row[f"threshold_{i + 1}_actual_price"] - row["entry_price_actual"]
-            ) / row["entry_price_actual"]
-            threshold_outcome = threshold_result * row[f"threshold_{i + 1}_exit_portion"]
-            threshold_outcome = (
-                0 if str(threshold_outcome) == "nan" else threshold_outcome
-            )
-            stock_threshold_results[i + 1] = threshold_outcome
-
-        result = main_part_result * row["exit_price_portion"] + sum(
-            stock_threshold_results.values()
-        )
-        '''
-
-        if total_result >= 0:
-            sim.winning_trades_number += 1
-            sim.winning_trades.append(total_result)
-            if (sim.best_trade_adjusted is None) or (
-                total_result / current_simultaneous_positions > sim.best_trade_adjusted
-            ):
-                sim.best_trade_adjusted = total_result / current_simultaneous_positions
-        elif total_result < 0:
-            sim.losing_trades_number += 1
-            sim.losing_trades.append(total_result)
-            if (sim.worst_trade_adjusted is None) or (
-                total_result / current_simultaneous_positions < sim.worst_trade_adjusted
-            ):
-                sim.worst_trade_adjusted = total_result / current_simultaneous_positions
-
-        # Add to all trades
-        sim.all_trades.append(total_result)
-
-        print(
-            f"-> exit {stock_code} | result: {total_result:.2%} | positions held {sim.positions_held}"
-        )
         position_size = sim.capital_per_position[stock_code]
-        print(f"allocated to the position originally: ${position_size}")
+        exit_size = position_size * exit_proportion
+        capital_gain = exit_size * total_profit
 
-        capital_gain = position_size * total_result
-        print(f"capital gain/loss: ${capital_gain}".replace("$-", "-$"))
-        print(f"capital state pre exit: ${sim.current_capital}")
-
-        sim.current_capital = sim.current_capital + capital_gain
-        print(f'accounting for the brokerage: ${config["simulator"]["commission"]}')
+        sim.current_capital += capital_gain
         sim.current_capital -= config["simulator"]["commission"]
-        print(f"balance: ${sim.current_capital}")
 
-        sim.capital_values.append(sim.current_capital)
-        sim.capital_per_position.pop(stock_code)
+        print(f"-> EXIT {stock_code}: {'partial' if partial else 'full'} | proportion {exit_proportion:.2%} | Result: {total_profit:.2%} | Positions held: {sim.positions_held}")
+        print(f"-> Position size at the exit: {position_size}")
+
+        if not partial:
+            sim.current_positions.remove(stock_code)
+            sim.positions_held -= 1
+            del sim.capital_per_position[stock_code]
+            del sim.take_profit_info[stock_code]
+        else:
+            sim.capital_per_position[stock_code] -= exit_size
+
+        # Update trade statistics
+        sim.update_trade_statistics(total_profit)
+
+        print(f"{'Partial' if partial else 'Full'} exit {stock_code} | Result: {total_profit:.2%} | Positions held: {sim.positions_held}")
 
 
 def median_mom_growth(balances):
@@ -828,12 +739,13 @@ def iterate_over_variant_tp_mode(results_dict):
     return results_dict, sim
 '''
 
-def check_profit_levels(current_positions, current_date_dt, take_profit_variant):
+def check_profit_levels(sim, current_positions, current_date_dt, take_profit_variant):
     for stock in current_positions:
         price_data = get_price_from_db(stock, current_date_dt)
-        print(stock, current_date_dt, price_data)
-
-
+        if price_data:
+            if sim.check_and_update_take_profit(stock, price_data['high'], price_data['open'], take_profit_variant):
+                # Process partial exit
+                process_exit(sim, stock, price_data, partial=True)  # take_profit_variant['take_profit_values']
 
 def run_simulation(results_dict, take_profit_variant):
     # Initiate the simulation object with a starting capital
@@ -847,13 +759,10 @@ def run_simulation(results_dict, take_profit_variant):
 
     # Balance for the start of the period which will then be updated
     sim.balances[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
-    sim.detailed_capital_values[
-        start_date_dt.strftime("%d/%m/%Y")
-    ] = sim.current_capital
+    sim.detailed_capital_values[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
 
     # Iterating over days
     while current_date_dt < end_date_dt:
-
         previous_date_month = current_date_dt.strftime("%m")
         current_date_dt = current_date_dt + timedelta(days=1)
         current_date_month = current_date_dt.strftime("%m")
@@ -861,32 +770,28 @@ def run_simulation(results_dict, take_profit_variant):
         # Update monthly balances, will be used to run the final sim
         if previous_date_month != current_date_month:
             sim.balances[current_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
-        sim.detailed_capital_values[
-            current_date_dt.strftime("%d/%m/%Y")
-        ] = sim.current_capital
+        sim.detailed_capital_values[current_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
 
         print(current_date_dt, "| positions: ", sim.current_positions)
 
         # Entries
         day_entries = ws.loc[ws["entry_date"] == current_date_dt]
         for key, row in day_entries.iterrows():
-            process_entry(sim, row["stock"])
+            process_entry(sim, row["stock"], row["entry_price_actual"], take_profit_variant)
 
         # Check whether stocks reach the profit level for each stock
         if len(sim.current_positions) > 0:
-            check_profit_levels(sim.current_positions, current_date_dt, take_profit_variant)
-            exit(0)
-
-        #HERE#
+            check_profit_levels(sim, sim.current_positions, current_date_dt, take_profit_variant)
+            #HERE#
+            #a lot of functions were reworked by Claude, check everything works as expected
+            # seems there are some price issues ah nah its just the weekend dates, check the results
 
         # Exits
-        # Take profit levels also handled here using the max level reached column
         day_exits = ws.loc[ws[f"control_exit_date"] == current_date_dt]
         for key, row in day_exits.iterrows():
-            process_exit(sim, row["stock"], row, take_profit_variant['take_profit_values'])
-
-    # Add the final balance at the end of the date
-    # sim.snapshot_balance(current_date_dt) # nope, makes MoM calc convoluted
+            price_data = get_price_from_db(row["stock"], current_date_dt)
+            if price_data:
+                process_exit(sim, row["stock"], price_data)  # take_profit_variant['take_profit_values']
 
     # Calculate metrics and print the results
     calculate_metrics(sim, config["simulator"]["capital"])
@@ -1054,7 +959,7 @@ if __name__ == "__main__":
     # Get information on the price data if the date is new
     get_stock_prices(ws, prices_start_date)
 
-    #ws = ws[ws['stock'] == 'AGIO']
+    ws = ws[ws['stock'] == 'AGIO']  #TEST
 
     # > Iterate over take profit variants and number of positions
     for current_simultaneous_positions in config["simulator"]["simultaneous_positions"]:
