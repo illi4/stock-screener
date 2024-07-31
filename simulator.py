@@ -224,6 +224,15 @@ def process_entry(sim, stock, entry_price, take_profit_variant):
         print(f"current_capital: ${sim.current_capital}, allocated to the position: ${sim.capital_per_position[stock]}")
 
 
+def exit_all_positions(sim, current_date_dt):
+    for stock in list(sim.current_positions):  # Use list() to avoid modifying set during iteration
+        price_data = get_price_from_db(stock, current_date_dt)
+        if price_data:
+            process_exit(sim, stock, price_data)
+        else:
+            print(f"Warning: No price data found for {stock} on {current_date_dt}. Skipping exit.")
+
+
 def process_exit(sim, stock_code, price_data, partial=False):
     if stock_code in sim.current_positions:
         if partial:
@@ -246,6 +255,7 @@ def process_exit(sim, stock_code, price_data, partial=False):
         print(f"-> Position size at the exit: {position_size}")
 
         if not partial:
+            print(f"-> Price at the full exit: {price_data['open']} | entry {sim.entry_prices[stock_code]}")
             sim.current_positions.remove(stock_code)
             sim.positions_held -= 1
             del sim.capital_per_position[stock_code]
@@ -748,26 +758,19 @@ def check_profit_levels(sim, current_positions, current_date_dt, take_profit_var
                 process_exit(sim, stock, price_data, partial=True)  # take_profit_variant['take_profit_values']
 
 def run_simulation(results_dict, take_profit_variant):
-    # Initiate the simulation object with a starting capital
     sim = Simulation(capital=config["simulator"]["capital"])
-
-    # Show some info
     print(f"Take profit variant {take_profit_variant['variant_name']} | max positions {current_simultaneous_positions}")
 
-    # Starting for a variant
     start_date_dt, end_date_dt, current_date_dt = get_dates(start_date, end_date)
 
-    # Balance for the start of the period which will then be updated
     sim.balances[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
     sim.detailed_capital_values[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
 
-    # Iterating over days
     while current_date_dt < end_date_dt:
         previous_date_month = current_date_dt.strftime("%m")
         current_date_dt = current_date_dt + timedelta(days=1)
         current_date_month = current_date_dt.strftime("%m")
 
-        # Update monthly balances, will be used to run the final sim
         if previous_date_month != current_date_month:
             sim.balances[current_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
         sim.detailed_capital_values[current_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
@@ -782,16 +785,18 @@ def run_simulation(results_dict, take_profit_variant):
         # Check whether stocks reach the profit level for each stock
         if len(sim.current_positions) > 0:
             check_profit_levels(sim, sim.current_positions, current_date_dt, take_profit_variant)
-            #HERE#
-            #a lot of functions were reworked by Claude, check everything works as expected
-            # seems there are some price issues ah nah its just the weekend dates, check the results
 
         # Exits
         day_exits = ws.loc[ws[f"control_exit_date"] == current_date_dt]
         for key, row in day_exits.iterrows():
             price_data = get_price_from_db(row["stock"], current_date_dt)
             if price_data:
-                process_exit(sim, row["stock"], price_data)  # take_profit_variant['take_profit_values']
+                process_exit(sim, row["stock"], price_data)
+
+    # Exit all remaining positions at the end of the simulation
+    if len(sim.current_positions) > 0:
+        print(f"Exiting all remaining positions on {end_date_dt}")
+        exit_all_positions(sim, end_date_dt)
 
     # Calculate metrics and print the results
     calculate_metrics(sim, config["simulator"]["capital"])
@@ -953,13 +958,16 @@ if __name__ == "__main__":
     start_date_dt, end_date_dt, current_date_dt = get_dates(start_date, end_date)
     ws = data_filter_by_dates(ws, start_date_dt, end_date_dt)
 
+    # TEST TEST
+    ws = ws[ws['stock'] == 'AGIO']
+
     # Filter the dataset per the config for the numerical parameters
     ws = filter_dataframe(ws, config)
 
     # Get information on the price data if the date is new
     get_stock_prices(ws, prices_start_date)
 
-    ws = ws[ws['stock'] == 'AGIO']  #TEST
+
 
     # > Iterate over take profit variants and number of positions
     for current_simultaneous_positions in config["simulator"]["simultaneous_positions"]:

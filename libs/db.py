@@ -60,15 +60,25 @@ def check_earliest_price_date():
 
 def get_price_from_db(stock, date):
     try:
-        price_data = Price.get((Price.stock == stock) & (Price.date == date))
-        return {
-            'open': price_data.open,
-            'high': price_data.high,
-            'low': price_data.low,
-            'close': price_data.close
-        }
+        price_data = Price.select().where(
+            (Price.stock == stock) & (Price.date <= date)
+        ).order_by(Price.date.desc()).first()
+
+        if price_data:
+            if price_data.date.date() < date.date():
+                print(f"Warning: Using price data from {price_data.date.date()} for {stock} (requested date: {date.date()})")
+            return {
+                'open': price_data.open,
+                'high': price_data.high,
+                'low': price_data.low,
+                'close': price_data.close,
+                'date': price_data.date
+            }
+        else:
+            print(f"No price data found for {stock} on or before {date}")
+            return None
     except DoesNotExist:
-        print(f"No price data found for {stock} on {date}")
+        print(f"No price data found for {stock}")
         return None
 
 def delete_all_prices():
