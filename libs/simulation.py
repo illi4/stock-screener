@@ -86,8 +86,8 @@ class Simulation:
                 exit_proportion = float(level['exit_proportion'].strip('%')) / 100  # this is the proportion of total position
                 actual_level = (price_to_use - entry_price) / entry_price
 
-                print(f"-> Taking partial ({exit_proportion:.0%}) profit at {take_profit_percentage:.0%} level @ {price_to_use} ({stock})")
-                print(f"-- day open price ${open_price} | level price ${level_price} | using ${price_to_use}")
+                print(f"-> Taking partial ({exit_proportion:.0%}) profit at {take_profit_percentage:.0%} level @ ${price_to_use:.2f} ({stock})")
+                print(f"-- day open price ${open_price} | level price ${level_price:.2f} | using ${price_to_use:.2f}")
                 print(f"-- actual reflected level reached % is {actual_level:.0%}")
 
                 self.take_profit_info[stock]['levels'][i]['reached'] = True
