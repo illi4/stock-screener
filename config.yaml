@@ -78,7 +78,7 @@ simulator:
   failsafe_exit_level: 0.05  # 5% to throwback.
 
   ### Stop-related behaviour
-  stop_loss_level: 0.55
+  stop_loss_level: 0.1
   # stop loss to fully exit. this is calculated from the candle previous to entry day (when we have signal) low
   # ^^^ decimal representation e.g. 0.05 equals 5%
   # seems that 5% may be too conservative, needs further testing
@@ -119,3 +119,7 @@ simulator:
 #    take_profit_values:
 #      - level: 10%
 #        exit_proportion: 100%
+
+      # Notes
+      # Output will contain TRAILING PROFIT HIT for trailing profit
+      # And STOP LOSS HIT for stop losses

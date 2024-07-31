@@ -403,7 +403,7 @@ def check_stop_loss(sim, current_date_dt):
             stopped_out_price = min(sim.stop_loss_prices[stock], price_data['open'])
 
             # different messaging if we have stop loss vs trailing stop
-            msg = 'STOP PROFIT' if sim.trailing_stop_active.get(stock, False) else 'STOP LOSS'
+            msg = 'TRAILING PROFIT' if sim.trailing_stop_active.get(stock, False) else 'STOP LOSS'
             print(f'-> {msg} HIT ({stock}) @ ${stopped_out_price:.2f}')
             # add this to stops_hit
             stops_hit.append(dict(stock=stock, stopped_out_price=stopped_out_price, price_data=price_data))
