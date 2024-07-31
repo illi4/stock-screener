@@ -7,7 +7,6 @@ warnings.filterwarnings("ignore")
 
 from peewee import IntegrityError
 
-import csv
 import libs.gsheetobj as gsheetsobj
 from libs.signal import red_day_on_volume
 from datetime import datetime, timedelta
@@ -17,6 +16,8 @@ import argparse
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
+from openpyxl.styles import Font
+from openpyxl.utils import get_column_letter
 
 parser = argparse.ArgumentParser()
 import matplotlib.pyplot as plt
@@ -29,6 +30,23 @@ from libs.db import check_earliest_price_date, delete_all_prices, bulk_add_price
 
 pd.set_option("display.max_columns", None)
 
+def adjust_column_width(worksheet):
+    for col in worksheet.columns:
+        max_length = 0
+        column = col[0].column_letter
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        adjusted_width = (max_length + 2)
+        worksheet.column_dimensions[column].width = adjusted_width
+
+def set_font_size(worksheet, size):
+    for row in worksheet.iter_rows():
+        for cell in row:
+            cell.font = Font(size=size)
 
 def define_args():
     # Take profit levels variation is only supported for the control group, thus the modes are different
@@ -554,6 +572,10 @@ def run_simulation(results_dict, take_profit_variant):
         print(f"[x] Stopped similation: exiting all remaining positions as of {end_date_dt}")
         exit_all_positions(sim, end_date_dt)
 
+    # Add one more entry for the start of the next month
+    next_month = (end_date_dt.replace(day=1) + timedelta(days=32)).replace(day=1)
+    sim.balances[next_month.strftime("%d/%m/%Y")] = sim.current_capital
+
     # Calculate metrics and print the results
     sim.calculate_metrics()
     sim.print_metrics()
@@ -569,7 +591,7 @@ def create_monthly_breakdown(simulations):
     for variant, sim in simulations.items():
         for date, value in sim.balances.items():
             date_obj = datetime.strptime(date, "%d/%m/%Y")
-            month_start = date_obj.replace(day=1).strftime("%d/%m/%Y")
+            month_start = date_obj.strftime("%d/%m/%Y")  # Keep the day as-is
             if month_start not in monthly_data:
                 monthly_data[month_start] = {}
             monthly_data[month_start][variant] = value
@@ -816,6 +838,12 @@ if __name__ == "__main__":
     # Create the monthly breakdown DataFrame
     monthly_breakdown = create_monthly_breakdown(simulations)
 
+    # Create the monthly breakdown DataFrame
+    monthly_breakdown = create_monthly_breakdown(simulations)
+    monthly_breakdown['Date'] = pd.to_datetime(monthly_breakdown['Date'], format='%d/%m/%Y')
+    monthly_breakdown = monthly_breakdown.sort_values('Date')
+    monthly_breakdown['Date'] = monthly_breakdown['Date'].dt.strftime('%d/%m/%Y')
+
     # Create Excel file with two sheets
     wb = Workbook()
     ws1 = wb.active
@@ -826,6 +854,11 @@ if __name__ == "__main__":
     ws2 = wb.create_sheet(title="Monthly Breakdown")
     for r in dataframe_to_rows(monthly_breakdown, index=False, header=True):
         ws2.append(r)
+
+    # Adjust column width and set font size for both sheets
+    for ws in [ws1, ws2]:
+        adjust_column_width(ws)
+        set_font_size(ws, 12)
 
     # Save the Excel file
     excel_filename = "sim_summary.xlsx"
