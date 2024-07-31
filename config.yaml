@@ -90,9 +90,13 @@ simulator:
         exit_proportion: 25%
       - level: 150%
         exit_proportion: 25%
-  - variant_name: "conservative"  # similar to the current approach
+  - variant_name: "conservative"
     take_profit_values:
       - level: 5%
         exit_proportion: 25%
       - level: 10%
         exit_proportion: 60%
+  - variant_name: "ultra_conservative"  # similar to the current approach
+    take_profit_values:
+      - level: 10%
+        exit_proportion: 100%
