@@ -87,13 +87,16 @@ def adjust_column_width(worksheet):
 def set_font_size(worksheet, size):
     for row in worksheet.iter_rows():
         for cell in row:
-            cell.font = Font(size=size)
+            if cell.row == 1:  # Header row
+                cell.font = Font(size=size, bold=True)
+            else:
+                cell.font = Font(size=size)
 
 def format_percentage(value):
-    return f"{value:.2%}"
+    return value  # Return the raw value instead of formatted string
 
 def format_number(value):
-    return f"{value:.2f}"
+    return value  # Return the raw value instead of formatted string
 
 def define_args():
     # Take profit levels variation is only supported for the control group, thus the modes are different
@@ -690,12 +693,30 @@ if __name__ == "__main__":
     ws1 = wb.active
     ws1.title = "Summary"
 
-    for r in dataframe_to_rows(final_result, index=False, header=True):
-        ws1.append(r)
+    # Get the column indices for percentage and number columns
+    percentage_col_indices = [final_result.columns.get_loc(col) + 1 for col in percentage_cols]
+    number_col_indices = [final_result.columns.get_loc(col) + 1 for col in number_cols]
+
+    bold_font = Font(bold=True)
+
+    for r_idx, row in enumerate(dataframe_to_rows(final_result, index=False, header=True), 1):
+        for c_idx, value in enumerate(row, 1):
+            cell = ws1.cell(row=r_idx, column=c_idx, value=value)
+            if r_idx == 1:  # Header row
+                cell.font = bold_font
+            elif c_idx in percentage_col_indices:
+                cell.number_format = numbers.FORMAT_PERCENTAGE_00
+            elif c_idx in number_cols:
+                cell.number_format = numbers.FORMAT_NUMBER
 
     ws2 = wb.create_sheet(title="Monthly Breakdown")
-    for r in dataframe_to_rows(monthly_breakdown, index=False, header=True):
-        ws2.append(r)
+    for r_idx, row in enumerate(dataframe_to_rows(monthly_breakdown, index=False, header=True), 1):
+        for c_idx, value in enumerate(row, 1):
+            cell = ws2.cell(row=r_idx, column=c_idx, value=value)
+            if r_idx == 1:  # Header row
+                cell.font = bold_font
+            elif c_idx > 1:  # Skip date column
+                cell.number_format = numbers.FORMAT_NUMBER_00
 
     # Adjust column width and set font size for both sheets
     for ws in [ws1, ws2]:
