@@ -1,5 +1,4 @@
-# Simulates trading progress and results over time using a spreadsheet with various considerations
-# Will save the output result to simulator_result.csv
+# Simulates trading progress and results over time using a spreadsheet with various considerationssimulator_result.csv
 
 # Suppress warnings from urllib and gspread
 import warnings
@@ -649,38 +648,6 @@ def create_monthly_breakdown(simulations):
     df.reset_index(inplace=True)
     return df
 
-# def show_monthly_breakdown(result, positions):
-#     # Open a file for writing
-#     csv_filename = f'sim_monthly.csv'
-#
-#     with open(csv_filename, 'w', newline='') as csv_file:
-#         csv_writer = csv.writer(csv_file)
-#
-#         # Write the header
-#         csv_writer.writerow(['Date', 'Value'])
-#
-#         # Convert string dates to datetime objects
-#         date_values = {datetime.strptime(date, '%d/%m/%Y'): value for date, value in result.items()}
-#
-#         print()
-#         print('(!) Note: monthly results are only shown for the last simulation')
-#         print('--- Monthly breakdown ---')
-#
-#         # Iterate over the dictionary and print values at the beginning of each month
-#         current_month = None
-#         for date, value in sorted(date_values.items()):
-#             if date.month != current_month:
-#                 current_month = date.month
-#                 formatted_date = date.replace(day=1).strftime("%d/%m/%Y")
-#                 rounded_value = round(value, 1)
-#                 print(f'{formatted_date}: {rounded_value}')
-#                 csv_writer.writerow([formatted_date, rounded_value])
-#
-#         print('-------------------------')
-#         print(f'(i) results have been written to {csv_filename}')
-#         print()
-
-
 # Apply filters from config to the DataFrame
 def filter_dataframe(df, config):
     filters = config["simulator"]["numerical_filters"]
@@ -837,30 +804,6 @@ if __name__ == "__main__":
         resulting_dataframes.append(
             pd.DataFrame.from_records(values_current, index=[0])
         )
-
-    # final_result = pd.concat(df for df in resulting_dataframes)
-    # final_result = final_result[
-    #     [
-    #         "variant",
-    #         "simultaneous_positions",
-    #         "variant_group",
-    #         "best_trade_adjusted",
-    #         "growth",
-    #         "losing_trades_number",
-    #         "max_drawdown",
-    #         "max_negative_strike",
-    #         "win_rate",
-    #         "median_mom_growth",
-    #         "average_mom_growth",
-    #         "winning_trades_number",
-    #         "worst_trade_adjusted",
-    #     ]
-    # ]
-    #
-    # # save to csv
-    # final_result.to_csv("sim_summary.csv", index=False)
-    # print()
-    # print("(i) summary saved to sim_summary.csv")
 
     # Create the summary DataFrame
     final_result = pd.concat(pd.DataFrame.from_records(v, index=[0]) for v in results_dict.values())
