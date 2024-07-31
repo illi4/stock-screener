@@ -290,9 +290,9 @@ def process_exit(sim, stock_code, price_data):
         overall_result = tp_contribution + last_exit_contribution
         print(f'-- overall result {overall_result:.2%}')
 
-        # Calculate the outcome
+        # Calculate the outcome using the original position size
         profit_amount = total_position_size * (overall_result)
-        print(f'-- profit/loss ${profit_amount:.2f}')
+        print(f'--> profit/loss ${profit_amount:.2f}')
 
         previous_capital = sim.current_capital
         sim.current_capital += profit_amount
