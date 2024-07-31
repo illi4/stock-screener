@@ -296,14 +296,19 @@ def process_exit(sim, stock_code, price_data, forced_price=None):
         # Calculate the contribution from the take profit levels
         # This is representing the growth from the overall original amount, accounted for the proportion of TP levels
         tp_contribution = calculate_profit_contribution(sim.take_profit_info[stock_code])
-        print(f'-- take profit contribution {tp_contribution:.2%}')
+        print(f'-- position PNL from take profit levels: {tp_contribution:.2%}')
+
+        # Print reached levels
+        reached_levels = [level for level in sim.take_profit_info[stock_code]['levels'] if level['reached']]
+        for level in reached_levels:
+            print(f"  ├ level of {level['level']} [v]")
 
         # Calculate the final exit part contribution
         last_exit_contribution = final_price_change*final_exit_proportion
-        print(f'-- final exit contribution {last_exit_contribution:.2%}')
+        print(f'-- position PNL from the exit: {last_exit_contribution:.2%}')
 
         overall_result = tp_contribution + last_exit_contribution
-        print(f'-- overall result {overall_result:.2%}')
+        print(f'-- total position PNL: {overall_result:.2%}')
 
         # Calculate the outcome using the original position size
         profit_amount = total_position_size * (overall_result)
@@ -312,7 +317,7 @@ def process_exit(sim, stock_code, price_data, forced_price=None):
         previous_capital = sim.current_capital
         sim.current_capital += profit_amount
         sim.current_capital -= config["simulator"]["commission"]
-        print(f"Capital {previous_capital} -> {sim.current_capital}")
+        print(f"Capital ${previous_capital:.2f} -> ${sim.current_capital:.2f}")
 
         # Delete traces
         sim.current_positions.remove(stock_code)

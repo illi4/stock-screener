@@ -62,7 +62,7 @@ class Simulation:
                         }
                        for level in take_profit_variant['take_profit_values']],
             'taken_profit_proportion': 0
-        } 
+        }
 
         # Create a string of take profit prices
         tp_prices = " | ".join([f"${level['price']:.2f}" for level in self.take_profit_info[stock]['levels']])
