@@ -145,3 +145,4 @@ dmypy.json
 log.txt
 sim_summary.xlsx
 ~$sim_summary.xlsx
+.DS_Store
