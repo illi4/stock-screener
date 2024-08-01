@@ -28,7 +28,7 @@ logging:
   gsheet_name: "Trading journal R&D 2024"
   gsheet_tab_name: "US_anx"
   gsheet_actual_price_col: "F"
-  gsheet_columns: # Different for ANX and MRI (!)
+  gsheet_columns: # columns in the spreadsheet
     - stock
     - market
     - trade_type
@@ -129,6 +129,5 @@ simulator:
 #      - level: 10%
 #        exit_proportion: 100%
 
-      # Notes 📝
-      # Output will contain TRAILING PROFIT HIT for trailing profit
-      # STOP LOSS HIT for stop losses
+# 📝 NOTES
+# Output will contain -> TRAILING PROFIT HIT for trailing profit and -> STOP LOSS HIT for stop losses

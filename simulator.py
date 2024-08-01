@@ -1,4 +1,8 @@
-# Simulates trading progress and results over time using a spreadsheet
+#########################################
+#                                       #
+#         IMPORTS AND SETUP 🐍          #
+#                                       #
+#########################################
 
 # Suppress warnings from urllib and gspread
 import warnings
@@ -23,148 +27,15 @@ config = read_config()
 #from libs.signal import red_day_on_volume # not used
 from libs.simulation import Simulation
 from libs.db import check_earliest_price_date, delete_all_prices, bulk_add_prices, get_price_from_db
-from libs.helpers import create_report
+from libs.helpers import create_report, define_simulator_args, data_filter_by_dates, prepare_data, filter_dataframe
 
 pd.set_option("display.max_columns", None)
 
-def define_args():
-    # Take profit levels variation is only supported for the control group, thus the modes are different
-    # Removing this as not used now, only one mode using the sheet
-    # parser.add_argument(
-    #     "-mode",
-    #     type=str,
-    #     required=True,
-    #     help="Mode to run the simulation in (main|tp). Main mode means taking profit as per the spreadsheet setup.",
-    #     choices=["main", "tp"],
-    # )
-    parser.add_argument(
-        "--plot", action="store_true", help="Plot the latest simulation"
-    )
-    parser.add_argument(
-        "--failsafe", action="store_true", help="Activate the failsafe approach"
-    )
-    parser.add_argument(
-        "--forced_price_update", action="store_true", help="Activate the failsafe approach"
-    )
-    #
-    # parser.add_argument(
-    #     "--show_monthly", action="store_true", help="Show MoM capital value (only in main mode)"
-    # )
-
-    parser.add_argument(
-        "-method",
-        type=str,
-        required=True,
-        choices=["mri", "anx"],
-        help="Method of shortlisting (mri or anx)"
-    )
-
-    # Adding the dates
-    parser.add_argument(
-        "-start",
-        type=str,
-        required=True,
-        help="Start date to run for (YYYY-MM-DD format)",
-    )
-    parser.add_argument(
-        "-end",
-        type=str,
-        required=True,
-        help="End date to run for (YYYY-MM-DD format)",
-    )
-
-    # Not used
-    # # Arguments to overwrite default settings for filtering
-    # parser.add_argument(
-    #     "--red_day_exit",
-    #     action="store_true",
-    #     help="Exit when entry day is red (in tp mode only)",
-    # )
-
-    # Not used
-    # Test for the exit price variation experimentation
-    # parser.add_argument(
-    #     "--exit_variation_a",
-    #     action="store_true",
-    #     help="Exit approach experiment A (main mode only)",
-    # )
-
-    args = parser.parse_args()
-    arguments = vars(args)
-
-    # Convert specific arguments to boolean, defaulting to False if not provided
-    boolean_args = ["plot", "failsafe", "forced_price_update"]   # "show_monthly"
-    arguments.update({arg: bool(arguments.get(arg)) for arg in boolean_args})
-
-    return arguments
-
-
-# def process_filter_args():
-#     red_entry_day_exit = True if arguments["red_day_exit"] else False
-#     failsafe = True if arguments["failsafe"] else False
-#     return red_entry_day_exit, failsafe
-
-
-def p2f(s):
-    try:
-        stripped_s = s.strip("%")
-        if stripped_s == "":
-            return
-        else:
-            return float(stripped_s) / 100
-    except AttributeError:
-        return s
-
-
-def data_filter_by_dates(ws, start_date, end_date):
-    ws = ws.loc[ws["entry_date"] >= start_date]
-    ws = ws.loc[ws["entry_date"] <= end_date]
-    return ws
-
-
-def prepare_data(ws):
-    # Convert types
-    # This should be in gsheetobj
-    num_cols = [
-        "entry_price_planned",
-        "entry_price_actual",
-        "exit_price_planned",
-        "main_exit_price",
-        "threshold_1_expected_price",
-        "threshold_1_actual_price",
-        "threshold_2_expected_price",
-        "threshold_2_actual_price",
-        "threshold_3_expected_price",
-        "threshold_3_actual_price",
-        "weekly_mri_count",
-        "fisher_daily",
-        "fisher_weekly",
-        "coppock_daily",
-        "coppock_weekly"
-    ]
-    ws[num_cols] = ws[num_cols].apply(pd.to_numeric, errors="coerce")
-
-    ws["max_level_reached"] = ws["max_level_reached"].apply(p2f)
-    ws["entry_date"] = pd.to_datetime(
-        ws["entry_date"], format="%d/%m/%Y", errors="coerce"
-    )
-    ws["control_exit_date"] = pd.to_datetime(
-        ws["control_exit_date"], format="%d/%m/%Y", errors="coerce"
-    )
-
-    # Not needed in the new format
-    for column in [
-        "control_result_%",
-        "exit_price_portion",
-        "threshold_1_exit_portion",
-        "threshold_2_exit_portion",
-        "threshold_3_exit_portion",
-        "max_level_reached",
-    ]:
-        ws[column] = ws[column].apply(p2f)
-
-    return ws
-
+#########################################
+#                                       #
+#         TRADE PROCESSING 💼           #
+#                                       #
+#########################################
 
 def get_lowest_price_before_entry(stock, entry_date):
     previous_date = entry_date - timedelta(days=1)
@@ -293,22 +164,6 @@ def update_results_dict(
     return results_dict
 
 
-# plotting
-def plot_latest_sim(latest_sim):
-    x, y = [], []
-    for key, value in latest_sim.detailed_capital_values.items():
-        x.append(key)
-        y.append(value)
-    _ = plt.plot(x, y)
-    ax = plt.gca()
-    plt.xticks(fontsize=7)
-    lst = list(range(1000))
-    lst = lst[0::20]
-    for index, label in enumerate(ax.get_xaxis().get_ticklabels()):
-        if index not in lst:
-            label.set_visible(False)
-    plt.show()
-
 def get_dates(start_date, end_date):
     try:
         start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
@@ -325,6 +180,7 @@ def check_profit_levels(sim, current_date_dt, take_profit_variant):
         price_data = get_price_from_db(stock, current_date_dt)
         if price_data:
             sim.check_and_update_take_profit(stock, price_data['high'], price_data['open'], take_profit_variant, config["simulator"]["commission"])
+
 
 def check_stop_loss(sim, current_date_dt):
 
@@ -348,6 +204,12 @@ def check_stop_loss(sim, current_date_dt):
     for hits in stops_hit:
         process_exit(sim, hits['stock'], hits['price_data'], forced_price=hits['stopped_out_price'])
 
+
+#########################################
+#                                       #
+#         SIMULATION LOGIC 🔄           #
+#                                       #
+#########################################
 
 def run_simulation(results_dict, take_profit_variant):
     sim = Simulation(capital=config["simulator"]["capital"])
@@ -410,19 +272,6 @@ def run_simulation(results_dict, take_profit_variant):
         results_dict, sim, current_simultaneous_positions, take_profit_variant['variant_name']
     )
     return results_dict, sim
-
-# Apply filters from config to the DataFrame
-def filter_dataframe(df, config):
-    filters = config["simulator"]["numerical_filters"]
-    for column, conditions in filters.items():
-        if isinstance(conditions, dict):  # Ensure conditions is a dictionary
-            if 'min' in conditions:
-                df = df[df[column] >= conditions['min']]
-            if 'max' in conditions:
-                df = df[df[column] <= conditions['max']]
-        else:
-            print(f"Error: Filter conditions for {column} are not specified correctly.")
-    return df
 
 
 # Get and save stock prices if not available for running the simulation
@@ -491,14 +340,18 @@ def get_stock_prices(sheet_df, prices_start_date):
 
     return stock_prices
 
-########################################
-############## MAIN CODE ###############
-########################################
+
+#########################################
+#                                       #
+#        MAIN EXECUTION 🚀              #
+#                                       #
+#########################################
 if __name__ == "__main__":
 
-    arguments = define_args()
+    # Get the run params
+    arguments = define_simulator_args()
 
-    #red_entry_day_exit, failsafe = process_filter_args()
+    #red_entry_day_exit, failsafe = process_filter_args()  # the function is not used and was moved to helpers
 
     print("reading the values...")
 
@@ -518,7 +371,6 @@ if __name__ == "__main__":
     tab_name = config["logging"]["gsheet_tab_name"]
 
     ws = gsheetsobj.sheet_to_df(sheet_name, tab_name)
-
     ws.columns = config["logging"]["gsheet_columns"]
     ws = prepare_data(ws)
 

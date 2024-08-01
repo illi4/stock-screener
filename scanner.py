@@ -4,7 +4,7 @@ warnings.filterwarnings("ignore")
 from collections import namedtuple
 
 from libs.helpers import (
-    define_args,
+    define_scanner_args,
     dates_diff,
     format_number,
     get_previous_workday,
@@ -303,7 +303,7 @@ if __name__ == "__main__":
 
     start_time = time()
 
-    arguments = define_args()
+    arguments = define_scanner_args()
     reporting_date_start = get_data_start_date(arguments["date"])
 
     # Initiate market objects

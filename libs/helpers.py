@@ -62,8 +62,85 @@ def define_args_method_only():
 
     return arguments
 
+def define_simulator_args():
+    # Take profit levels variation is only supported for the control group, thus the modes are different
+    # Removing this as not used now, only one mode using the sheet
+    # parser.add_argument(
+    #     "-mode",
+    #     type=str,
+    #     required=True,
+    #     help="Mode to run the simulation in (main|tp). Main mode means taking profit as per the spreadsheet setup.",
+    #     choices=["main", "tp"],
+    # )
+    parser.add_argument(
+        "--plot", action="store_true", help="Plot the latest simulation"
+    )
+    parser.add_argument(
+        "--failsafe", action="store_true", help="Activate the failsafe approach"
+    )
+    parser.add_argument(
+        "--forced_price_update", action="store_true", help="Activate the failsafe approach"
+    )
+    #
+    # parser.add_argument(
+    #     "--show_monthly", action="store_true", help="Show MoM capital value (only in main mode)"
+    # )
 
-def define_args():
+    parser.add_argument(
+        "-method",
+        type=str,
+        required=True,
+        choices=["mri", "anx"],
+        help="Method of shortlisting (mri or anx)"
+    )
+
+    # Adding the dates
+    parser.add_argument(
+        "-start",
+        type=str,
+        required=True,
+        help="Start date to run for (YYYY-MM-DD format)",
+    )
+    parser.add_argument(
+        "-end",
+        type=str,
+        required=True,
+        help="End date to run for (YYYY-MM-DD format)",
+    )
+
+    # Not used
+    # # Arguments to overwrite default settings for filtering
+    # parser.add_argument(
+    #     "--red_day_exit",
+    #     action="store_true",
+    #     help="Exit when entry day is red (in tp mode only)",
+    # )
+
+    # Not used
+    # Test for the exit price variation experimentation
+    # parser.add_argument(
+    #     "--exit_variation_a",
+    #     action="store_true",
+    #     help="Exit approach experiment A (main mode only)",
+    # )
+
+    args = parser.parse_args()
+    arguments = vars(args)
+
+    # Convert specific arguments to boolean, defaulting to False if not provided
+    boolean_args = ["plot", "failsafe", "forced_price_update"]   # "show_monthly"
+    arguments.update({arg: bool(arguments.get(arg)) for arg in boolean_args})
+
+    return arguments
+
+
+# def process_filter_args():
+#     red_entry_day_exit = True if arguments["red_day_exit"] else False
+#     failsafe = True if arguments["failsafe"] else False
+#     return red_entry_day_exit, failsafe
+
+
+def define_scanner_args():
     parser.add_argument(
         "--update",
         action="store_true",
@@ -350,3 +427,79 @@ def create_report(results_dict, simulations, plot):
     excel_filename = "sim_summary.xlsx"
     wb.save(excel_filename)
     print(f"(i) Detailed info saved to {excel_filename}")
+
+
+#### Simulation functions ####
+def p2f(s):
+    try:
+        stripped_s = s.strip("%")
+        if stripped_s == "":
+            return
+        else:
+            return float(stripped_s) / 100
+    except AttributeError:
+        return s
+
+
+def data_filter_by_dates(ws, start_date, end_date):
+    ws = ws.loc[ws["entry_date"] >= start_date]
+    ws = ws.loc[ws["entry_date"] <= end_date]
+    return ws
+
+
+def prepare_data(ws):
+    # Convert types
+    # This should be in gsheetobj
+    num_cols = [
+        "entry_price_planned",
+        "entry_price_actual",
+        "exit_price_planned",
+        "main_exit_price",
+        "threshold_1_expected_price",
+        "threshold_1_actual_price",
+        "threshold_2_expected_price",
+        "threshold_2_actual_price",
+        "threshold_3_expected_price",
+        "threshold_3_actual_price",
+        "weekly_mri_count",
+        "fisher_daily",
+        "fisher_weekly",
+        "coppock_daily",
+        "coppock_weekly"
+    ]
+    ws[num_cols] = ws[num_cols].apply(pd.to_numeric, errors="coerce")
+
+    ws["max_level_reached"] = ws["max_level_reached"].apply(p2f)
+    ws["entry_date"] = pd.to_datetime(
+        ws["entry_date"], format="%d/%m/%Y", errors="coerce"
+    )
+    ws["control_exit_date"] = pd.to_datetime(
+        ws["control_exit_date"], format="%d/%m/%Y", errors="coerce"
+    )
+
+    # Not needed in the new format
+    for column in [
+        "control_result_%",
+        "exit_price_portion",
+        "threshold_1_exit_portion",
+        "threshold_2_exit_portion",
+        "threshold_3_exit_portion",
+        "max_level_reached",
+    ]:
+        ws[column] = ws[column].apply(p2f)
+
+    return ws
+
+
+# Apply filters from config to the DataFrame
+def filter_dataframe(df, config):
+    filters = config["simulator"]["numerical_filters"]
+    for column, conditions in filters.items():
+        if isinstance(conditions, dict):  # Ensure conditions is a dictionary
+            if 'min' in conditions:
+                df = df[df[column] >= conditions['min']]
+            if 'max' in conditions:
+                df = df[df[column] <= conditions['max']]
+        else:
+            print(f"Error: Filter conditions for {column} are not specified correctly.")
+    return df
