@@ -1,4 +1,4 @@
-# Simulates trading progress and results over time using a spreadsheet with various considerationssimulator_result.csv
+# Simulates trading progress and results over time using a spreadsheet
 
 # Suppress warnings from urllib and gspread
 import warnings
@@ -7,108 +7,25 @@ warnings.filterwarnings("ignore")
 from peewee import IntegrityError
 
 import libs.gsheetobj as gsheetsobj
-#from libs.signal import red_day_on_volume #not used
 from datetime import datetime, timedelta
 from libs.stocktools import get_stock_data, Market
 import argparse
-
 import pandas as pd
-from openpyxl import Workbook
-from openpyxl.utils.dataframe import dataframe_to_rows
-from openpyxl.styles import Font, numbers
-from openpyxl.utils import get_column_letter
-from openpyxl.styles import Alignment
 
 # For plotting
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-from openpyxl.drawing.image import Image
-import io
 
 parser = argparse.ArgumentParser()
 
 from libs.read_settings import read_config
 config = read_config()
 
+#from libs.signal import red_day_on_volume # not used
 from libs.simulation import Simulation
 from libs.db import check_earliest_price_date, delete_all_prices, bulk_add_prices, get_price_from_db
+from libs.helpers import create_report
 
 pd.set_option("display.max_columns", None)
-
-def create_variant_plot(sim, variant_name):
-    # Convert dates to datetime objects
-    dates = [datetime.strptime(date, "%d/%m/%Y") for date in sim.detailed_capital_values.keys()]
-    values = list(sim.detailed_capital_values.values())
-
-    # Add termination value as a step change
-    last_date = dates[-1]
-    next_month = (last_date.replace(day=1) + timedelta(days=32)).replace(day=1)
-
-    plt.figure(figsize=(12, 6))
-
-    # Plot the main line
-    plt.step(dates, values, where='post')
-
-    # Add the final step
-    plt.step([last_date, next_month], [values[-1], sim.current_capital], where='post')
-
-    plt.title(f"Capital Over Time - {variant_name}")
-    plt.xlabel("Date")
-    plt.ylabel("Capital")
-
-    # Set x-axis to show only the first of each month
-    plt.gca().xaxis.set_major_locator(mdates.MonthLocator())
-    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%01'))
-
-    # Extend x-axis slightly to show the final step
-    plt.xlim(dates[0], next_month + timedelta(days=1))
-
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-
-    # Save plot to a bytes buffer
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png', dpi=300)
-    buf.seek(0)
-    plt.close()
-    return buf
-
-def adjust_column_width(worksheet):
-    for column in worksheet.columns:
-        max_length = 0
-        column_letter = get_column_letter(column[0].column)
-        for cell in column:
-            try:
-                if len(str(cell.value)) > max_length:
-                    max_length = len(cell.value)
-            except:
-                pass
-        adjusted_width = max_length + 2
-        worksheet.column_dimensions[column_letter].width = adjusted_width
-
-def set_font_size_and_alignment(worksheet, size):
-    for row in worksheet.iter_rows():
-        for cell in row:
-            if cell.row == 1:  # Header row
-                cell.font = Font(size=size, bold=True)
-                cell.value = cell.value.replace('_', ' ').title()
-            else:
-                cell.font = Font(size=size)
-            cell.alignment = Alignment(horizontal='center')
-
-def set_font_size(worksheet, size):
-    for row in worksheet.iter_rows():
-        for cell in row:
-            if cell.row == 1:  # Header row
-                cell.font = Font(size=size, bold=True)
-            else:
-                cell.font = Font(size=size)
-
-def format_percentage(value):
-    return value  # Return the raw value instead of formatted string
-
-def format_number(value):
-    return value  # Return the raw value instead of formatted string
 
 def define_args():
     # Take profit levels variation is only supported for the control group, thus the modes are different
@@ -494,21 +411,6 @@ def run_simulation(results_dict, take_profit_variant):
     )
     return results_dict, sim
 
-def create_monthly_breakdown(simulations):
-    monthly_data = {}
-    for variant, sim in simulations.items():
-        for date, value in sim.balances.items():
-            date_obj = datetime.strptime(date, "%d/%m/%Y")
-            month_start = date_obj.strftime("%d/%m/%Y")  # Keep the day as-is
-            if month_start not in monthly_data:
-                monthly_data[month_start] = {}
-            monthly_data[month_start][variant] = value
-
-    df = pd.DataFrame(monthly_data).T
-    df.index.name = 'Date'
-    df.reset_index(inplace=True)
-    return df
-
 # Apply filters from config to the DataFrame
 def filter_dataframe(df, config):
     filters = config["simulator"]["numerical_filters"]
@@ -589,8 +491,9 @@ def get_stock_prices(sheet_df, prices_start_date):
 
     return stock_prices
 
-
+########################################
 ############## MAIN CODE ###############
+########################################
 if __name__ == "__main__":
 
     arguments = define_args()
@@ -626,7 +529,7 @@ if __name__ == "__main__":
     start_date_dt, end_date_dt, current_date_dt = get_dates(start_date, end_date)
     ws = data_filter_by_dates(ws, start_date_dt, end_date_dt)
 
-    ### TEST TEST
+    ### Uncomment for testing on a particular stock
     #ws = ws[ws['stock'] == 'AGIO']
 
     # Filter the dataset per the config for the numerical parameters
@@ -635,7 +538,7 @@ if __name__ == "__main__":
     # Get information on the price data if the date is new
     get_stock_prices(ws, prices_start_date)
 
-    # > Iterate over take profit variants and number of positions
+    # Iterate over take profit variants and number of positions
     simulations = {}
 
     for current_simultaneous_positions in config["simulator"]["simultaneous_positions"]:
@@ -648,107 +551,5 @@ if __name__ == "__main__":
             )
             simulations[variant_name] = latest_sim
 
-    # < Stop iterations
-
-    #### Finalisation
-    # Write the output to a dataframe and a spreadsheet
-    resulting_dataframes = []
-    for k, v in results_dict.items():
-        print(k, v)
-        values_current = v.copy()
-        values_current["variant"] = k
-        resulting_dataframes.append(
-            pd.DataFrame.from_records(values_current, index=[0])
-        )
-
-    # Create the summary DataFrame
-    final_result = pd.concat(pd.DataFrame.from_records(v, index=[0]) for v in results_dict.values())
-    final_result['variant'] = results_dict.keys()
-    final_result = final_result[
-        [
-            "variant",
-            "max_positions",
-            "growth",
-            "max_drawdown",
-            "win_rate",
-            "median_mom_growth",
-            "average_mom_growth",
-            "winning_trades_number",
-            "losing_trades_number",
-            "max_negative_strike",
-            "best_trade_adjusted",
-            "worst_trade_adjusted",
-        ]
-    ]
-
-    # Format percentage and number columns
-    percentage_cols = ["growth", "max_drawdown", "win_rate", "median_mom_growth", "average_mom_growth", "best_trade_adjusted", "worst_trade_adjusted"]
-    number_cols = ["max_positions", "winning_trades_number", "losing_trades_number", "max_negative_strike"]
-
-    final_result[percentage_cols] = final_result[percentage_cols].applymap(format_percentage)
-    final_result[number_cols] = final_result[number_cols].applymap(format_number)
-
-    # Create the monthly breakdown DataFrame
-    monthly_breakdown = create_monthly_breakdown(simulations)
-
-    # Create the monthly breakdown DataFrame
-    monthly_breakdown = create_monthly_breakdown(simulations)
-    monthly_breakdown['Date'] = pd.to_datetime(monthly_breakdown['Date'], format='%d/%m/%Y')
-    monthly_breakdown = monthly_breakdown.sort_values('Date')
-    monthly_breakdown['Date'] = monthly_breakdown['Date'].dt.strftime('%d/%m/%Y')
-
-    # Format monthly breakdown values
-    monthly_breakdown.iloc[:, 1:] = monthly_breakdown.iloc[:, 1:].applymap(format_number)
-
-    # Create Excel file with three sheets
-    wb = Workbook()
-    ws1 = wb.active
-    ws1.title = "Summary"
-
-    # Get the column indices for percentage and number columns
-    percentage_col_indices = [final_result.columns.get_loc(col) + 1 for col in percentage_cols]
-    number_col_indices = [final_result.columns.get_loc(col) + 1 for col in number_cols]
-
-    bold_font = Font(bold=True)
-
-    for r_idx, row in enumerate(dataframe_to_rows(final_result, index=False, header=True), 1):
-        for c_idx, value in enumerate(row, 1):
-            cell = ws1.cell(row=r_idx, column=c_idx, value=value)
-            if r_idx == 1:  # Header row
-                cell.font = bold_font
-            elif c_idx in percentage_col_indices:
-                cell.number_format = numbers.FORMAT_PERCENTAGE_00
-            elif c_idx in number_cols:
-                cell.number_format = numbers.FORMAT_NUMBER
-
-    ws2 = wb.create_sheet(title="Monthly Breakdown")
-    for r_idx, row in enumerate(dataframe_to_rows(monthly_breakdown, index=False, header=True), 1):
-        for c_idx, value in enumerate(row, 1):
-            cell = ws2.cell(row=r_idx, column=c_idx, value=value)
-            if r_idx == 1:  # Header row
-                cell.font = bold_font
-            elif c_idx > 1:  # Skip date column
-                cell.number_format = numbers.FORMAT_NUMBER_00
-
-    # Adjust column width and set font size for both sheets
-    for ws in [ws1, ws2]:
-        set_font_size_and_alignment(ws, 11)
-        adjust_column_width(ws)
-
-    # Add plots if the plot argument is provided
-    if arguments["plot"]:
-        ws3 = wb.create_sheet(title="Plots")
-        row = 1
-        for variant_name, sim in simulations.items():
-            img_buf = create_variant_plot(sim, variant_name)
-            img = Image(img_buf)
-            img.width = 900
-            img.height = 500
-            ws3.add_image(img, f'A{row}')
-
-            row += 30  # Spacing between plots
-
-    # Save the Excel file
-    excel_filename = "sim_summary.xlsx"
-    wb.save(excel_filename)
-    print(f"(i) Detailed info saved to {excel_filename}")
+    # Create the report
+    create_report(results_dict, simulations, arguments["plot"])
