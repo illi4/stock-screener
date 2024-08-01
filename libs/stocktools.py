@@ -4,6 +4,7 @@ import pandas as pd
 import requests
 import os
 import time
+from requests.exceptions import RequestException
 
 session = None  # to use in requests
 eod_key = os.environ.get("API_KEY")
@@ -94,7 +95,7 @@ def get_exchange_symbols(market_object, checked_workday):
     return stocks
 
 
-def get_stock_data(code, reporting_date_start):
+def get_stock_data(code, reporting_date_start, max_retries=5, retry_delay=5):
     global session
     if session is None:
         session = requests.Session()
@@ -102,36 +103,49 @@ def get_stock_data(code, reporting_date_start):
     url = f"https://eodhistoricaldata.com/api/eod/{code}?api_token={eod_key}&order=a&fmt=json&from={reporting_date_start}"
 
     params = {"api_token": eod_key}
-    r = session.get(url, params=params)  # to speed things up
 
-    if r.status_code == 404:
-        print(f"Ticker {code} not found, skipping")
-        return None, None
+    for attempt in range(max_retries):
+        try:
+            r = session.get(url, params=params)
 
-    if r.status_code != requests.codes.ok:
-        print(f"Status response is not Ok: {r.status_code}")
-        exit(0)
+            if r.status_code == 404:
+                print(f"Ticker {code} not found, skipping")
+                return None, None
 
-    data = json.loads(r.text)
+            if r.status_code == requests.codes.ok:
+                data = json.loads(r.text)
+                df = pd.DataFrame.from_dict(data)
 
-    df = pd.DataFrame.from_dict(
-        data
-    )  # question - will it give me data after 5pm on the curr day?
+                if df.empty:
+                    return None, None
 
-    # Could return an empty df - skip if so
-    if df.empty:
-        return None, None
+                df = df[["date", "open", "high", "low", "close", "volume"]]
+                df["date"] = pd.to_datetime(df["date"])
+                df.columns = ["timestamp", "open", "high", "low", "close", "volume"]
 
-    df = df[["date", "open", "high", "low", "close", "volume"]]
-    df["date"] = pd.to_datetime(df["date"])
-    df.columns = ["timestamp", "open", "high", "low", "close", "volume"]
+                return (
+                    df[["timestamp", "open", "high", "low", "close"]],
+                    df[["timestamp", "volume"]],
+                )
+            else:
+                print(f"Attempt {attempt + 1}: Status response is not Ok: {r.status_code}")
+                if attempt < max_retries - 1:
+                    print(f"Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    print("Max retries reached. Exiting.")
+                    return None, None
 
-    # For compatibility with the TA library
-    return (
-        df[["timestamp", "open", "high", "low", "close"]],
-        df[["timestamp", "volume"]],
-    )
+        except RequestException as e:
+            print(f"Attempt {attempt + 1}: Request failed: {e}")
+            if attempt < max_retries - 1:
+                print(f"Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+            else:
+                print("Max retries reached. Exiting.")
+                return None, None
 
+    return None, None
 
 def ohlc_daily_to_weekly(df):
     df["week_number"] = df["timestamp"].dt.isocalendar().week

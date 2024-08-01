@@ -4,7 +4,7 @@ warnings.filterwarnings("ignore")
 from collections import namedtuple
 
 from libs.helpers import (
-    define_args,
+    define_scanner_args,
     dates_diff,
     format_number,
     get_previous_workday,
@@ -114,7 +114,7 @@ def report_on_shortlist(shortlist, exchange):
         f"{len(shortlist)} shortlisted stocks (sorted by 5-day MA vol) as of {checked_workday}:"
     )
     for stock in shortlist:
-        print(f"{stock.code} ({stock.name}) | Volume {stock.volume} | fisherDaily {stock.fisherDaily:.2f} | fisherWeekly {stock.fisherWeekly:.2f} | coppockDaily {stock.coppockDaily:.2f} | coppockWeekly {stock.coppockWeekly:.2f}")
+        print(f"{stock.code} ({stock.name}) | Volume {stock.volume}") # | fisherDaily {stock.fisherDaily:.2f} | fisherWeekly {stock.fisherWeekly:.2f} | coppockDaily {stock.coppockDaily:.2f} | coppockWeekly {stock.coppockWeekly:.2f}")
 
 
 def process_data_at_date(ohlc_daily, volume_daily):
@@ -150,7 +150,7 @@ def calculate_extra_metrics(ohlc_with_indicators_daily, ohlc_with_indicators_wee
         return metric_values
 
 
-def scan_stock(stocks, market, method): ###HERE###
+def scan_stock(stocks, market, method):
 
     stock_suffix = market.stock_suffix
     shortlisted_stocks = []
@@ -303,7 +303,7 @@ if __name__ == "__main__":
 
     start_time = time()
 
-    arguments = define_args()
+    arguments = define_scanner_args()
     reporting_date_start = get_data_start_date(arguments["date"])
 
     # Initiate market objects

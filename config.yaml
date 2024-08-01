@@ -1,4 +1,8 @@
-#### Configuration file ####
+#####################################
+#                                   #
+#     🚀 TRADING BOT CONFIG 🚀     #
+#                                   #
+#####################################
 
 markets: # Supported: ASX, NASDAQ, NYSE. In a list so that scanner can work on multiple markets.
   - NASDAQ
@@ -20,19 +24,11 @@ locality:
   tzinfo: Australia/Sydney
   shift_update_day: True  # shift update day by 1 by default, useful for being located in AU and trading US
 
-simulator:  # note - does not apply to the legacy simulator, only works with the current one
-  capital: 100000
-  commission: 0
-  simultaneous_positions: # variants to go through if several
-    - 4
-  failsafe_trigger_level: 0.15  # 15% to reach. Note: failsafe trigger is not actually used after thorough testing.
-  failsafe_exit_level: 0.05  # 5% to throwback.
-
 logging:
   gsheet_name: "Trading journal R&D 2024"
   gsheet_tab_name: "US_anx"
   gsheet_actual_price_col: "F"
-  gsheet_columns: # Different for ANX and MRI (!)
+  gsheet_columns: # columns in the spreadsheet
     - stock
     - market
     - trade_type
@@ -67,3 +63,71 @@ logging:
     - coppock_daily
     - coppock_weekly
     - comments
+
+#==================================#
+#                                  #
+#    🧪 SIMULATOR PARAMETERS 🧪   #
+#                                 #
+#=================================#
+
+simulator:
+  capital: 10000
+  commission: 1
+  simultaneous_positions: # variants to go through, could be multiple to consider
+    - 4
+    - 5
+  failsafe_trigger_level: 0.15  # 15% to reach. Note: failsafe trigger is not actually used after thorough testing, remove
+  failsafe_exit_level: 0.05  # 5% to throwback.
+
+  ### Stop-related behaviour
+  stop_loss_level: 0.1
+  # stop loss to fully exit. this is calculated from the candle previous to entry day (when we have signal) low
+  # ^^^ decimal representation e.g. 0.05 equals 5%
+  # seems that 5% may be too conservative, needs further testing
+
+  ### Filters to use
+  numerical_filters:
+    fisher_daily:
+      min: -500
+      max: 500
+    fisher_weekly:
+      min: -500
+      max: 500
+
+  ### Take profit variants
+  take_profit_variants:
+
+#  - variant_name: "current"
+#    take_profit_values:
+#      - level: 1000%  # ridiculously high so that the baseline is kind of not taking profit; not using
+#        exit_proportion: 100%
+
+  - variant_name: "baseline"  # similar to the current approach
+    take_profit_values:
+      - level: 50%
+        exit_proportion: 25%
+        move_stop_price: False
+      - level: 100%
+        exit_proportion: 25%
+        move_stop_price: False
+      - level: 150%
+        exit_proportion: 25%
+        move_stop_price: False
+
+  - variant_name: "conservative"
+    take_profit_values:
+      - level: 5%
+        exit_proportion: 25%
+        move_stop_price: False
+      - level: 10%
+        exit_proportion: 25%
+        move_stop_price: True
+        move_stop_from_tp_level: 5%  # this is a distance down from the take profit level (so if it pulls back X% from there)
+
+#  - variant_name: "ultra_conservative"  # similar to the current approach
+#    take_profit_values:
+#      - level: 10%
+#        exit_proportion: 100%
+
+# 📝 NOTES
+# Output will contain -> TRAILING PROFIT HIT for trailing profit and -> STOP LOSS HIT for stop losses

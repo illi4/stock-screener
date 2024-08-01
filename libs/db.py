@@ -2,6 +2,7 @@ from peewee import *
 import peewee
 import datetime
 import arrow
+from peewee import DoesNotExist
 
 from libs.read_settings import read_config
 config = read_config()
@@ -23,10 +24,70 @@ class Stock(BaseModel):
     type = CharField(null=True)
     date = DateTimeField(default=datetime.datetime.now)
 
+class Price(BaseModel):
+    stock = CharField()
+    date = DateTimeField()
+    open = FloatField()
+    high = FloatField()
+    low = FloatField()
+    close = FloatField()
+
+    class Meta:
+        indexes = (
+            (('stock', 'date'), True),  # Unique index
+        )
+
+def create_price_table():
+    Price.create_table()
+
 
 def create_stock_table():
     Stock.create_table()
 
+
+def check_earliest_price_date():
+    try:
+        earliest_price = Price.select(fn.MIN(Price.date)).scalar()
+        if earliest_price:
+            return earliest_price.date()  # Return just the date part
+        return None
+    except Price.DoesNotExist:
+        return None
+    except peewee.OperationalError:
+        print("Price table does not exist. Creating it now.")
+        create_price_table()
+        return None
+
+def get_price_from_db(stock, date):
+    try:
+        price_data = Price.select().where(
+            (Price.stock == stock) & (Price.date <= date)
+        ).order_by(Price.date.desc()).first()
+
+        if price_data:
+            if price_data.date.date() < date.date():
+                print(f"Warning: Using price data from {price_data.date.date()} for {stock} (requested date: {date.date()})")
+            return {
+                'open': price_data.open,
+                'high': price_data.high,
+                'low': price_data.low,
+                'close': price_data.close,
+                'date': price_data.date
+            }
+        else:
+            print(f"No price data found for {stock} on or before {date}")
+            return None
+    except DoesNotExist:
+        print(f"No price data found for {stock}")
+        return None
+
+def delete_all_prices():
+    Price.delete().execute()
+
+def bulk_add_prices(prices_list):
+    with db.atomic():
+        for batch in chunked(prices_list, 100):
+            Price.insert_many(batch).execute()
 
 def delete_all_stocks(exchange):
     query = Stock.delete().where(Stock.exchange == exchange)

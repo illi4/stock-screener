@@ -7,3 +7,4 @@ gspread
 pyyaml
 matplotlib
 tqdm
+openpyxl

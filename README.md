@@ -4,7 +4,7 @@ NASDAQ / ASX stocks bullish screener.
 
 Stock shortlisting logic uses the following conditions depending on the method:
 
-**MRI** (method=mri)
+**MRI** (method=mri) [NOTE: I do not currently use this method]
 - Daily higher candle closes above bodies of the previous 5 daily candles and is green
 - Bullish [MRI](https://tonevays.com/indicator) indicator value on the daily timeframe
 - Bullish MRI indicator on the weekly timeframe  
@@ -36,18 +36,66 @@ For ASX, the best time to run it is in the evening after market closure to prepa
   - Use `num` to  limit amount of stocks scanned. E.g. `-num=100`. 
 - To simulate scanning as of a particular date, use the `-date` parameter (the format is `YYYY-MM-DD`). For example, `python scanner.py --update -date=2021-01-05`.
 - Helper scripts (note: requires configuring Google credentials in order to work). Use `-method` parameter as this will influence which spreadsheet is used. 
-   - `monitor.py` to run daily to check whether the exit condition was hit for active entries.
+   - `monitor.py` to run daily to check whether the exit condition was hit for active entries. E.g. `python monitor.py -method=anx`
    - `paperfill.py` to run daily to fill in the values for paper trade entries automatically. Also fills in values for a few technical indicators if not populated. 
-   - `simulator.py` simulates outcomes per the spreadsheet.  
-     - Current experiment: exit price variation if using stop under the formation. Use the argument `--exit_variation_a`
-   - `simulator_legacy.py` works with the older 21 R&D spreadsheet and also has an optional argument `--market` which would include market MA200/MA10 conditions when running simulation **in the tp mode**. You don't need to run this. 
+   - `simulator.py` simulates outcomes per the spreadsheet. Covered in details below. 
   This argument is there because the rule on using market conditions was already integrated in methodology and used for the stock selection with scanner.  
 - The monitor would notify: 
   - when the close for a position is below MA10 
   - when the market switches to the bearish mode (market below MA200 with MA10 decreasing) as a trigger to close all open positions
 
-Example running a simulator: 
-`python simulator.py -mode=main -start=2023-12-10 -end=2024-04-01 -method=mri --show_monthly`
+### Running Simulations
+
+The `simulator.py` script allows you to simulate trading outcomes based on historical data and your configured strategies. Here's how to use it:
+
+```bash
+python simulator.py -start=YYYY-MM-DD -end=YYYY-MM-DD -method=anx [options]
+```
+
+Example: `python simulator.py -mode=main -start=2023-12-10 -end=2024-04-01 -method=mri --show_monthly`
+
+#### Required Parameters:
+
+- -start: Start date for the simulation (format: YYYY-MM-DD)
+- -end: End date for the simulation (format: YYYY-MM-DD)
+- -method: Method of shortlisting (choices: mri, anx)
+
+#### Optional Parameters:
+
+- --plot: Generate and include plots in the output Excel file
+- --forced_price_update: Force update of price data in the database
+
+#### Configuration Parameters (in config.yaml):
+The simulator section in config.yaml contains important parameters for the simulation:
+
+- capital: Initial capital for the simulation
+- commission: Commission fee per trade
+- simultaneous_positions: List of maximum simultaneous positions to simulate
+- stop_loss_level: Stop loss level as a decimal (e.g., 0.1 for 10%)
+- numerical_filters: Filters for technical indicators (e.g., Fisher, Coppock)
+- take_profit_variants: Different take-profit strategies to simulate
+
+Example take_profit_variant:
+```
+  take_profit_values:
+    - level: 5%
+      exit_proportion: 25%
+      move_stop_price: False
+    - level: 10%
+      exit_proportion: 25%
+      move_stop_price: True
+      move_stop_from_tp_level: 5%
+```
+
+This variant has two take-profit levels. At 5% profit, it exits 25% of the position. At 10% profit, it exits another 25% and moves the stop loss to 5% below the 10% take-profit level.
+
+#### Output
+The simulation results are saved in an Excel file named sim_summary.xlsx, containing:
+
+- Summary sheet with performance metrics for each variant
+- Monthly breakdown of capital values
+- Plots of capital over time (if --plot is used)
+
 
 ### Settings 
 See `config.yaml` for settings which include:

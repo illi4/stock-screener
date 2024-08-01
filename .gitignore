@@ -142,3 +142,7 @@ dmypy.json
 .envrc
 .DS_Store
 .DS_Store
+log.txt
+sim_summary.xlsx
+~$sim_summary.xlsx
+.DS_Store
