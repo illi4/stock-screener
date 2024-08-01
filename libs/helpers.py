@@ -325,11 +325,30 @@ def set_font_size(worksheet, size):
             else:
                 cell.font = Font(size=size)
 
+def print_metrics(results_dict):
+    for k, v in results_dict.items():
+        print(f"{k}")
+        for metric, value in v.items():
+            if isinstance(value, float):
+                if metric in ['growth', 'win_rate', 'best_trade_adjusted', 'worst_trade_adjusted', 'max_drawdown', 'median_mom_growth', 'average_mom_growth']:
+                    print(f"- {metric}: {value:.2%}")
+                else:
+                    print(f"- {metric}: {value:.4f}")
+            elif isinstance(value, int):
+                print(f"- {metric}: {value}")
+            else:
+                print(f"- {metric}: {value}")
+
+
 def create_report(results_dict, simulations, plot):
     # Write the output to a dataframe and a spreadsheet
     resulting_dataframes = []
+
+    print()
     for k, v in results_dict.items():
-        print(k, v)
+
+        print_metrics(results_dict)
+
         values_current = v.copy()
         values_current["variant"] = k
         resulting_dataframes.append(

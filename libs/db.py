@@ -66,7 +66,7 @@ def get_price_from_db(stock, date):
 
         if price_data:
             if price_data.date.date() < date.date():
-                print(f"Warning: Using price data from {price_data.date.date()} for {stock} (requested date: {date.date()})")
+                print(f"(i) using price data from {price_data.date.date()} for {stock}")
             return {
                 'open': price_data.open,
                 'high': price_data.high,
@@ -75,10 +75,10 @@ def get_price_from_db(stock, date):
                 'date': price_data.date
             }
         else:
-            print(f"No price data found for {stock} on or before {date}")
+            print(f"(!) no price data found for {stock} on or before {date}")
             return None
     except DoesNotExist:
-        print(f"No price data found for {stock}")
+        print(f"(!) no price data found for {stock}")
         return None
 
 def delete_all_prices():

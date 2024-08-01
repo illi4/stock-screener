@@ -46,7 +46,7 @@ def get_lowest_price_before_entry(stock, entry_date):
 def process_entry(sim, stock, entry_price, take_profit_variant, current_date):
 
     if len(sim.current_positions) + 1 > current_simultaneous_positions:
-        print(f"max possible positions held, skipping {stock}")
+        print(f"(i) max possible positions | skipping {stock} entry")
     else:
         sim.positions_held += 1
         sim.current_positions.add(stock)
@@ -61,6 +61,9 @@ def process_entry(sim, stock, entry_price, take_profit_variant, current_date):
         print(f"-> ENTER {stock} | positions held: {sim.positions_held}")
         print(f'-- commission ${config["simulator"]["commission"]}')
         print(f"-- current capital on entry: ${sim.current_capital}, allocated to the position: ${sim.capital_per_position[stock]}")
+        # Create a string of take profit prices
+        tp_prices = " | ".join([f"${level['price']:.2f}" for level in sim.take_profit_info[stock]['levels']])
+        print(f"-- take profit levels: {tp_prices}")
 
         stop_loss_price = lowest_price_before_entry * (1 - config["simulator"]["stop_loss_level"])
         sim.set_stop_loss(stock, stop_loss_price)
@@ -350,8 +353,6 @@ if __name__ == "__main__":
 
     # Get the run params
     arguments = define_simulator_args()
-
-    #red_entry_day_exit, failsafe = process_filter_args()  # the function is not used and was moved to helpers
 
     print("reading the values...")
 

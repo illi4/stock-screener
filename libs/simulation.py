@@ -64,10 +64,6 @@ class Simulation:
             'taken_profit_proportion': 0
         }
 
-        # Create a string of take profit prices
-        tp_prices = " | ".join([f"${level['price']:.2f}" for level in self.take_profit_info[stock]['levels']])
-        print(f"-- take profit prices: {tp_prices}")
-
 
     def check_and_update_take_profit(self, stock, high_price, open_price, take_profit_variant, commission):
         if stock not in self.take_profit_info:
@@ -211,12 +207,12 @@ class Simulation:
 
     def print_metrics(self):
         print()
-        print(f"capital growth/loss: {self.growth:.2%}")
+        print(f"Capital growth/loss: {self.growth:.2%}")
         print(
-            f"win rate: {self.win_rate:.2%} | winning_trades: {self.winning_trades_number} | losing trades: {self.losing_trades_number}"
+            f"Win rate: {self.win_rate:.2%} | winning_trades: {self.winning_trades_number} | losing trades: {self.losing_trades_number}"
         )
         print(
-            f"best trade (adjusted for sizing) {self.best_trade_adjusted:.2%} | worst trade (adjusted for sizing) {self.worst_trade_adjusted:.2%}"
+            f"Best trade (adjusted for sizing) {self.best_trade_adjusted:.2%} | worst trade (adjusted for sizing) {self.worst_trade_adjusted:.2%}"
         )
-        print(f"max_drawdown: {self.max_drawdown:.2%}")
-        print(f"max_negative_strike: {self.max_negative_strike}")
+        print(f"Max drawdown: {self.max_drawdown:.2%}")
+        print(f"Max negative strike: {self.max_negative_strike}")
