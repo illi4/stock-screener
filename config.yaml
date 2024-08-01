@@ -74,13 +74,13 @@ simulator:
   capital: 10000
   commission: 1
   simultaneous_positions: # variants to go through, could be multiple to consider
-    - 4
+    #- 4
     - 5
   failsafe_trigger_level: 0.15  # 15% to reach. Note: failsafe trigger is not actually used after thorough testing, remove
   failsafe_exit_level: 0.05  # 5% to throwback.
 
   ### Stop-related behaviour
-  stop_loss_level: 0.1
+  stop_loss_level: 0.55
   # stop loss to fully exit. this is calculated from the candle previous to entry day (when we have signal) low
   # ^^^ decimal representation e.g. 0.05 equals 5%
   # seems that 5% may be too conservative, needs further testing
@@ -114,15 +114,15 @@ simulator:
         exit_proportion: 25%
         move_stop_price: False
 
-  - variant_name: "conservative"
-    take_profit_values:
-      - level: 5%
-        exit_proportion: 25%
-        move_stop_price: False
-      - level: 10%
-        exit_proportion: 25%
-        move_stop_price: True
-        move_stop_from_tp_level: 5%  # this is a distance down from the take profit level (so if it pulls back X% from there)
+#  - variant_name: "conservative"
+#    take_profit_values:
+#      - level: 5%
+#        exit_proportion: 25%
+#        move_stop_price: False
+#      - level: 10%
+#        exit_proportion: 25%
+#        move_stop_price: True
+#        move_stop_from_tp_level: 5%  # this is a distance down from the take profit level (so if it pulls back X% from there)
 
 #  - variant_name: "ultra_conservative"  # similar to the current approach
 #    take_profit_values:
