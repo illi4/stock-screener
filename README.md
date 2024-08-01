@@ -38,9 +38,8 @@ For ASX, the best time to run it is in the evening after market closure to prepa
 - Helper scripts (note: requires configuring Google credentials in order to work). Use `-method` parameter as this will influence which spreadsheet is used. 
    - `monitor.py` to run daily to check whether the exit condition was hit for active entries. E.g. `python monitor.py -method=anx`
    - `paperfill.py` to run daily to fill in the values for paper trade entries automatically. Also fills in values for a few technical indicators if not populated. 
-   - `simulator.py` simulates outcomes per the spreadsheet.  
-     - Use `--forced_price_update` to rewrite prices data in the db. 
-   - `simulator_legacy.py` works with the older 21 R&D spreadsheet and also has an optional argument `--market` which would include market MA200/MA10 conditions when running simulation **in the tp mode**. You don't need to run this. 
+   - `simulator.py` simulates outcomes per the spreadsheet. E.g. `python simulator.py -start=2024-04-01 -end=2024-07-25 -method=anx --plot`  
+     - Use `--forced_price_update` to rewrite prices data in the db.  
   This argument is there because the rule on using market conditions was already integrated in methodology and used for the stock selection with scanner.  
 - The monitor would notify: 
   - when the close for a position is below MA10 
