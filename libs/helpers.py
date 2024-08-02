@@ -326,8 +326,9 @@ def set_font_size(worksheet, size):
                 cell.font = Font(size=size)
 
 def print_metrics(results_dict):
+    print("\n\n__________ SUMMARIES ____________")
     for k, v in results_dict.items():
-        print(f"{k}")
+        print(f"\n{k}")
         for metric, value in v.items():
             if isinstance(value, float):
                 if metric in ['growth', 'win_rate', 'best_trade_adjusted', 'worst_trade_adjusted', 'max_drawdown', 'median_mom_growth', 'average_mom_growth']:
@@ -336,18 +337,16 @@ def print_metrics(results_dict):
                     print(f"- {metric}: {value:.4f}")
             elif isinstance(value, int):
                 print(f"- {metric}: {value}")
-            else:
-                print(f"- {metric}: {value}")
-
+            # don't need non numerical
+    print()
 
 def create_report(results_dict, simulations, plot):
     # Write the output to a dataframe and a spreadsheet
     resulting_dataframes = []
 
-    print()
-    for k, v in results_dict.items():
+    print_metrics(results_dict)
 
-        print_metrics(results_dict)
+    for k, v in results_dict.items():
 
         values_current = v.copy()
         values_current["variant"] = k
