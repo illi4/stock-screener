@@ -52,7 +52,7 @@ def get_next_opening_price(stock, current_date):
     price_info = get_price_from_db(stock, next_date, look_backwards=False)
     return price_info['open']
 
-def process_entry(sim, stock, entry_price, take_profit_variant, current_date, initial_stop):
+def process_entry(sim, stock, entry_price, take_profit_variant, current_date, initial_stop, close_higher_percentage):
 
     if len(sim.current_positions) + 1 > current_simultaneous_positions:
         print(f"(i) max possible positions | skipping {stock} entry")
@@ -67,7 +67,7 @@ def process_entry(sim, stock, entry_price, take_profit_variant, current_date, in
         allocation_reference_price = get_highest_body_level(stock, current_date)
         sim.set_initial_entry(stock, entry_price,
                               config["simulator"]["first_entry_allocation"],
-                              config["simulator"]["close_higher_percentage"],
+                              close_higher_percentage,
                               allocation_reference_price)
 
         # Show info
@@ -159,6 +159,7 @@ def update_results_dict(
     sim,
     current_simultaneous_positions,
     take_profit_variant_name,
+    close_higher_percentage_variant_name,
     current_variant="control",
     extra_suffix="",
 ):
@@ -177,7 +178,8 @@ def update_results_dict(
         variant_group=current_variant,
     )
     results_dict[
-        f"{current_variant}_{current_simultaneous_positions}pos_{take_profit_variant_name}{extra_suffix}"
+        f"{current_variant}_{current_simultaneous_positions}pos_" \
+        f"{take_profit_variant_name}_{close_higher_percentage_variant_name}{extra_suffix}"
     ] = result_current_dict
     return results_dict
 
@@ -229,7 +231,7 @@ def check_stop_loss(sim, current_date_dt):
 #                                       #
 #########################################
 
-def run_simulation(results_dict, take_profit_variant):
+def run_simulation(results_dict, take_profit_variant, close_higher_percentage):
     sim = Simulation(capital=config["simulator"]["capital"])
     print(f"Take profit variant {take_profit_variant['variant_name']} | max positions {current_simultaneous_positions}")
 
@@ -256,7 +258,7 @@ def run_simulation(results_dict, take_profit_variant):
         day_entries = ws.loc[ws["entry_date"] == current_date_dt]
         for key, row in day_entries.iterrows():
             process_entry(sim, row["stock"], row["entry_price_actual"], take_profit_variant,
-                          current_date_dt, row["initial_stop_loss"])
+                          current_date_dt, row["initial_stop_loss"], close_higher_percentage)
 
         # Check if conditions for the second entry were met for applicable existing entries
         # For all entered stocks
@@ -295,8 +297,11 @@ def run_simulation(results_dict, take_profit_variant):
     sim.print_metrics()
 
     # Saving the result in the overall dictionary
+    # Update here if adding new iterations of variants!
     results_dict = update_results_dict(
-        results_dict, sim, current_simultaneous_positions, take_profit_variant['variant_name']
+        results_dict, sim, current_simultaneous_positions,
+        take_profit_variant['variant_name'],
+        close_higher_percentage
     )
     return results_dict, sim
 
@@ -420,13 +425,14 @@ if __name__ == "__main__":
 
     for current_simultaneous_positions in config["simulator"]["simultaneous_positions"]:
         for take_profit_variant in config["simulator"]["take_profit_variants"]:
-            # For logging
-            variant_name = f"{current_simultaneous_positions}pos_{take_profit_variant['variant_name']}"
-            # Run it
-            results_dict, latest_sim = run_simulation(
-                results_dict, take_profit_variant
-            )
-            simulations[variant_name] = latest_sim
+            for close_higher_percentage in config["simulator"]["close_higher_percentage_variants"]:
+                # For logging
+                variant_name = f"{current_simultaneous_positions}pos_{take_profit_variant['variant_name']}_{close_higher_percentage}"
+                # Run it
+                results_dict, latest_sim = run_simulation(
+                    results_dict, take_profit_variant, close_higher_percentage
+                )
+                simulations[variant_name] = latest_sim
 
     # Create the report
     create_report(results_dict, simulations, arguments["plot"])

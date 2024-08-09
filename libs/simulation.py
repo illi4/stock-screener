@@ -54,13 +54,13 @@ class Simulation:
         self.entry_allocation = {}
         self.allocation_reference_price = {}  # for storing the value which must be checked versus
 
-    def set_initial_entry(self, stock, entry_price, proportion, percentage_higher, allocation_reference_price):
+    def set_initial_entry(self, stock, entry_price, proportion, close_higher_percentage, allocation_reference_price):
         # For setting up the first entry for the stock per the allocation rules
         self.entry_allocation[stock] = proportion
         self.entry_prices[stock] = [entry_price]  # this will just be the first entry price
 
         # Calculate new reference price
-        required_price_threshold = allocation_reference_price * (1 + percentage_higher)
+        required_price_threshold = allocation_reference_price * (1 + close_higher_percentage)
         self.allocation_reference_price[stock] = required_price_threshold
 
         print(f"- initial entry for {stock}: {proportion:.0%} at ${entry_price:.2f} | "
