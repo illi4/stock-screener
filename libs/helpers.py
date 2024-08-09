@@ -473,6 +473,7 @@ def prepare_data(ws):
         "entry_price_actual",
         "exit_price_planned",
         "main_exit_price",
+        "initial_stop_loss",
         "threshold_1_expected_price",
         "threshold_1_actual_price",
         "threshold_2_expected_price",

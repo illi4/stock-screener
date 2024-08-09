@@ -52,7 +52,7 @@ def get_next_opening_price(stock, current_date):
     price_info = get_price_from_db(stock, next_date, look_backwards=False)
     return price_info['open']
 
-def process_entry(sim, stock, entry_price, take_profit_variant, current_date):
+def process_entry(sim, stock, entry_price, take_profit_variant, current_date, initial_stop):
 
     if len(sim.current_positions) + 1 > current_simultaneous_positions:
         print(f"(i) max possible positions | skipping {stock} entry")
@@ -70,9 +70,6 @@ def process_entry(sim, stock, entry_price, take_profit_variant, current_date):
                               config["simulator"]["close_higher_percentage"],
                               allocation_reference_price)
 
-        # Calculate and set stop loss price
-        lowest_price_before_entry = get_lowest_price_before_entry(stock, current_date)
-
         # Show info
         print(f"-> ENTER {stock} | positions held: {sim.positions_held}")
         print(f'-- commission ${config["simulator"]["commission"]}')
@@ -81,8 +78,8 @@ def process_entry(sim, stock, entry_price, take_profit_variant, current_date):
         tp_prices = " | ".join([f"${level['price']:.2f}" for level in sim.take_profit_info[stock]['levels']])
         print(f"-- take profit levels: {tp_prices}")
 
-        stop_loss_price = lowest_price_before_entry * (1 - config["simulator"]["stop_loss_level"])
-        sim.set_stop_loss(stock, stop_loss_price)
+        # Set the stop level using the value from the sheet
+        sim.set_stop_loss(stock, initial_stop)
         sim.current_capital -= config["simulator"]["commission"]
 
 
@@ -258,7 +255,8 @@ def run_simulation(results_dict, take_profit_variant):
         # Entries
         day_entries = ws.loc[ws["entry_date"] == current_date_dt]
         for key, row in day_entries.iterrows():
-            process_entry(sim, row["stock"], row["entry_price_actual"], take_profit_variant, current_date_dt)
+            process_entry(sim, row["stock"], row["entry_price_actual"], take_profit_variant,
+                          current_date_dt, row["initial_stop_loss"])
 
         # Check if conditions for the second entry were met for applicable existing entries
         # For all entered stocks
