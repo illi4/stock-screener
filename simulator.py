@@ -260,8 +260,8 @@ def run_simulation(results_dict, take_profit_variant, close_higher_percentage):
             process_entry(sim, row["stock"], row["entry_price_actual"], take_profit_variant,
                           current_date_dt, row["initial_stop_loss"], close_higher_percentage)
 
-        # Check if conditions for the second entry were met for applicable existing entries
-        # For all entered stocks
+        # Check if conditions for the second entry were met for applicable existing entries for all entered stocks
+        # Here also move the stop after the second entry to a low of the bullish reference candle -X%
         for stock in sim.current_positions:
             if sim.entry_allocation[stock] < 1:
                 price_data = get_price_from_db(stock, current_date_dt)

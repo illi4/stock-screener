@@ -104,6 +104,7 @@ class Simulation:
             print(f"- 2nd allocation condition met ({stock}): close ${close_price:.2f} > ${reference_value:.2f}")
             print(f"- assuming next opening price ${next_open_price:.2f}")
             self.entry_prices[stock].append(next_open_price)
+            #TODO: set stop level at the bullish reference candle low -X% (variant)
 
 
     def check_and_update_take_profit(self, stock, high_price, open_price, take_profit_variant, commission):
