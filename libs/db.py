@@ -58,15 +58,37 @@ def check_earliest_price_date():
         create_price_table()
         return None
 
-def get_price_from_db(stock, date):
+def get_price_from_db(stock, date, look_backwards=True):
+    """
+    Retrieves price data for a given stock and date from the database.
+
+    Args:
+    stock (str): The stock symbol.
+    date (datetime): The date for which to retrieve the price.
+    look_backwards (bool, optional): If True, looks for the most recent price data on or before the given date.
+                                     If False, looks for the earliest price data on or after the given date.
+                                     Defaults to True.
+
+    Returns:
+    dict: A dictionary containing price data (open, high, low, close, date) if found, None otherwise.
+
+    Raises:
+    SystemExit: If look_backwards is False and no future price data is found.
+    """
     try:
-        price_data = Price.select().where(
-            (Price.stock == stock) & (Price.date <= date)
-        ).order_by(Price.date.desc()).first()
+        if look_backwards:
+            price_data = Price.select().where(
+                (Price.stock == stock) & (Price.date <= date)
+            ).order_by(Price.date.desc()).first()
+        else:
+            price_data = Price.select().where(
+                (Price.stock == stock) & (Price.date >= date)
+            ).order_by(Price.date.asc()).first()
 
         if price_data:
-            if price_data.date.date() < date.date():
-                print(f"(i) using price data from {price_data.date.date()} for {stock}")
+            if price_data.date.date() != date.date():
+                direction = "from" if look_backwards else "for"
+                print(f"(i) using price data {direction} {price_data.date.date()} for {stock}")
             return {
                 'open': price_data.open,
                 'high': price_data.high,
@@ -75,7 +97,11 @@ def get_price_from_db(stock, date):
                 'date': price_data.date
             }
         else:
-            print(f"(!) no price data found for {stock} on or before {date}")
+            direction = "on or before" if look_backwards else "on or after"
+            print(f"(!) no price data found for {stock} {direction} {date}")
+            if not look_backwards:
+                print("Terminating due to lack of future price data.")
+                sys.exit(1)
             return None
     except DoesNotExist:
         print(f"(!) no price data found for {stock}")

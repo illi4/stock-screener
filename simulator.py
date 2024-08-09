@@ -42,6 +42,15 @@ def get_lowest_price_before_entry(stock, entry_date):
     price_info = get_price_from_db(stock, previous_date)
     return price_info['low']
 
+def get_highest_body_level(stock, entry_date):
+    previous_date = entry_date - timedelta(days=1)  # this is the bullish reference candle
+    price_info = get_price_from_db(stock, previous_date)
+    return max(price_info['close'], price_info['open'])
+
+def get_next_opening_price(stock, current_date):
+    next_date = current_date + timedelta(days=1)  # looking at the next day open
+    price_info = get_price_from_db(stock, next_date, look_backwards=False)
+    return price_info['open']
 
 def process_entry(sim, stock, entry_price, take_profit_variant, current_date):
 
@@ -51,8 +60,15 @@ def process_entry(sim, stock, entry_price, take_profit_variant, current_date):
         sim.positions_held += 1
         sim.current_positions.add(stock)
         sim.capital_per_position[stock] = sim.current_capital / current_simultaneous_positions
-        sim.entry_prices[stock] = entry_price
+        # sim.entry_prices[stock] = entry_price
         sim.set_take_profit_levels(stock, take_profit_variant, entry_price)
+
+        # Set initial entry
+        allocation_reference_price = get_highest_body_level(stock, current_date)
+        sim.set_initial_entry(stock, entry_price,
+                              config["simulator"]["first_entry_allocation"],
+                              config["simulator"]["close_higher_percentage"],
+                              allocation_reference_price)
 
         # Calculate and set stop loss price
         lowest_price_before_entry = get_lowest_price_before_entry(stock, current_date)
@@ -88,8 +104,9 @@ def calculate_profit_contribution(take_profit_info):
 def process_exit(sim, stock_code, price_data, forced_price=None):
     if stock_code in sim.current_positions:
 
-        entry_price = sim.entry_prices[stock_code]
+        entry_price = sim.get_average_entry_price(stock_code)  # taking an average of entries
         total_position_size = sim.capital_per_position[stock_code]
+        position_allocation = sim.entry_allocation[stock_code]  # it could be possible that we only entered for 50%
 
         # Check if we need to use specific price
         exit_price = forced_price if forced_price is not None else price_data['open']
@@ -98,7 +115,7 @@ def process_exit(sim, stock_code, price_data, forced_price=None):
         final_price_change = (exit_price - entry_price) / entry_price
 
         # Print some stats
-        print(f"-> Full exit ({stock_code}) [${total_position_size:.2f} position size]")
+        print(f"-> Exit ({stock_code}) [${total_position_size:.2f} position size] | allocation {position_allocation:.0%}")
         print(f"-- exit price: ${exit_price:.2f} | entry ${entry_price:.2f} | change {final_price_change:.2%}")
 
         # Calculate the contribution from the take profit levels
@@ -116,10 +133,13 @@ def process_exit(sim, stock_code, price_data, forced_price=None):
         print(f'-- position PNL from the exit: {last_exit_contribution:.2%}')
 
         overall_result = tp_contribution + last_exit_contribution
-        print(f'-- total position PNL: {overall_result:.2%}')
+        print(f'-- total position PNL before accounting for allocation: {overall_result:.2%}')
+
+        final_outcome = overall_result*position_allocation
+        print(f'-- total position PNL (accounted for allocation): {final_outcome:.2%}')
 
         # Calculate the outcome using the original position size
-        profit_amount = total_position_size * (overall_result)
+        profit_amount = total_position_size * (final_outcome)
         print(f'--> profit/loss ${profit_amount:.2f}')
 
         previous_capital = sim.current_capital
@@ -130,9 +150,7 @@ def process_exit(sim, stock_code, price_data, forced_price=None):
         # Delete traces
         sim.current_positions.remove(stock_code)
         sim.positions_held -= 1
-        del sim.capital_per_position[stock_code]
-        del sim.take_profit_info[stock_code]
-        sim.trailing_stop_active.pop(stock_code, None)
+        sim.remove_stock_traces(stock_code)
 
         # Results update
         sim.update_capital(sim.current_capital)
@@ -228,7 +246,7 @@ def run_simulation(results_dict, take_profit_variant):
         current_date_dt = current_date_dt + timedelta(days=1)
         current_date_month = current_date_dt.strftime("%m")
 
-        print(current_date_dt, "| positions: ", sim.current_positions)
+        print(current_date_dt, "| positions: ", sim.current_positions, "| allocations: ", sim.entry_allocation)
 
         # Process pending stop loss updates at the beginning of each day
         sim.process_pending_stop_loss_updates()
@@ -241,6 +259,14 @@ def run_simulation(results_dict, take_profit_variant):
         day_entries = ws.loc[ws["entry_date"] == current_date_dt]
         for key, row in day_entries.iterrows():
             process_entry(sim, row["stock"], row["entry_price_actual"], take_profit_variant, current_date_dt)
+
+        # Check if conditions for the second entry were met for applicable existing entries
+        # For all entered stocks
+        for stock in sim.current_positions:
+            if sim.entry_allocation[stock] < 1:
+                price_data = get_price_from_db(stock, current_date_dt)
+                next_open_price = get_next_opening_price(stock, current_date_dt)
+                sim.check_and_process_second_entry(stock, price_data['close'], next_open_price)
 
         # Check whether stocks reach the profit level for each stock
         # Also check for stop losses

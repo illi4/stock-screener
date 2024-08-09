@@ -33,7 +33,7 @@ class Simulation:
         # For thresholds
         self.left_of_initial_entries = dict()  # list of initial entries
         self.thresholds_reached = dict()  # for the thresholds reached
-        self.entry_prices = dict()  # for the entry prices
+        self.entry_prices = dict()  # dictionary for the entry prices
         self.entry_dates = dict()  # for the entry dates
         # Another dict for capital values and dates detailed
         self.detailed_capital_values = dict()
@@ -42,6 +42,7 @@ class Simulation:
         # For the failsafe checks
         self.failsafe_stock_trigger = dict()
         self.failsafe_active_dates = dict()  # for dates check
+
         # For stop losses etc
         self.stop_loss_prices = {}
         self.take_profit_info = {}
@@ -49,6 +50,37 @@ class Simulation:
         self.pending_stop_loss_updates = {}
         self.trailing_stop_active = {}  # for reporting purposes
 
+        # For reflecting entry allocations per stock (1st and then 2nd entry)
+        self.entry_allocation = {}
+        self.allocation_reference_price = {}  # for storing the value which must be checked versus
+
+    def set_initial_entry(self, stock, entry_price, proportion, percentage_higher, allocation_reference_price):
+        # For setting up the first entry for the stock per the allocation rules
+        self.entry_allocation[stock] = proportion
+        self.entry_prices[stock] = [entry_price]  # this will just be the first entry price
+
+        # Calculate new reference price
+        required_price_threshold = allocation_reference_price * (1 + percentage_higher)
+        self.allocation_reference_price[stock] = required_price_threshold
+
+        print(f"- initial entry for {stock}: {proportion:.0%} at ${entry_price:.2f} | "
+              f"price point for the next allocation ${required_price_threshold:.2f}")
+
+    def get_average_entry_price(self, stock_code):
+        # Gets average entry price which is not weighted (we have 50/50 allocation b/w first and second entry)
+        if stock_code not in self.entry_allocation or stock_code not in self.entry_prices:
+            return None
+
+        total_allocation = self.entry_allocation[stock_code]
+        if total_allocation == 0:
+            return None
+
+        if isinstance(self.entry_prices[stock_code], list):
+            # If we have multiple entry prices, calculate the average
+            return sum(self.entry_prices[stock_code]) / len(self.entry_prices[stock_code])
+        else:
+            # If we have a single entry price
+            return self.entry_prices[stock_code]
 
     def set_take_profit_levels(self, stock, take_profit_variant, entry_price):
         self.take_profit_info[stock] = {
@@ -65,6 +97,15 @@ class Simulation:
         }
 
 
+    def check_and_process_second_entry(self, stock, close_price, next_open_price):
+        reference_value = self.allocation_reference_price[stock]
+        if close_price > reference_value:
+            self.entry_allocation[stock] = 1
+            print(f"- 2nd allocation condition met ({stock}): close ${close_price:.2f} > ${reference_value:.2f}")
+            print(f"- assuming next opening price ${next_open_price:.2f}")
+            self.entry_prices[stock].append(next_open_price)
+
+
     def check_and_update_take_profit(self, stock, high_price, open_price, take_profit_variant, commission):
         if stock not in self.take_profit_info:
             return False
@@ -74,7 +115,7 @@ class Simulation:
         # Check each level
         for i, level in enumerate(take_profit_variant['take_profit_values']):
             take_profit_percentage = float(level['level'].strip('%')) / 100
-            level_price = entry_price * (1 + take_profit_percentage)
+            level_price = self.get_average_entry_price(stock) * (1 + take_profit_percentage)
 
             if high_price >= level_price and not self.take_profit_info[stock]['levels'][i]['reached']:
 
@@ -149,6 +190,8 @@ class Simulation:
         self.failed_entry_day_stocks.pop(stock, None)
         self.failsafe_stock_trigger.pop(stock, None)
         self.failsafe_active_dates.pop(stock, None)
+        self.entry_allocation.pop(stock, None)
+        self.trailing_stop_active.pop(stock, None)
 
     def update_capital(self, new_capital):
         self.current_capital = new_capital
