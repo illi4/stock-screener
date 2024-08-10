@@ -54,17 +54,26 @@ class Simulation:
         self.entry_allocation = {}
         self.allocation_reference_price = {}  # for storing the value which must be checked versus
 
-    def set_initial_entry(self, stock, entry_price, proportion, close_higher_percentage, allocation_reference_price):
+        # Reference for moving the stops further 
+        self.bullish_ref_stop_level = {}
+
+    def set_initial_entry(self, stock, entry_price, proportion,
+                          close_higher_percentage, allocation_reference_price,
+                          adjusted_stop_reference):
         # For setting up the first entry for the stock per the allocation rules
         self.entry_allocation[stock] = proportion
         self.entry_prices[stock] = [entry_price]  # this will just be the first entry price
 
-        # Calculate new reference price
+        # Calculate new reference price for the second entry 
         required_price_threshold = allocation_reference_price * (1 + close_higher_percentage)
         self.allocation_reference_price[stock] = required_price_threshold
 
-        print(f"- initial entry for {stock}: {proportion:.0%} at ${entry_price:.2f} | "
-              f"price point for the next allocation ${required_price_threshold:.2f}")
+        # Remember the bullish reference candle low to adjust the stop later 
+        self.bullish_ref_stop_level[stock] = adjusted_stop_reference
+
+        print(f"- initial entry for {stock}: {proportion:.0%} at ${entry_price:.2f} | "  
+              f"price point for the next allocation ${required_price_threshold:.2f} | "
+              f"next stop to set after the 2nd entry: ${adjusted_stop_reference:.2f}")
 
     def get_average_entry_price(self, stock_code):
         # Gets average entry price which is not weighted (we have 50/50 allocation b/w first and second entry)
@@ -101,11 +110,13 @@ class Simulation:
         reference_value = self.allocation_reference_price[stock]
         if close_price > reference_value:
             self.entry_allocation[stock] = 1
-            print(f"- 2nd allocation condition met ({stock}): close ${close_price:.2f} > ${reference_value:.2f}")
-            print(f"- assuming next opening price ${next_open_price:.2f}")
+            print(f"-- 2nd allocation condition met ({stock}): close ${close_price:.2f} > ${reference_value:.2f}")
+            print(f"-- assuming next opening price ${next_open_price:.2f}")
             self.entry_prices[stock].append(next_open_price)
-            #TODO: set stop level at the bullish reference candle low -X% (variant)
 
+            # Set stop level at the bullish reference candle low -X% on the next day
+            self.pending_stop_loss_updates[stock] = self.bullish_ref_stop_level[stock]
+            print(f"-- scheduled stop level update for {stock} to ${self.bullish_ref_stop_level[stock]:.2f}")
 
     def check_and_update_take_profit(self, stock, high_price, open_price, take_profit_variant, commission):
         if stock not in self.take_profit_info:
@@ -131,7 +142,7 @@ class Simulation:
                 self.take_profit_info[stock]['levels'][i]['reached'] = True
                 self.take_profit_info[stock]['levels'][i]['price'] = price_to_use
                 self.take_profit_info[stock]['levels'][i]['actual_level'] = actual_level
-                self.take_profit_info[stock]['taken_profit_proportion'] += exit_proportion
+                self.take_profit_info[stock]['taken_profit_proportion'] += exit_proportion 
 
                 #print(self.take_profit_info[stock])
 
@@ -193,6 +204,7 @@ class Simulation:
         self.failsafe_active_dates.pop(stock, None)
         self.entry_allocation.pop(stock, None)
         self.trailing_stop_active.pop(stock, None)
+        self.bullish_ref_stop_level.pop(stock, None)
 
     def update_capital(self, new_capital):
         self.current_capital = new_capital

@@ -90,6 +90,9 @@ simulator:
   # ^^^ to test variants later
 
   ### Stop-related behaviour
+  stop_below_bullish_reference_variants: # this is for the level below the bullish candle's low 
+    - 0
+#    - 0.0055
 
   #stop_loss_level: 0.99
   # stop loss to fully exit. this is calculated from the candle previous to entry day (when we have signal) low

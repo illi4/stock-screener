@@ -52,7 +52,7 @@ def get_next_opening_price(stock, current_date):
     price_info = get_price_from_db(stock, next_date, look_backwards=False)
     return price_info['open']
 
-def process_entry(sim, stock, entry_price, take_profit_variant, current_date, initial_stop, close_higher_percentage):
+def process_entry(sim, stock, entry_price, take_profit_variant, current_date, initial_stop, close_higher_percentage, stop_below_bullish_reference_variant):
 
     if len(sim.current_positions) + 1 > current_simultaneous_positions:
         print(f"(i) max possible positions | skipping {stock} entry")
@@ -63,12 +63,16 @@ def process_entry(sim, stock, entry_price, take_profit_variant, current_date, in
         # sim.entry_prices[stock] = entry_price
         sim.set_take_profit_levels(stock, take_profit_variant, entry_price)
 
-        # Set initial entry
+        # Set initial entry and stop / allocation reference prices 
         allocation_reference_price = get_highest_body_level(stock, current_date)
+        adjusted_stop_reference = get_lowest_price_before_entry(stock, current_date) * (1-stop_below_bullish_reference_variant)
+
         sim.set_initial_entry(stock, entry_price,
                               config["simulator"]["first_entry_allocation"],
                               close_higher_percentage,
-                              allocation_reference_price)
+                              allocation_reference_price, 
+                              adjusted_stop_reference
+                              )
 
         # Show info
         print(f"-> ENTER {stock} | positions held: {sim.positions_held}")
@@ -160,6 +164,7 @@ def update_results_dict(
     current_simultaneous_positions,
     take_profit_variant_name,
     close_higher_percentage_variant_name,
+    stop_below_bullish_reference_variant,
     current_variant="control",
     extra_suffix="",
 ):
@@ -179,7 +184,7 @@ def update_results_dict(
     )
     results_dict[
         f"{current_variant}_{current_simultaneous_positions}pos_" \
-        f"{take_profit_variant_name}_{close_higher_percentage_variant_name}{extra_suffix}"
+        f"{take_profit_variant_name}_chp{close_higher_percentage_variant_name}{extra_suffix}_stp{stop_below_bullish_reference_variant}"
     ] = result_current_dict
     return results_dict
 
@@ -231,9 +236,12 @@ def check_stop_loss(sim, current_date_dt):
 #                                       #
 #########################################
 
-def run_simulation(results_dict, take_profit_variant, close_higher_percentage):
+def run_simulation(results_dict, take_profit_variant, close_higher_percentage, stop_below_bullish_reference_variant):
+    # TODO: change these params to a dictionary in the future 
     sim = Simulation(capital=config["simulator"]["capital"])
-    print(f"Take profit variant {take_profit_variant['variant_name']} | max positions {current_simultaneous_positions}")
+    print(f"Take profit variant {take_profit_variant['variant_name']} | "
+          f"max positions {current_simultaneous_positions} | close higher percentage variant {close_higher_percentage} | "
+          f"stop below bullish candle variant {stop_below_bullish_reference_variant}")
 
     start_date_dt, end_date_dt, current_date_dt = get_dates(start_date, end_date)
 
@@ -258,7 +266,8 @@ def run_simulation(results_dict, take_profit_variant, close_higher_percentage):
         day_entries = ws.loc[ws["entry_date"] == current_date_dt]
         for key, row in day_entries.iterrows():
             process_entry(sim, row["stock"], row["entry_price_actual"], take_profit_variant,
-                          current_date_dt, row["initial_stop_loss"], close_higher_percentage)
+                          current_date_dt, row["initial_stop_loss"], close_higher_percentage,
+                          stop_below_bullish_reference_variant)
 
         # Check if conditions for the second entry were met for applicable existing entries for all entered stocks
         # Here also move the stop after the second entry to a low of the bullish reference candle -X%
@@ -301,7 +310,8 @@ def run_simulation(results_dict, take_profit_variant, close_higher_percentage):
     results_dict = update_results_dict(
         results_dict, sim, current_simultaneous_positions,
         take_profit_variant['variant_name'],
-        close_higher_percentage
+        close_higher_percentage,
+        stop_below_bullish_reference_variant
     )
     return results_dict, sim
 
@@ -426,13 +436,14 @@ if __name__ == "__main__":
     for current_simultaneous_positions in config["simulator"]["simultaneous_positions"]:
         for take_profit_variant in config["simulator"]["take_profit_variants"]:
             for close_higher_percentage in config["simulator"]["close_higher_percentage_variants"]:
-                # For logging
-                variant_name = f"{current_simultaneous_positions}pos_{take_profit_variant['variant_name']}_{close_higher_percentage}"
-                # Run it
-                results_dict, latest_sim = run_simulation(
-                    results_dict, take_profit_variant, close_higher_percentage
-                )
-                simulations[variant_name] = latest_sim
+                for stop_below_bullish_reference_variant in config["simulator"]["stop_below_bullish_reference_variants"]:
+                    # For logging
+                    variant_name = f"{current_simultaneous_positions}pos_{take_profit_variant['variant_name']}_chp{close_higher_percentage}_stp{stop_below_bullish_reference_variant}"
+                    # Run it
+                    results_dict, latest_sim = run_simulation(
+                        results_dict, take_profit_variant, close_higher_percentage, stop_below_bullish_reference_variant
+                    )
+                    simulations[variant_name] = latest_sim
 
     # Create the report
     create_report(results_dict, simulations, arguments["plot"])
