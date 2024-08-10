@@ -108,7 +108,7 @@ def calculate_profit_contribution(take_profit_info):
     )
 
 def calculate_fisher_contribution(sim, stock):
-    #TODO: wherever it is checked only take profit on fisher crossing if 5%+
+    #TODO: wherever it is checked only take profit on fisher crossing if 5%+, also need to implement the logic of it going above 0.6 to be valid again
     #TODO: continue working on that, does not work correctly
     entry_price = sim.get_average_entry_price(stock)
     data = sim.fisher_distance_exits[stock]
@@ -304,7 +304,6 @@ def check_stop_loss(sim, current_date_dt):
 #########################################
 
 def run_simulation(results_dict, take_profit_variant, close_higher_percentage, stop_below_bullish_reference_variant):
-    # TODO: change these params to a dictionary in the future (not urgent)
     sim = Simulation(capital=config["simulator"]["capital"])
     print(f"Take profit variant {take_profit_variant['variant_name']} | "
           f"max positions {current_simultaneous_positions} | close higher percentage variant {close_higher_percentage} | "
@@ -363,7 +362,7 @@ def run_simulation(results_dict, take_profit_variant, close_higher_percentage, s
             check_stop_loss(sim, current_date_dt)
             # Check whether fisher distance take profits should be triggered
             if config["simulator"]["fisher_distance_exit"]["enabled"]:
-                check_fisher_based_take_profit(sim, current_date_dt)
+                check_fisher_based_take_profit(sim, current_date_dt)   #TODO: fix the issue where the distance crossing is processed multiple times e.g GOGL
 
         # Exits
         day_exits = ws.loc[ws[f"control_exit_date"] == current_date_dt]
