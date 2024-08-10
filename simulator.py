@@ -332,6 +332,11 @@ def get_stock_prices(sheet_df, prices_start_date):
     stock_names = [item.stock for key, item in sheet_df.iterrows()]
     stock_markets = [item.market for key, item in sheet_df.iterrows()]
 
+    if not arguments["forced_price_update"]:
+        print(
+            f"Skipping price updates in db, as there is no flag --forced_price_update")
+        return {}
+
     # Convert prices_start_date to date if it's not already
     if isinstance(prices_start_date, str):
         prices_start_date = datetime.strptime(prices_start_date, '%Y-%m-%d').date()
@@ -347,13 +352,8 @@ def get_stock_prices(sheet_df, prices_start_date):
             earliest_date = earliest_date.date()
         elif isinstance(earliest_date, str):
             earliest_date = datetime.strptime(earliest_date, '%Y-%m-%d').date()
-
-        # Check if the earliest date in the database is within 5 days of the start date
-        date_difference = abs((earliest_date - prices_start_date).days)
-        if (date_difference >= 5) and not arguments["forced_price_update"]:
-            print(f"Warning: update not requested but the date starting in the DB is more than 5 days diferent, consider using the flag --forced_price_update")
-            sleep(5)
-            return {}
+        ate_difference = abs((earliest_date - prices_start_date).days)
+        # Can add logic here if need to manage update of prices
 
     # If the dates don't match or the table was just created, proceed with updating
     delete_all_prices()  # Clear existing data
