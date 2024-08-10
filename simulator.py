@@ -17,7 +17,7 @@ import argparse
 import pandas as pd
 
 # For plotting
-import matplotlib.pyplot as plt
+from time import sleep
 
 parser = argparse.ArgumentParser()
 
@@ -350,8 +350,9 @@ def get_stock_prices(sheet_df, prices_start_date):
 
         # Check if the earliest date in the database is within 5 days of the start date
         date_difference = abs((earliest_date - prices_start_date).days)
-        if (date_difference <= 5) and not arguments["forced_price_update"]:
-            print(f"Data within 5 days of {prices_start_date} already exists in the database. Skipping update.")
+        if (date_difference >= 5) and not arguments["forced_price_update"]:
+            print(f"Warning: update not requested but the date starting in the DB is more than 5 days diferent, consider using the flag --forced_price_update")
+            sleep(5)
             return {}
 
     # If the dates don't match or the table was just created, proceed with updating
@@ -433,7 +434,7 @@ if __name__ == "__main__":
     ws = data_filter_by_dates(ws, start_date_dt, end_date_dt)
 
     ### Uncomment for testing on a particular stock
-    # ws = ws[ws['stock'] == 'GOGL']
+    # ws = ws[ws['stock'] == 'GERN']
 
     # Filter the dataset per the config for the numerical parameters
     ws = filter_dataframe(ws, config)
