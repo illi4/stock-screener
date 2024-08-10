@@ -81,7 +81,6 @@ simulator:
   # Settings for partial entries (always on as position management is important)
   # The first entry will be partial and then will need to wait for higher close
   first_entry_allocation: 0.5  # percentage of initial entry (0.5 is 50%)
-  #close_higher_percentage: 0.0055  # 0.55% higher close above bullish reference candle is neded for the second entry
 
   close_higher_percentage_variants: # close above bullish reference candle is needed for the second entry
     - 0       # 0%
@@ -93,6 +92,10 @@ simulator:
   stop_below_bullish_reference_variants: # this is for the level below the bullish candle's low 
     - 0
 #    - 0.0055
+
+  stop_loss_management:  # take profit if the price increases to an amount X and then falls back
+    price_increase_trigger: 0.10  # 10% increase from average entry price
+    new_stop_loss_level: 0.05     # 5% above average entry price
 
   #stop_loss_level: 0.99
   # stop loss to fully exit. this is calculated from the candle previous to entry day (when we have signal) low

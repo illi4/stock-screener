@@ -255,8 +255,9 @@ def run_simulation(results_dict, take_profit_variant, close_higher_percentage, s
 
         print(current_date_dt, "| positions: ", sim.current_positions, "| allocations: ", sim.entry_allocation)
 
-        # Process pending stop loss updates at the beginning of each day
+        # Process pending stop loss updates and trail updates at the beginning of each day
         sim.process_pending_stop_loss_updates()
+        sim.process_pending_trail_stop_updates()
 
         if previous_date_month != current_date_month:
             sim.balances[current_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
@@ -272,10 +273,20 @@ def run_simulation(results_dict, take_profit_variant, close_higher_percentage, s
         # Check if conditions for the second entry were met for applicable existing entries for all entered stocks
         # Here also move the stop after the second entry to a low of the bullish reference candle -X%
         for stock in sim.current_positions:
+
+            price_data = get_price_from_db(stock, current_date_dt)
+
+            # Process for 2nd entry
             if sim.entry_allocation[stock] < 1:
-                price_data = get_price_from_db(stock, current_date_dt)
                 next_open_price = get_next_opening_price(stock, current_date_dt)
                 sim.check_and_process_second_entry(stock, price_data['close'], next_open_price)
+
+            # Process for the trailing stop
+            if stock not in sim.trailing_stop_active:
+                sim.check_and_update_trailing_stop(stock, price_data['high'],
+                                                    config["simulator"]["stop_loss_management"]["price_increase_trigger"],
+                                                    config["simulator"]["stop_loss_management"]["new_stop_loss_level"]
+                                                    )
 
         # Check whether stocks reach the profit level for each stock
         # Also check for stop losses
@@ -422,7 +433,7 @@ if __name__ == "__main__":
     ws = data_filter_by_dates(ws, start_date_dt, end_date_dt)
 
     ### Uncomment for testing on a particular stock
-    #ws = ws[ws['stock'] == 'AGIO']
+    # ws = ws[ws['stock'] == 'GOGL']
 
     # Filter the dataset per the config for the numerical parameters
     ws = filter_dataframe(ws, config)

@@ -46,8 +46,10 @@ class Simulation:
         # For stop losses etc
         self.stop_loss_prices = {}
         self.take_profit_info = {}
-        # For executing stop trail updates on the day AFTER the take profit is reached
+
+        # For executing stop trail updates / stop updates on the day AFTER the take profit is reached
         self.pending_stop_loss_updates = {}
+        self.pending_trail_stop_updates = {}
         self.trailing_stop_active = {}  # for reporting purposes
 
         # For reflecting entry allocations per stock (1st and then 2nd entry)
@@ -105,6 +107,13 @@ class Simulation:
             'taken_profit_proportion': 0
         }
 
+    def check_and_update_trailing_stop(self, stock, current_high, price_increase_trigger, new_stop_loss_level):
+        avg_entry_price = self.get_average_entry_price(stock)
+
+        if current_high >= avg_entry_price * (1 + price_increase_trigger):
+            new_stop_price = avg_entry_price * (1 + new_stop_loss_level)
+            print(f"-- {price_increase_trigger:.0%} reached: scheduled trailing stop update ({stock})")
+            self.pending_trail_stop_updates[stock] = new_stop_price
 
     def check_and_process_second_entry(self, stock, close_price, next_open_price):
         reference_value = self.allocation_reference_price[stock]
@@ -161,18 +170,26 @@ class Simulation:
     def process_pending_stop_loss_updates(self):
         for stock, new_stop_level in self.pending_stop_loss_updates.items():
             if stock in self.current_positions:
-                self.update_stop_level(stock, new_stop_level)
+                self.update_stop_level(stock, new_stop_level, trailing=False)
         self.pending_stop_loss_updates.clear()
 
+    def process_pending_trail_stop_updates(self):
+        for stock, new_stop_level in self.pending_trail_stop_updates.items():
+            if stock in self.current_positions:
+                self.update_stop_level(stock, new_stop_level, trailing=True)
+        self.pending_trail_stop_updates.clear()
 
     def set_stop_loss(self, stock, stop_loss_price):
         self.stop_loss_prices[stock] = stop_loss_price
         print(f"-- stop loss for {stock} set at ${stop_loss_price:.2f}")
 
-    def update_stop_level(self, stock, new_stop_level):
+    def update_stop_level(self, stock, new_stop_level, trailing=False):  # trailing is for take profit
         self.stop_loss_prices[stock] = new_stop_level
-        self.trailing_stop_active[stock] = True
-        print(f"-- Moved stop level for {stock} to ${new_stop_level:.2f}")
+
+        if trailing:
+            self.trailing_stop_active[stock] = True
+
+        print(f"-- moved stop level for {stock} to ${new_stop_level:.2f} | trailing: {trailing}")
 
     def update_trade_statistics(self, trade_result_percent, positions_num):
         self.all_trades.append(trade_result_percent)
@@ -205,6 +222,7 @@ class Simulation:
         self.entry_allocation.pop(stock, None)
         self.trailing_stop_active.pop(stock, None)
         self.bullish_ref_stop_level.pop(stock, None)
+        self.pending_trail_stop_updates.pop(stock, None)
 
     def update_capital(self, new_capital):
         self.current_capital = new_capital
