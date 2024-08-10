@@ -59,15 +59,8 @@ class Simulation:
         # Reference for moving the stops further 
         self.bullish_ref_stop_level = {}
 
-        self.fisher_distances = {}  # Dictionary to store Fisher distance values for a stock
-
-    def update_fisher_distance(self, stock, value):
-        """Update the Fisher distance for a given stock."""
-        self.fisher_distances[stock] = value
-
-    def get_fisher_distance(self, stock):
-        """Get the current Fisher distance for a given stock."""
-        return self.fisher_distances.get(stock)
+        self.fisher_distance_exits = {}  # Dictionary to store Fisher distance values for a stock
+        self.last_fisher_calculation = {}
 
     def set_initial_entry(self, stock, entry_price, proportion,
                           close_higher_percentage, allocation_reference_price,
@@ -117,6 +110,15 @@ class Simulation:
             'taken_profit_proportion': 0
         }
 
+    def set_fisher_distance_profit_info(self, stock):
+        self.fisher_distance_exits[stock] = {
+            'prices': [],
+            'used_proportion': 0,
+            'number_exits': 0
+        }
+        self.last_fisher_calculation[stock] = None
+
+
     def check_and_update_trailing_stop(self, stock, current_high, price_increase_trigger, new_stop_loss_level):
         avg_entry_price = self.get_average_entry_price(stock)
 
@@ -144,7 +146,7 @@ class Simulation:
         if stock not in self.take_profit_info:
             return False
 
-        entry_price = self.entry_prices[stock]
+        entry_price = self.get_average_entry_price(stock)
 
         # Check each level
         for i, level in enumerate(take_profit_variant['take_profit_values']):
@@ -152,9 +154,9 @@ class Simulation:
             level_price = self.get_average_entry_price(stock) * (1 + take_profit_percentage)
 
             if high_price >= level_price and not self.take_profit_info[stock]['levels'][i]['reached']:
-
                 price_to_use = max(level_price, open_price)  # if opens higher than the level price, use the open
                 exit_proportion = float(level['exit_proportion'].strip('%')) / 100  # this is the proportion of total position
+
                 actual_level = (price_to_use - entry_price) / entry_price
 
                 print(f"-> Taking partial ({exit_proportion:.0%}) profit at {take_profit_percentage:.0%} level @ ${price_to_use:.2f} ({stock})")
@@ -178,6 +180,20 @@ class Simulation:
                 if commission > 0:
                     print(f'-- commission ${commission}')
                     self.update_capital(self.current_capital - commission)
+
+
+    def check_and_update_fisher_based_profit(self, stock, price_to_use, exit_proportion, commission):
+
+        entry_price = self.get_average_entry_price(stock)
+        move_percentage = (price_to_use - entry_price) / entry_price  # check what is the value
+
+        self.fisher_distance_exits[stock]['prices'].append(price_to_use)
+        self.fisher_distance_exits[stock]['used_proportion'] += exit_proportion
+        self.fisher_distance_exits[stock]['number_exits'] += 1
+
+        if commission > 0:
+            print(f'-- commission ${commission}')
+            self.update_capital(self.current_capital - commission)
 
 
     def process_pending_stop_loss_updates(self):
@@ -290,6 +306,7 @@ class Simulation:
         print(f"Max drawdown: {self.max_drawdown:.2%}")
         print(f"Max negative strike: {self.max_negative_strike}")
 
+
     def remove_stock_traces(self, stock):
         self.left_of_initial_entries.pop(stock, None)
         self.thresholds_reached.pop(stock, None)
@@ -303,4 +320,5 @@ class Simulation:
         self.trailing_stop_active.pop(stock, None)
         self.bullish_ref_stop_level.pop(stock, None)
         self.pending_trail_stop_updates.pop(stock, None)
-        self.fisher_distances.pop(stock, None)
+        self.fisher_distance_exits.pop(stock, None)
+        self.last_fisher_calculation.pop(stock, None)

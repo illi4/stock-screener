@@ -61,7 +61,11 @@ def process_entry(sim, stock, entry_price, take_profit_variant, current_date, in
         sim.positions_held += 1
         sim.current_positions.add(stock)
         sim.capital_per_position[stock] = sim.current_capital / current_simultaneous_positions
-        # sim.entry_prices[stock] = entry_price
+
+        # Set fisher-related info for a stock
+        sim.set_fisher_distance_profit_info(stock)
+
+        # Set take profit levels
         sim.set_take_profit_levels(stock, take_profit_variant, entry_price)
 
         # Set initial entry and stop / allocation reference prices 
@@ -103,6 +107,20 @@ def calculate_profit_contribution(take_profit_info):
         if level['reached']
     )
 
+def calculate_fisher_contribution(sim, stock):
+    #TODO: wherever it is checked only take profit on fisher crossing if 5%+
+    #TODO: continue working on that, does not work correctly
+    entry_price = sim.get_average_entry_price(stock)
+    data = sim.fisher_distance_exits[stock]
+    contribution = 0
+
+    for i, exit_price in enumerate(data['prices']):
+        move_percentage = (exit_price - entry_price) / entry_price
+        exit_proportion = data['used_proportion'] / data['number_exits']  # Assuming equal proportion for each exit
+        contribution += move_percentage * exit_proportion
+
+    return contribution
+
 def process_exit(sim, stock_code, price_data, forced_price=None):
     if stock_code in sim.current_positions:
 
@@ -113,12 +131,18 @@ def process_exit(sim, stock_code, price_data, forced_price=None):
         # Check if we need to use specific price
         exit_price = forced_price if forced_price is not None else price_data['open']
 
-        final_exit_proportion = 1 - sim.take_profit_info[stock_code]['taken_profit_proportion']
+        final_exit_proportion = 1 - sim.take_profit_info[stock_code]['taken_profit_proportion'] - sim.fisher_distance_exits[stock_code]['used_proportion']
         final_price_change = (exit_price - entry_price) / entry_price
 
         # Print some stats
         print(f"-> Exit ({stock_code}) [${total_position_size:.2f} position size] | allocation {position_allocation:.0%}")
         print(f"-- exit price: ${exit_price:.2f} | entry ${entry_price:.2f} | change {final_price_change:.2%}")
+        print(f"-- proportion used by taking profit at fixed levels: {sim.take_profit_info[stock_code]['taken_profit_proportion']:.0%}")
+        print(f"-- proportion used by taking profit via Fisher Distance: {sim.fisher_distance_exits[stock_code]['used_proportion']:.0%}")
+
+        # Calculate the contribution from the Fisher distance crossing
+        fisher_contribution = calculate_fisher_contribution(sim, stock_code)
+        print(f'-- position PNL from Fisher Distance crossing TP: {fisher_contribution:.2%}')
 
         # Calculate the contribution from the take profit levels
         # This is representing the growth from the overall original amount, accounted for the proportion of TP levels
@@ -134,7 +158,7 @@ def process_exit(sim, stock_code, price_data, forced_price=None):
         last_exit_contribution = final_price_change*final_exit_proportion
         print(f'-- position PNL from the exit: {last_exit_contribution:.2%}')
 
-        overall_result = tp_contribution + last_exit_contribution
+        overall_result = tp_contribution + last_exit_contribution + fisher_contribution
         print(f'-- total position PNL before accounting for allocation: {overall_result:.2%}')
 
         final_outcome = overall_result*position_allocation
@@ -208,6 +232,48 @@ def check_profit_levels(sim, current_date_dt, take_profit_variant):
             sim.check_and_update_take_profit(stock, price_data['high'], price_data['open'], take_profit_variant, config["simulator"]["commission"])
 
 
+def check_fisher_based_take_profit(sim, current_date_dt):
+    for stock in sim.current_positions:
+        # Get historical data from the database
+        historical_prices = get_historical_prices(stock, current_date_dt)
+
+        # Check if we have new data since the last calculation
+        last_price_date = historical_prices.index[-1]
+        if (stock not in sim.last_fisher_calculation or
+                sim.last_fisher_calculation[stock] is None or
+                'date' not in sim.last_fisher_calculation[stock] or
+                last_price_date > sim.last_fisher_calculation[stock]['date']):
+            # Calculate Fisher distance only if we have new data
+            fisher_df = fisher_distance(historical_prices)
+            current_fisher_dist = fisher_df['distance'].iloc[-1]
+            previous_fisher_dist = fisher_df['distance'].iloc[-2]
+
+            # Store the new calculation
+            sim.last_fisher_calculation[stock] = {
+                'date': last_price_date,
+                'current': current_fisher_dist,
+                'previous': previous_fisher_dist
+            }
+        else:
+            # Use stored values if no new data
+            current_fisher_dist = sim.last_fisher_calculation[stock]['current']
+            previous_fisher_dist = sim.last_fisher_calculation[stock]['previous']
+
+        # If crosses - need to exit the next day
+        if (
+                (previous_fisher_dist > 0 and current_fisher_dist <= 0) and
+                (sim.fisher_distance_exits[stock]['number_exits'] < config["simulator"]["fisher_distance_exit"][
+                    "max_exits"])
+        ):
+            print(
+                f"-> Fisher distance for {stock} crossed below zero (from {previous_fisher_dist:.4f} to {current_fisher_dist:.4f})")
+            next_day_dt = current_date_dt + timedelta(days=1)
+            price_data = get_price_from_db(stock, next_day_dt)
+            print(f"-- will take profit at the next day open price {price_data['open']}")
+            sim.check_and_update_fisher_based_profit(stock, price_data['open'],
+                                                     config["simulator"]["fisher_distance_exit"]["exit_proportion"],
+                                                     config["simulator"]["commission"])
+
 def check_stop_loss(sim, current_date_dt):
 
     stops_hit = []
@@ -238,7 +304,7 @@ def check_stop_loss(sim, current_date_dt):
 #########################################
 
 def run_simulation(results_dict, take_profit_variant, close_higher_percentage, stop_below_bullish_reference_variant):
-    # TODO: change these params to a dictionary in the future 
+    # TODO: change these params to a dictionary in the future (not urgent)
     sim = Simulation(capital=config["simulator"]["capital"])
     print(f"Take profit variant {take_profit_variant['variant_name']} | "
           f"max positions {current_simultaneous_positions} | close higher percentage variant {close_higher_percentage} | "
@@ -277,17 +343,6 @@ def run_simulation(results_dict, take_profit_variant, close_higher_percentage, s
 
             price_data = get_price_from_db(stock, current_date_dt)  # get the prices
 
-            # Get historical data from the database
-            historical_prices = get_historical_prices(stock, current_date_dt)
-            # Calculate Fisher distance
-            fisher_df = fisher_distance(historical_prices)
-            current_fisher_dist = fisher_df['distance'].iloc[-1]
-            previous_fisher_dist = fisher_df['distance'].iloc[-2]
-
-            if previous_fisher_dist > 0 and current_fisher_dist <= 0:
-                print(
-                    f"-> Fisher distance for {stock} crossed below zero (from {previous_fisher_dist:.4f} to {current_fisher_dist:.4f})")
-
             # Process for 2nd entry
             if sim.entry_allocation[stock] < 1:
                 next_open_price = get_next_opening_price(stock, current_date_dt)
@@ -306,6 +361,9 @@ def run_simulation(results_dict, take_profit_variant, close_higher_percentage, s
         if len(sim.current_positions) > 0:
             check_profit_levels(sim, current_date_dt, take_profit_variant)
             check_stop_loss(sim, current_date_dt)
+            # Check whether fisher distance take profits should be triggered
+            if config["simulator"]["fisher_distance_exit"]["enabled"]:
+                check_fisher_based_take_profit(sim, current_date_dt)
 
         # Exits
         day_exits = ws.loc[ws[f"control_exit_date"] == current_date_dt]
@@ -447,7 +505,7 @@ if __name__ == "__main__":
     ws = data_filter_by_dates(ws, start_date_dt, end_date_dt)
 
     ### Uncomment for testing on a particular stock
-    # ws = ws[ws['stock'] == 'GERN']
+    ws = ws[ws['stock'] == 'GOGL']
 
     # Filter the dataset per the config for the numerical parameters
     ws = filter_dataframe(ws, config)
