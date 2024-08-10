@@ -123,6 +123,9 @@ class Simulation:
             print(f"-- assuming next opening price ${next_open_price:.2f}")
             self.entry_prices[stock].append(next_open_price)
 
+            new_avg_entry_price = self.get_average_entry_price(stock)
+            print(f"-- updated avg entry price ${new_avg_entry_price:.2f}")
+
             # Set stop level at the bullish reference candle low -X% on the next day
             self.pending_stop_loss_updates[stock] = self.bullish_ref_stop_level[stock]
             print(f"-- scheduled stop level update for {stock} to ${self.bullish_ref_stop_level[stock]:.2f}")

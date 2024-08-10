@@ -75,8 +75,8 @@ simulator:
   capital: 10000
   commission: 1
   simultaneous_positions: # variants to go through, could be multiple to consider
-    - 4
-#    - 5
+#    - 4
+    - 5
 
   # Settings for partial entries (always on as position management is important)
   # The first entry will be partial and then will need to wait for higher close
@@ -90,8 +90,8 @@ simulator:
 
   ### Stop-related behaviour
   stop_below_bullish_reference_variants: # this is for the level below the bullish candle's low 
-    - 0
-#    - 0.0055
+#    - 0
+    - 0.0055
 
   stop_loss_management:  # take profit if the price increases to an amount X and then falls back
     price_increase_trigger: 0.10  # 10% increase from average entry price
