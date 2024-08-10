@@ -95,7 +95,7 @@ simulator:
 
   stop_loss_management:  # take profit if the price increases to an amount X and then falls back
     price_increase_trigger: 0.10  # 10% increase from average entry price
-    new_stop_loss_level: 0.05     # 5% above average entry price
+    new_stop_loss_level: 0.05     # 5% above average entry price. the result was better with the value of 3%, test
 
   #stop_loss_level: 0.99
   # stop loss to fully exit. this is calculated from the candle previous to entry day (when we have signal) low
