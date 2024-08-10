@@ -13,11 +13,12 @@ from peewee import IntegrityError
 import libs.gsheetobj as gsheetsobj
 from datetime import datetime, timedelta
 from libs.stocktools import get_stock_data, Market
+from libs.techanalysis import fisher_distance
+from libs.stocktools import get_stock_data
+from libs.db import get_historical_prices
+
 import argparse
 import pandas as pd
-
-# For plotting
-from time import sleep
 
 parser = argparse.ArgumentParser()
 
@@ -274,7 +275,18 @@ def run_simulation(results_dict, take_profit_variant, close_higher_percentage, s
         # Here also move the stop after the second entry to a low of the bullish reference candle -X%
         for stock in sim.current_positions:
 
-            price_data = get_price_from_db(stock, current_date_dt)
+            price_data = get_price_from_db(stock, current_date_dt)  # get the prices
+
+            # Get historical data from the database
+            historical_prices = get_historical_prices(stock, current_date_dt)
+            # Calculate Fisher distance
+            fisher_df = fisher_distance(historical_prices)
+            current_fisher_dist = fisher_df['distance'].iloc[-1]
+            previous_fisher_dist = fisher_df['distance'].iloc[-2]
+
+            if previous_fisher_dist > 0 and current_fisher_dist <= 0:
+                print(
+                    f"-> Fisher distance for {stock} crossed below zero (from {previous_fisher_dist:.4f} to {current_fisher_dist:.4f})")
 
             # Process for 2nd entry
             if sim.entry_allocation[stock] < 1:
@@ -283,7 +295,8 @@ def run_simulation(results_dict, take_profit_variant, close_higher_percentage, s
 
             # Process for the trailing stop
             if stock not in sim.trailing_stop_active:
-                sim.check_and_update_trailing_stop(stock, price_data['high'],
+                sim.check_and_update_trailing_stop(stock,
+                                                    price_data['high'],
                                                     config["simulator"]["stop_loss_management"]["price_increase_trigger"],
                                                     config["simulator"]["stop_loss_management"]["new_stop_loss_level"]
                                                     )

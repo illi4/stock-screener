@@ -3,6 +3,8 @@ import peewee
 import datetime
 import arrow
 from peewee import DoesNotExist
+from datetime import timedelta
+import pandas as pd
 
 from libs.read_settings import read_config
 config = read_config()
@@ -180,3 +182,41 @@ def get_update_date(exchange):
     except peewee.OperationalError:
         print("Error: table not found. Update the stocks list first.")
         exit(0)
+
+
+def get_historical_prices(stock, end_date, days=60):
+    """
+    Retrieve historical price data for a given stock from the database.
+
+    Args:
+    stock (str): The stock symbol.
+    end_date (datetime): The end date for the data retrieval.
+    days (int): The number of days of historical data to retrieve.
+
+    Returns:
+    df: A dataframe containing price data.
+    """
+    start_date = end_date - timedelta(days=days)
+    query = Price.select().where(
+        (Price.stock == stock) &
+        (Price.date >= start_date) &
+        (Price.date <= end_date)
+    ).order_by(Price.date)
+
+    values = [
+        {
+            'timestamp': price.date,
+            'open': price.open,
+            'high': price.high,
+            'low': price.low,
+            'close': price.close
+        }
+        for price in query
+    ]
+
+
+    # Convert the list of dictionaries to a DataFrame
+    df = pd.DataFrame(values)
+    df.set_index('timestamp', inplace=True)
+
+    return df

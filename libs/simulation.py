@@ -59,6 +59,16 @@ class Simulation:
         # Reference for moving the stops further 
         self.bullish_ref_stop_level = {}
 
+        self.fisher_distances = {}  # Dictionary to store Fisher distance values for a stock
+
+    def update_fisher_distance(self, stock, value):
+        """Update the Fisher distance for a given stock."""
+        self.fisher_distances[stock] = value
+
+    def get_fisher_distance(self, stock):
+        """Get the current Fisher distance for a given stock."""
+        return self.fisher_distances.get(stock)
+
     def set_initial_entry(self, stock, entry_price, proportion,
                           close_higher_percentage, allocation_reference_price,
                           adjusted_stop_reference):
@@ -213,20 +223,6 @@ class Simulation:
         ] = self.current_capital  # for the end date
         print("balances:", self.balances)
 
-    def remove_stock_traces(self, stock):
-        self.left_of_initial_entries.pop(stock, None)
-        self.thresholds_reached.pop(stock, None)
-        self.entry_prices.pop(stock, None)
-        self.capital_per_position.pop(stock)
-        self.thresholds_reached[stock] = []
-        self.failed_entry_day_stocks.pop(stock, None)
-        self.failsafe_stock_trigger.pop(stock, None)
-        self.failsafe_active_dates.pop(stock, None)
-        self.entry_allocation.pop(stock, None)
-        self.trailing_stop_active.pop(stock, None)
-        self.bullish_ref_stop_level.pop(stock, None)
-        self.pending_trail_stop_updates.pop(stock, None)
-
     def update_capital(self, new_capital):
         self.current_capital = new_capital
         self.capital_values.append(new_capital)
@@ -293,3 +289,18 @@ class Simulation:
         )
         print(f"Max drawdown: {self.max_drawdown:.2%}")
         print(f"Max negative strike: {self.max_negative_strike}")
+
+    def remove_stock_traces(self, stock):
+        self.left_of_initial_entries.pop(stock, None)
+        self.thresholds_reached.pop(stock, None)
+        self.entry_prices.pop(stock, None)
+        self.capital_per_position.pop(stock)
+        self.thresholds_reached[stock] = []
+        self.failed_entry_day_stocks.pop(stock, None)
+        self.failsafe_stock_trigger.pop(stock, None)
+        self.failsafe_active_dates.pop(stock, None)
+        self.entry_allocation.pop(stock, None)
+        self.trailing_stop_active.pop(stock, None)
+        self.bullish_ref_stop_level.pop(stock, None)
+        self.pending_trail_stop_updates.pop(stock, None)
+        self.fisher_distances.pop(stock, None)
