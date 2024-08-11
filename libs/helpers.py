@@ -542,4 +542,13 @@ def filter_dataframe(df, config):
                 df = df[df[column] <= conditions['max']]
         else:
             print(f"Error: Filter conditions for {column} are not specified correctly.")
+
+    if 'how_it_looks_filter' in config['simulator']:
+        allowed_looks = config['simulator']['how_it_looks_filter']
+        df = df[df['how_it_looks'].isin(allowed_looks)]
+
+    if 'close_to_resistance' in config['simulator']:
+        allowed = config['simulator']['close_to_resistance']
+        df = df[df['close_to_resistance'].isin(allowed)]
+
     return df
