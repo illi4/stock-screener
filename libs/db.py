@@ -5,6 +5,7 @@ import arrow
 from peewee import DoesNotExist
 from datetime import timedelta
 import pandas as pd
+import sys
 
 from libs.read_settings import read_config
 config = read_config()
@@ -72,7 +73,8 @@ def get_price_from_db(stock, date, look_backwards=True):
                                      Defaults to True.
 
     Returns:
-    dict: A dictionary containing price data (open, high, low, close, date) if found, None otherwise.
+    dict: A dictionary containing price data (open, high, low, close, date, date_is_changed) if found, None otherwise.
+          Changed date is a boolean which is true when the requested price is on the weekend or holiday so other date is used.
 
     Raises:
     SystemExit: If look_backwards is False and no future price data is found.
@@ -88,15 +90,18 @@ def get_price_from_db(stock, date, look_backwards=True):
             ).order_by(Price.date.asc()).first()
 
         if price_data:
+            date_is_changed = False
             if price_data.date.date() != date.date():
                 direction = "from" if look_backwards else "for"
-                print(f"(i) using price data {direction} {price_data.date.date()} for {stock}")
+                #print(f"(i) using price data {direction} {price_data.date.date()} for {stock}")
+                date_is_changed = True
             return {
                 'open': price_data.open,
                 'high': price_data.high,
                 'low': price_data.low,
                 'close': price_data.close,
-                'date': price_data.date
+                'date': price_data.date,
+                'date_is_changed': date_is_changed
             }
         else:
             direction = "on or before" if look_backwards else "on or after"

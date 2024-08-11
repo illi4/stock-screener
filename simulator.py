@@ -232,7 +232,12 @@ def check_profit_levels(sim, current_date_dt, take_profit_variant):
             sim.check_and_update_take_profit(stock, price_data['high'], price_data['open'], take_profit_variant, config["simulator"]["commission"])
 
 
-def check_fisher_based_take_profit(sim, current_date_dt):
+def check_fisher_based_take_profit(sim, current_date_dt, date_changed_reported):
+    # Check if the date is ok
+    if date_changed_reported:
+        print('skipping fisher distance check because of the weekend or holiday')
+        return
+
     for stock in sim.current_positions:
         # Get historical data from the database
         historical_prices = get_historical_prices(stock, current_date_dt)
@@ -315,6 +320,8 @@ def run_simulation(results_dict, take_profit_variant, close_higher_percentage, s
     sim.detailed_capital_values[start_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
 
     while current_date_dt < end_date_dt:
+        date_changed_reported = False    # just to show info
+
         previous_date_month = current_date_dt.strftime("%m")
         current_date_dt = current_date_dt + timedelta(days=1)
         current_date_month = current_date_dt.strftime("%m")
@@ -341,6 +348,9 @@ def run_simulation(results_dict, take_profit_variant, close_higher_percentage, s
         for stock in sim.current_positions:
 
             price_data = get_price_from_db(stock, current_date_dt)  # get the prices
+            if price_data['date_is_changed'] and not date_changed_reported:
+                print(f"(i) using price date from {price_data['date']}, possibly weekend")
+                date_changed_reported = True
 
             # Process for 2nd entry
             if sim.entry_allocation[stock] < 1:
@@ -360,9 +370,10 @@ def run_simulation(results_dict, take_profit_variant, close_higher_percentage, s
         if len(sim.current_positions) > 0:
             check_profit_levels(sim, current_date_dt, take_profit_variant)
             check_stop_loss(sim, current_date_dt)
+
             # Check whether fisher distance take profits should be triggered
             if config["simulator"]["fisher_distance_exit"]["enabled"]:
-                check_fisher_based_take_profit(sim, current_date_dt)   #TODO: fix the issue where the distance crossing is processed multiple times e.g GOGL
+                check_fisher_based_take_profit(sim, current_date_dt, date_changed_reported)   
 
         # Exits
         day_exits = ws.loc[ws[f"control_exit_date"] == current_date_dt]
