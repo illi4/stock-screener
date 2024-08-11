@@ -64,7 +64,8 @@ class Simulation:
         self.fisher_distance_above_threshold = {}
 
     def set_initial_entry(self, stock, entry_price, proportion,
-                          close_higher_percentage, allocation_reference_price,
+                          close_higher_percentage,
+                          allocation_reference_price,
                           adjusted_stop_reference):
         # For setting up the first entry for the stock per the allocation rules
         self.entry_allocation[stock] = proportion

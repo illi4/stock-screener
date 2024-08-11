@@ -234,7 +234,7 @@ def check_profit_levels(sim, current_date_dt, take_profit_variant):
 
 def check_fisher_based_take_profit(sim, current_date_dt, date_changed_reported):
     if date_changed_reported:
-        print('skipping fisher distance check because of the weekend or holiday')
+        print('(i) skipping fisher distance check because of the weekend or holiday')
         return
 
     reentry_threshold = config["simulator"]["fisher_distance_exit"]["reentry_threshold"]

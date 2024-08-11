@@ -91,7 +91,7 @@ simulator:
   ### Stop-related behaviour
   stop_below_bullish_reference_variants: # this is for the level below the bullish candle's low 
 #    - 0
-    - 0.0055
+    - 0.01
 
   stop_loss_management:  # take profit if the price increases to an amount X and then falls back
     price_increase_trigger: 0.10  # 10% increase from average entry price
