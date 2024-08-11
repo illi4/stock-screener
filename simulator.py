@@ -368,8 +368,6 @@ def run_simulations_with_sampling(ws, start_date):
     all_results = []
     all_simulations = {}
 
-    print(f"(i) Using the following start dates for sampling: {reference_dates}")
-
     for date in reference_dates:
         print(f"==> Running simulation starting from {date}")
         results_dict = {}
@@ -409,7 +407,7 @@ def run_simulations_with_sampling(ws, start_date):
                 else:
                     setattr(averaged_simulations[variant], attr, values[0])
 
-    return averaged_results, averaged_simulations
+    return averaged_results, averaged_simulations, reference_dates
 
 def run_simulation(ws, results_dict, take_profit_variant, close_higher_percentage, stop_below_bullish_reference_variant, current_simultaneous_positions):
     sim = Simulation(capital=config["simulator"]["capital"])
@@ -635,7 +633,11 @@ if __name__ == "__main__":
 
     if arguments["sampling"]:
         # Run simulations with sampling
-        results_dict, simulations = run_simulations_with_sampling(ws, start_date)
+        results_dict, simulations, reference_dates = run_simulations_with_sampling(ws, start_date)
+        print(f"\n(i) Using the following start dates for sampling:")
+        for reference_date in reference_dates:
+            print(reference_date)
+
     else:
         # Iterate over variants
         simulations = {}
@@ -653,3 +655,4 @@ if __name__ == "__main__":
 
     # Create the report
     create_report(results_dict, simulations, arguments["plot"])
+
