@@ -75,16 +75,16 @@ simulator:
   capital: 10000
   commission: 1
   simultaneous_positions: # variants to go through, could be multiple to consider
-#    - 4
-    - 5
+    - 3
+#    - 5
 
   # Settings for partial entries (always on as position management is important)
   # The first entry will be partial and then will need to wait for higher close
-  first_entry_allocation: 0.5  # percentage of initial entry (0.5 is 50%)
+  first_entry_allocation: 0.35  # percentage of initial entry (0.5 is 50%)
 
   close_higher_percentage_variants: # close above bullish reference candle is needed for the second entry
-    - 0       # 0%
-#    - 0.0055  # 0.55%
+#    - 0       # 0%
+    - 0.0055  # 0.55%
 #    - 0.01    # 1%
   # ^^^ to test variants later
 
@@ -94,8 +94,8 @@ simulator:
     - 0.01
 
   stop_loss_management:  # take profit if the price increases to an amount X and then falls back
-    price_increase_trigger: 0.10  # 10% increase from average entry price
-    new_stop_loss_level: 0.03     # X% above average entry price. the result was better with the value of 3%, test
+    price_increase_trigger: 0.055  # % increase from average entry price (e.g. 0.07 is 7%)
+    new_stop_loss_level: 0.015     # X% above average entry price. the result was better with the value of 3%, need testing
 
   #stop_loss_level: 0.99
   # stop loss to fully exit. this is calculated from the candle previous to entry day (when we have signal) low
@@ -112,10 +112,10 @@ simulator:
       min: -5000
       max: 5000
     coppock_daily:
-      min: -5000
+      min: 0
       max: 5000
     coppock_weekly:
-      min: -5000
+      min: 0
       max: 5000
     weekly_mri_count:
       min: 0
