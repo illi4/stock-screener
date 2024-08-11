@@ -269,7 +269,7 @@ def check_fisher_based_take_profit(sim, current_date_dt, date_changed_reported):
             previous_fisher_dist = sim.last_fisher_calculation[stock]['previous']
 
         # Check if Fisher distance has gone above the reentry threshold
-        if current_fisher_dist > reentry_threshold:
+        if (current_fisher_dist > reentry_threshold) and not sim.fisher_distance_above_threshold[stock]:
             sim.fisher_distance_above_threshold[stock] = True
             print(f"Fisher distance for {stock} went above reentry threshold: {current_fisher_dist:.4f}")
 

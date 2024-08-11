@@ -139,6 +139,10 @@ def define_simulator_args():
     boolean_args = ["plot", "failsafe", "forced_price_update"]   # "show_monthly"
     arguments.update({arg: bool(arguments.get(arg)) for arg in boolean_args})
 
+    # Convert stock to upper case
+    if arguments['stock'] is not None:
+        arguments['stock'] = arguments['stock'].upper()
+
     return arguments
 
 
