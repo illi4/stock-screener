@@ -75,7 +75,7 @@ simulator:
   capital: 10000
   commission: 1
   simultaneous_positions: # variants to go through, could be multiple to consider
-#    - 3
+#    - 1
     - 2
 
   # Settings for partial entries (always on as position management is important)
@@ -95,8 +95,8 @@ simulator:
     - 0.025
 
   stop_loss_management:  # take profit if the price increases to an amount X and then falls back
-    price_increase_trigger: 0.055  # % increase from average entry price (e.g. 0.07 is 7%)
-    new_stop_loss_level: 0.015     # X% above average entry price. the result was better with the value of 3%, need testing
+    price_increase_trigger: 0.1  # % increase from average entry price (e.g. 0.07 is 7%)
+    new_stop_loss_level: 0.05     # X% above average entry price. the result was better with the value of 3%, need testing
 
   #stop_loss_level: 0.99
   # stop loss to fully exit. this is calculated from the candle previous to entry day (when we have signal) low
@@ -135,7 +135,7 @@ simulator:
     max_exits: 3
     reentry_threshold: 0.6
     # ^^^ new threshold for allowing another exit. the value should go below zero and to this value again in order to take profit
-    minimum_price_increase: 0.03  # 3% minimum price increase for Fisher distance TP validity (from average entry price)
+    minimum_price_increase: 0.03  # X% minimum price increase for Fisher distance TP validity (from average entry price)
 
   ### Take profit variants
   take_profit_variants:
@@ -143,7 +143,8 @@ simulator:
   - variant_name: "current"
     take_profit_values:
       - level: 1000%  # ridiculously high so that the baseline is kind of not taking profit
-        exit_proportion: 100%
+        exit_proportion: 50%
+        move_stop_price: False
 
 #  - variant_name: "baseline"  # similar to the current approach
 #    take_profit_values:
