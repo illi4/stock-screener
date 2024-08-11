@@ -523,8 +523,13 @@ if __name__ == "__main__":
     start_date_dt, end_date_dt, current_date_dt = get_dates(start_date, end_date)
     ws = data_filter_by_dates(ws, start_date_dt, end_date_dt)
 
-    ### Uncomment for testing on a particular stock
-    ws = ws[ws['stock'] == 'GOGL']
+    # Filter for a specific stock if provided
+    if arguments["stock"]:
+        ws = ws[ws['stock'] == arguments["stock"]]
+        print(f"Filtered data for stock: {arguments['stock']}")
+        if ws.empty:
+            print(f"No data found for stock {arguments['stock']}. Exiting.")
+            exit(0)
 
     # Filter the dataset per the config for the numerical parameters
     ws = filter_dataframe(ws, config)

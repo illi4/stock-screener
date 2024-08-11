@@ -94,6 +94,14 @@ def define_simulator_args():
         help="Method of shortlisting (mri or anx)"
     )
 
+    # To run on one stock
+    parser.add_argument(
+        "-stock",
+        type=str,
+        required=False,
+        help="Specify a single stock to run the simulation on"
+    )
+
     # Adding the dates
     parser.add_argument(
         "-start",
