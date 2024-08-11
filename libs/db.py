@@ -3,6 +3,9 @@ import peewee
 import datetime
 import arrow
 from peewee import DoesNotExist
+from datetime import timedelta
+import pandas as pd
+import sys
 
 from libs.read_settings import read_config
 config = read_config()
@@ -58,24 +61,54 @@ def check_earliest_price_date():
         create_price_table()
         return None
 
-def get_price_from_db(stock, date):
+def get_price_from_db(stock, date, look_backwards=True):
+    """
+    Retrieves price data for a given stock and date from the database.
+
+    Args:
+    stock (str): The stock symbol.
+    date (datetime): The date for which to retrieve the price.
+    look_backwards (bool, optional): If True, looks for the most recent price data on or before the given date.
+                                     If False, looks for the earliest price data on or after the given date.
+                                     Defaults to True.
+
+    Returns:
+    dict: A dictionary containing price data (open, high, low, close, date, date_is_changed) if found, None otherwise.
+          Changed date is a boolean which is true when the requested price is on the weekend or holiday so other date is used.
+
+    Raises:
+    SystemExit: If look_backwards is False and no future price data is found.
+    """
     try:
-        price_data = Price.select().where(
-            (Price.stock == stock) & (Price.date <= date)
-        ).order_by(Price.date.desc()).first()
+        if look_backwards:
+            price_data = Price.select().where(
+                (Price.stock == stock) & (Price.date <= date)
+            ).order_by(Price.date.desc()).first()
+        else:
+            price_data = Price.select().where(
+                (Price.stock == stock) & (Price.date >= date)
+            ).order_by(Price.date.asc()).first()
 
         if price_data:
-            if price_data.date.date() < date.date():
-                print(f"(i) using price data from {price_data.date.date()} for {stock}")
+            date_is_changed = False
+            if price_data.date.date() != date.date():
+                direction = "from" if look_backwards else "for"
+                #print(f"(i) using price data {direction} {price_data.date.date()} for {stock}")
+                date_is_changed = True
             return {
                 'open': price_data.open,
                 'high': price_data.high,
                 'low': price_data.low,
                 'close': price_data.close,
-                'date': price_data.date
+                'date': price_data.date,
+                'date_is_changed': date_is_changed
             }
         else:
-            print(f"(!) no price data found for {stock} on or before {date}")
+            direction = "on or before" if look_backwards else "on or after"
+            print(f"(!) no price data found for {stock} {direction} {date}")
+            if not look_backwards:
+                print("Terminating due to lack of future price data.")
+                sys.exit(1)
             return None
     except DoesNotExist:
         print(f"(!) no price data found for {stock}")
@@ -154,3 +187,41 @@ def get_update_date(exchange):
     except peewee.OperationalError:
         print("Error: table not found. Update the stocks list first.")
         exit(0)
+
+
+def get_historical_prices(stock, end_date, days=60):
+    """
+    Retrieve historical price data for a given stock from the database.
+
+    Args:
+    stock (str): The stock symbol.
+    end_date (datetime): The end date for the data retrieval.
+    days (int): The number of days of historical data to retrieve.
+
+    Returns:
+    df: A dataframe containing price data.
+    """
+    start_date = end_date - timedelta(days=days)
+    query = Price.select().where(
+        (Price.stock == stock) &
+        (Price.date >= start_date) &
+        (Price.date <= end_date)
+    ).order_by(Price.date)
+
+    values = [
+        {
+            'timestamp': price.date,
+            'open': price.open,
+            'high': price.high,
+            'low': price.low,
+            'close': price.close
+        }
+        for price in query
+    ]
+
+
+    # Convert the list of dictionaries to a DataFrame
+    df = pd.DataFrame(values)
+    df.set_index('timestamp', inplace=True)
+
+    return df

@@ -94,6 +94,14 @@ def define_simulator_args():
         help="Method of shortlisting (mri or anx)"
     )
 
+    # To run on one stock
+    parser.add_argument(
+        "-stock",
+        type=str,
+        required=False,
+        help="Specify a single stock to run the simulation on"
+    )
+
     # Adding the dates
     parser.add_argument(
         "-start",
@@ -130,6 +138,10 @@ def define_simulator_args():
     # Convert specific arguments to boolean, defaulting to False if not provided
     boolean_args = ["plot", "failsafe", "forced_price_update"]   # "show_monthly"
     arguments.update({arg: bool(arguments.get(arg)) for arg in boolean_args})
+
+    # Convert stock to upper case
+    if arguments['stock'] is not None:
+        arguments['stock'] = arguments['stock'].upper()
 
     return arguments
 
@@ -473,6 +485,7 @@ def prepare_data(ws):
         "entry_price_actual",
         "exit_price_planned",
         "main_exit_price",
+        "initial_stop_loss",
         "threshold_1_expected_price",
         "threshold_1_actual_price",
         "threshold_2_expected_price",

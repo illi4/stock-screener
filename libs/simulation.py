@@ -33,7 +33,7 @@ class Simulation:
         # For thresholds
         self.left_of_initial_entries = dict()  # list of initial entries
         self.thresholds_reached = dict()  # for the thresholds reached
-        self.entry_prices = dict()  # for the entry prices
+        self.entry_prices = dict()  # dictionary for the entry prices
         self.entry_dates = dict()  # for the entry dates
         # Another dict for capital values and dates detailed
         self.detailed_capital_values = dict()
@@ -42,13 +42,61 @@ class Simulation:
         # For the failsafe checks
         self.failsafe_stock_trigger = dict()
         self.failsafe_active_dates = dict()  # for dates check
+
         # For stop losses etc
         self.stop_loss_prices = {}
         self.take_profit_info = {}
-        # For executing stop trail updates on the day AFTER the take profit is reached
+
+        # For executing stop trail updates / stop updates on the day AFTER the take profit is reached
         self.pending_stop_loss_updates = {}
+        self.pending_trail_stop_updates = {}
         self.trailing_stop_active = {}  # for reporting purposes
 
+        # For reflecting entry allocations per stock (1st and then 2nd entry)
+        self.entry_allocation = {}
+        self.allocation_reference_price = {}  # for storing the value which must be checked versus
+
+        # Reference for moving the stops further 
+        self.bullish_ref_stop_level = {}
+
+        self.fisher_distance_exits = {}  # Dictionary to store Fisher distance values for a stock
+        self.last_fisher_calculation = {}
+        self.fisher_distance_above_threshold = {}
+
+    def set_initial_entry(self, stock, entry_price, proportion,
+                          close_higher_percentage,
+                          allocation_reference_price,
+                          adjusted_stop_reference):
+        # For setting up the first entry for the stock per the allocation rules
+        self.entry_allocation[stock] = proportion
+        self.entry_prices[stock] = [entry_price]  # this will just be the first entry price
+
+        # Calculate new reference price for the second entry 
+        required_price_threshold = allocation_reference_price * (1 + close_higher_percentage)
+        self.allocation_reference_price[stock] = required_price_threshold
+
+        # Remember the bullish reference candle low to adjust the stop later 
+        self.bullish_ref_stop_level[stock] = adjusted_stop_reference
+
+        print(f"- initial entry for {stock}: {proportion:.0%} at ${entry_price:.2f} | "  
+              f"price point for the next allocation ${required_price_threshold:.2f} | "
+              f"next stop to set after the 2nd entry: ${adjusted_stop_reference:.2f}")
+
+    def get_average_entry_price(self, stock_code):
+        # Gets average entry price which is not weighted (we have 50/50 allocation b/w first and second entry)
+        if stock_code not in self.entry_allocation or stock_code not in self.entry_prices:
+            return None
+
+        total_allocation = self.entry_allocation[stock_code]
+        if total_allocation == 0:
+            return None
+
+        if isinstance(self.entry_prices[stock_code], list):
+            # If we have multiple entry prices, calculate the average
+            return sum(self.entry_prices[stock_code]) / len(self.entry_prices[stock_code])
+        else:
+            # If we have a single entry price
+            return self.entry_prices[stock_code]
 
     def set_take_profit_levels(self, stock, take_profit_variant, entry_price):
         self.take_profit_info[stock] = {
@@ -64,22 +112,53 @@ class Simulation:
             'taken_profit_proportion': 0
         }
 
+    def set_fisher_distance_profit_info(self, stock):
+        self.fisher_distance_exits[stock] = {
+            'prices': [],
+            'used_proportion': 0,
+            'number_exits': 0
+        }
+        self.last_fisher_calculation[stock] = None
+        self.fisher_distance_above_threshold[stock] = False  # Initialize as False
+
+    def check_and_update_trailing_stop(self, stock, current_high, price_increase_trigger, new_stop_loss_level):
+        avg_entry_price = self.get_average_entry_price(stock)
+
+        if current_high >= avg_entry_price * (1 + price_increase_trigger):
+            new_stop_price = avg_entry_price * (1 + new_stop_loss_level)
+            print(f"-- {price_increase_trigger:.0%} reached: scheduled trailing stop update ({stock})")
+            self.pending_trail_stop_updates[stock] = new_stop_price
+
+    def check_and_process_second_entry(self, stock, close_price, next_open_price):
+        reference_value = self.allocation_reference_price[stock]
+        if close_price > reference_value:
+            self.entry_allocation[stock] = 1
+            print(f"-- 2nd allocation condition met ({stock}): close ${close_price:.2f} > ${reference_value:.2f}")
+            print(f"-- assuming next opening price ${next_open_price:.2f}")
+            self.entry_prices[stock].append(next_open_price)
+
+            new_avg_entry_price = self.get_average_entry_price(stock)
+            print(f"-- updated avg entry price ${new_avg_entry_price:.2f}")
+
+            # Set stop level at the bullish reference candle low -X% on the next day
+            self.pending_stop_loss_updates[stock] = self.bullish_ref_stop_level[stock]
+            print(f"-- scheduled stop level update for {stock} to ${self.bullish_ref_stop_level[stock]:.2f}")
 
     def check_and_update_take_profit(self, stock, high_price, open_price, take_profit_variant, commission):
         if stock not in self.take_profit_info:
             return False
 
-        entry_price = self.entry_prices[stock]
+        entry_price = self.get_average_entry_price(stock)
 
         # Check each level
         for i, level in enumerate(take_profit_variant['take_profit_values']):
             take_profit_percentage = float(level['level'].strip('%')) / 100
-            level_price = entry_price * (1 + take_profit_percentage)
+            level_price = self.get_average_entry_price(stock) * (1 + take_profit_percentage)
 
             if high_price >= level_price and not self.take_profit_info[stock]['levels'][i]['reached']:
-
                 price_to_use = max(level_price, open_price)  # if opens higher than the level price, use the open
                 exit_proportion = float(level['exit_proportion'].strip('%')) / 100  # this is the proportion of total position
+
                 actual_level = (price_to_use - entry_price) / entry_price
 
                 print(f"-> Taking partial ({exit_proportion:.0%}) profit at {take_profit_percentage:.0%} level @ ${price_to_use:.2f} ({stock})")
@@ -89,7 +168,7 @@ class Simulation:
                 self.take_profit_info[stock]['levels'][i]['reached'] = True
                 self.take_profit_info[stock]['levels'][i]['price'] = price_to_use
                 self.take_profit_info[stock]['levels'][i]['actual_level'] = actual_level
-                self.take_profit_info[stock]['taken_profit_proportion'] += exit_proportion
+                self.take_profit_info[stock]['taken_profit_proportion'] += exit_proportion 
 
                 #print(self.take_profit_info[stock])
 
@@ -105,21 +184,43 @@ class Simulation:
                     self.update_capital(self.current_capital - commission)
 
 
+    def check_and_update_fisher_based_profit(self, stock, price_to_use, exit_proportion, commission):
+
+        entry_price = self.get_average_entry_price(stock)
+        move_percentage = (price_to_use - entry_price) / entry_price  # check what is the value
+
+        self.fisher_distance_exits[stock]['prices'].append(price_to_use)
+        self.fisher_distance_exits[stock]['used_proportion'] += exit_proportion
+        self.fisher_distance_exits[stock]['number_exits'] += 1
+
+        if commission > 0:
+            print(f'-- commission ${commission}')
+            self.update_capital(self.current_capital - commission)
+
+
     def process_pending_stop_loss_updates(self):
         for stock, new_stop_level in self.pending_stop_loss_updates.items():
             if stock in self.current_positions:
-                self.update_stop_level(stock, new_stop_level)
+                self.update_stop_level(stock, new_stop_level, trailing=False)
         self.pending_stop_loss_updates.clear()
 
+    def process_pending_trail_stop_updates(self):
+        for stock, new_stop_level in self.pending_trail_stop_updates.items():
+            if stock in self.current_positions:
+                self.update_stop_level(stock, new_stop_level, trailing=True)
+        self.pending_trail_stop_updates.clear()
 
     def set_stop_loss(self, stock, stop_loss_price):
         self.stop_loss_prices[stock] = stop_loss_price
         print(f"-- stop loss for {stock} set at ${stop_loss_price:.2f}")
 
-    def update_stop_level(self, stock, new_stop_level):
+    def update_stop_level(self, stock, new_stop_level, trailing=False):  # trailing is for take profit
         self.stop_loss_prices[stock] = new_stop_level
-        self.trailing_stop_active[stock] = True
-        print(f"-- Moved stop level for {stock} to ${new_stop_level:.2f}")
+
+        if trailing:
+            self.trailing_stop_active[stock] = True
+
+        print(f"-- moved stop level for {stock} to ${new_stop_level:.2f} | trailing: {trailing}")
 
     def update_trade_statistics(self, trade_result_percent, positions_num):
         self.all_trades.append(trade_result_percent)
@@ -139,16 +240,6 @@ class Simulation:
             current_date_dt.strftime("%d/%m/%Y")
         ] = self.current_capital  # for the end date
         print("balances:", self.balances)
-
-    def remove_stock_traces(self, stock):
-        self.left_of_initial_entries.pop(stock, None)
-        self.thresholds_reached.pop(stock, None)
-        self.entry_prices.pop(stock, None)
-        self.capital_per_position.pop(stock)
-        self.thresholds_reached[stock] = []
-        self.failed_entry_day_stocks.pop(stock, None)
-        self.failsafe_stock_trigger.pop(stock, None)
-        self.failsafe_active_dates.pop(stock, None)
 
     def update_capital(self, new_capital):
         self.current_capital = new_capital
@@ -216,3 +307,21 @@ class Simulation:
         )
         print(f"Max drawdown: {self.max_drawdown:.2%}")
         print(f"Max negative strike: {self.max_negative_strike}")
+
+
+    def remove_stock_traces(self, stock):
+        self.left_of_initial_entries.pop(stock, None)
+        self.thresholds_reached.pop(stock, None)
+        self.entry_prices.pop(stock, None)
+        self.capital_per_position.pop(stock)
+        self.thresholds_reached[stock] = []
+        self.failed_entry_day_stocks.pop(stock, None)
+        self.failsafe_stock_trigger.pop(stock, None)
+        self.failsafe_active_dates.pop(stock, None)
+        self.entry_allocation.pop(stock, None)
+        self.trailing_stop_active.pop(stock, None)
+        self.bullish_ref_stop_level.pop(stock, None)
+        self.pending_trail_stop_updates.pop(stock, None)
+        self.fisher_distance_exits.pop(stock, None)
+        self.last_fisher_calculation.pop(stock, None)
+        self.fisher_distance_above_threshold.pop(stock, None)
