@@ -233,58 +233,56 @@ def check_profit_levels(sim, current_date_dt, take_profit_variant):
 
 
 def check_fisher_based_take_profit(sim, current_date_dt, date_changed_reported):
-    # Check if the date is ok. Otherwise would result in incorrect exit.
     if date_changed_reported:
         print('skipping fisher distance check because of the weekend or holiday')
         return
 
     reentry_threshold = config["simulator"]["fisher_distance_exit"]["reentry_threshold"]
+    minimum_price_increase = config["simulator"]["fisher_distance_exit"]["minimum_price_increase"]
 
     for stock in sim.current_positions:
-        # Get historical data from the database
         historical_prices = get_historical_prices(stock, current_date_dt)
-
-        # Check if we have new data since the last calculation
         last_price_date = historical_prices.index[-1]
 
         if (stock not in sim.last_fisher_calculation or
                 sim.last_fisher_calculation[stock] is None or
                 'date' not in sim.last_fisher_calculation[stock] or
                 last_price_date > sim.last_fisher_calculation[stock]['date']):
-            # Calculate Fisher distance only if we have new data
             fisher_df = fisher_distance(historical_prices)
             current_fisher_dist = fisher_df['distance'].iloc[-1]
             previous_fisher_dist = fisher_df['distance'].iloc[-2]
 
-            # Store the new calculation
             sim.last_fisher_calculation[stock] = {
                 'date': last_price_date,
                 'current': current_fisher_dist,
                 'previous': previous_fisher_dist
             }
-
         else:
-            # Use stored values if no new data
             current_fisher_dist = sim.last_fisher_calculation[stock]['current']
             previous_fisher_dist = sim.last_fisher_calculation[stock]['previous']
 
-        # Check if Fisher distance has gone above the reentry threshold
         if (current_fisher_dist > reentry_threshold) and not sim.fisher_distance_above_threshold[stock]:
             sim.fisher_distance_above_threshold[stock] = True
             print(f"Fisher distance for {stock} went above reentry threshold: {current_fisher_dist:.4f}")
 
-        # If crosses - need to exit the next day
-        # Check for crossing zero downwards as well
         if (previous_fisher_dist > 0 and current_fisher_dist <= 0):
             if sim.fisher_distance_above_threshold[stock] and sim.fisher_distance_exits[stock]['number_exits'] < config["simulator"]["fisher_distance_exit"]["max_exits"]:
-                print(f"-> Fisher distance for {stock} crossed below zero (from {previous_fisher_dist:.4f} to {current_fisher_dist:.4f})")
-                next_day_dt = current_date_dt + timedelta(days=1)
-                price_data = get_price_from_db(stock, next_day_dt)
-                print(f"-- will take profit at the next day open price {price_data['open']}")
-                sim.check_and_update_fisher_based_profit(stock, price_data['open'],
-                                                         config["simulator"]["fisher_distance_exit"]["exit_proportion"],
-                                                         config["simulator"]["commission"])
-                sim.fisher_distance_above_threshold[stock] = False  # Reset the flag after taking profit
+                # Check if the price has increased by the minimum required percentage
+                entry_price = sim.get_average_entry_price(stock)
+                current_price = historical_prices['close'].iloc[-1]
+                price_increase = (current_price - entry_price) / entry_price
+
+                if price_increase >= minimum_price_increase:
+                    print(f"-> Fisher distance for {stock} crossed below zero (from {previous_fisher_dist:.4f} to {current_fisher_dist:.4f})")
+                    next_day_dt = current_date_dt + timedelta(days=1)
+                    price_data = get_price_from_db(stock, next_day_dt)
+                    print(f"-- will take profit at the next day open price {price_data['open']}")
+                    sim.check_and_update_fisher_based_profit(stock, price_data['open'],
+                                                             config["simulator"]["fisher_distance_exit"]["exit_proportion"],
+                                                             config["simulator"]["commission"])
+                    sim.fisher_distance_above_threshold[stock] = False
+                else:
+                    print(f"Skipping Fisher distance exit for {stock}: price increase ({price_increase:.2%}) is below the minimum required ({minimum_price_increase:.2%})")
             else:
                 print(f"Skipping Fisher distance exit for {stock}: {'threshold not reached' if not sim.fisher_distance_above_threshold[stock] else 'max exits reached'}")
 

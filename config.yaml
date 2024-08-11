@@ -120,6 +120,7 @@ simulator:
     max_exits: 3
     reentry_threshold: 0.6
     # ^^^ new threshold for allowing another exit. the value should go below zero and to this value again in order to take profit
+    minimum_price_increase: 0.05  # 5% minimum price increase for Fisher distance TP validity (from average entry price)
 
   ### Take profit variants
   take_profit_variants:
