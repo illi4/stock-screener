@@ -8,7 +8,10 @@
 import warnings
 warnings.filterwarnings("ignore")
 
+from statistics import mean
 from peewee import IntegrityError
+import statistics
+from collections.abc import Mapping
 
 import libs.gsheetobj as gsheetsobj
 from datetime import datetime, timedelta
@@ -28,7 +31,7 @@ config = read_config()
 #from libs.signal import red_day_on_volume # not used
 from libs.simulation import Simulation
 from libs.db import check_earliest_price_date, delete_all_prices, bulk_add_prices, get_price_from_db
-from libs.helpers import create_report, define_simulator_args, data_filter_by_dates, prepare_data, filter_dataframe
+from libs.helpers import create_report, define_simulator_args, data_filter_by_dates, prepare_data, filter_dataframe, data_filter_from_date
 
 pd.set_option("display.max_columns", None)
 
@@ -53,14 +56,48 @@ def get_next_opening_price(stock, current_date):
     price_info = get_price_from_db(stock, next_date, look_backwards=False)
     return price_info['open']
 
+def average_dict_values(dict_list):
+    if not dict_list:
+        return {}
+
+    keys = dict_list[0].keys()
+    result = {}
+    for key in keys:
+        values = [d[key] for d in dict_list if key in d]
+        if values:
+            if isinstance(values[0], Mapping):
+                result[key] = average_dict_values(values)
+            elif isinstance(values[0], (int, float)):
+                result[key] = statistics.mean(values)
+            else:
+                result[key] = values[0]  # For non-numeric values, just take the first one
+    return result
+
+
+def get_reference_dates(start_date, df):
+    start_date = pd.to_datetime(start_date)
+    future_dates = df[df['entry_date'] > start_date]['entry_date'].sort_values().unique()
+    reference_dates = [start_date] + list(future_dates[:3])
+    return reference_dates[:4]  # Ensure we have at most 4 dates
+
+def average_results(results_list):
+    averaged_results = {}
+    for key in results_list[0].keys():
+        values = [result[key] for result in results_list]
+        if isinstance(values[0], (int, float)):
+            averaged_results[key] = mean(values)
+        else:
+            averaged_results[key] = values[0]  # For non-numeric values, just take the first one
+    return averaged_results
+
 def process_entry(sim, stock, entry_price, take_profit_variant, current_date, initial_stop, close_higher_percentage, stop_below_bullish_reference_variant):
 
-    if len(sim.current_positions) + 1 > current_simultaneous_positions:
+    if len(sim.current_positions) + 1 > sim.current_simultaneous_positions:
         print(f"(i) max possible positions | skipping {stock} entry")
     else:
         sim.positions_held += 1
         sim.current_positions.add(stock)
-        sim.capital_per_position[stock] = sim.current_capital / current_simultaneous_positions
+        sim.capital_per_position[stock] = sim.current_capital / sim.current_simultaneous_positions
 
         # Set fisher-related info for a stock
         sim.set_fisher_distance_profit_info(stock)
@@ -180,7 +217,7 @@ def process_exit(sim, stock_code, price_data, forced_price=None):
 
         # Results update
         sim.update_capital(sim.current_capital)
-        sim.update_trade_statistics(overall_result, current_simultaneous_positions)
+        sim.update_trade_statistics(overall_result, sim.current_simultaneous_positions)
 
 
 def update_results_dict(
@@ -315,10 +352,58 @@ def check_stop_loss(sim, current_date_dt):
 #                                       #
 #########################################
 
-def run_simulation(results_dict, take_profit_variant, close_higher_percentage, stop_below_bullish_reference_variant):
+def run_simulations_with_sampling(ws, start_date):
+    reference_dates = get_reference_dates(start_date, ws)
+    all_results = []
+    all_simulations = {}
+
+    for date in reference_dates:
+        print(f"==> Running simulation starting from {date}")
+        results_dict = {}
+        simulations = {}
+
+        modified_ws = data_filter_from_date(ws, date)
+
+        for current_simultaneous_positions in config["simulator"]["simultaneous_positions"]:
+            for take_profit_variant in config["simulator"]["take_profit_variants"]:
+                for close_higher_percentage in config["simulator"]["close_higher_percentage_variants"]:
+                    for stop_below_bullish_reference_variant in config["simulator"]["stop_below_bullish_reference_variants"]:
+                        variant_name = f"{current_simultaneous_positions}pos_{take_profit_variant['variant_name']}_chp{close_higher_percentage}_stp{stop_below_bullish_reference_variant}"
+                        results_dict, latest_sim = run_simulation(
+                            modified_ws, results_dict, take_profit_variant, close_higher_percentage,
+                            stop_below_bullish_reference_variant,
+                            current_simultaneous_positions
+                        )
+                        simulations[variant_name] = latest_sim
+
+        all_results.append(results_dict)
+        all_simulations[date] = simulations
+
+    # Average the results
+    averaged_results = average_dict_values(all_results)
+
+    # Average the simulations
+    averaged_simulations = {}
+    for variant in all_simulations[reference_dates[0]].keys():
+        averaged_simulations[variant] = Simulation(config["simulator"]["capital"])
+        for attr in dir(all_simulations[reference_dates[0]][variant]):
+            if not attr.startswith("__") and not callable(getattr(all_simulations[reference_dates[0]][variant], attr)):
+                values = [getattr(all_simulations[date][variant], attr) for date in reference_dates]
+                if isinstance(values[0], (int, float)):
+                    setattr(averaged_simulations[variant], attr, statistics.mean(values))
+                elif isinstance(values[0], dict):
+                    setattr(averaged_simulations[variant], attr, average_dict_values(values))
+                else:
+                    setattr(averaged_simulations[variant], attr, values[0])
+
+    return averaged_results, averaged_simulations
+
+def run_simulation(ws, results_dict, take_profit_variant, close_higher_percentage, stop_below_bullish_reference_variant, current_simultaneous_positions):
     sim = Simulation(capital=config["simulator"]["capital"])
+    sim.current_simultaneous_positions = current_simultaneous_positions
+
     print(f"Take profit variant {take_profit_variant['variant_name']} | "
-          f"max positions {current_simultaneous_positions} | close higher percentage variant {close_higher_percentage} | "
+          f"max positions {sim.current_simultaneous_positions} | close higher percentage variant {close_higher_percentage} | "
           f"stop below bullish candle variant {stop_below_bullish_reference_variant}")
 
     start_date_dt, end_date_dt, current_date_dt = get_dates(start_date, end_date)
@@ -535,20 +620,23 @@ if __name__ == "__main__":
     # Get information on the price data if the date is new
     get_stock_prices(ws, prices_start_date)
 
-    # Iterate over take profit variants and number of positions
-    simulations = {}
-
-    for current_simultaneous_positions in config["simulator"]["simultaneous_positions"]:
-        for take_profit_variant in config["simulator"]["take_profit_variants"]:
-            for close_higher_percentage in config["simulator"]["close_higher_percentage_variants"]:
-                for stop_below_bullish_reference_variant in config["simulator"]["stop_below_bullish_reference_variants"]:
-                    # For logging
-                    variant_name = f"{current_simultaneous_positions}pos_{take_profit_variant['variant_name']}_chp{close_higher_percentage}_stp{stop_below_bullish_reference_variant}"
-                    # Run it
-                    results_dict, latest_sim = run_simulation(
-                        results_dict, take_profit_variant, close_higher_percentage, stop_below_bullish_reference_variant
-                    )
-                    simulations[variant_name] = latest_sim
+    if arguments["sampling"]:
+        # Run simulations with sampling
+        results_dict, simulations = run_simulations_with_sampling(ws, start_date)
+    else:
+        # Iterate over variants
+        simulations = {}
+        for current_simultaneous_positions in config["simulator"]["simultaneous_positions"]:
+            for take_profit_variant in config["simulator"]["take_profit_variants"]:
+                for close_higher_percentage in config["simulator"]["close_higher_percentage_variants"]:
+                    for stop_below_bullish_reference_variant in config["simulator"]["stop_below_bullish_reference_variants"]:
+                        # For logging
+                        variant_name = f"{current_simultaneous_positions}pos_{take_profit_variant['variant_name']}_chp{close_higher_percentage}_stp{stop_below_bullish_reference_variant}"
+                        # Run it
+                        results_dict, latest_sim = run_simulation(
+                            ws, results_dict, take_profit_variant, close_higher_percentage, stop_below_bullish_reference_variant, current_simultaneous_positions
+                        )
+                        simulations[variant_name] = latest_sim
 
     # Create the report
     create_report(results_dict, simulations, arguments["plot"])

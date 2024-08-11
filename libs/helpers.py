@@ -116,6 +116,9 @@ def define_simulator_args():
         help="End date to run for (YYYY-MM-DD format)",
     )
 
+    # To add averaged sampling
+    parser.add_argument("--sampling", action="store_true", help="Enable sampling mode")
+
     # Not used
     # # Arguments to overwrite default settings for filtering
     # parser.add_argument(
@@ -136,7 +139,7 @@ def define_simulator_args():
     arguments = vars(args)
 
     # Convert specific arguments to boolean, defaulting to False if not provided
-    boolean_args = ["plot", "failsafe", "forced_price_update"]   # "show_monthly"
+    boolean_args = ["plot", "failsafe", "forced_price_update", "sampling"]   # "show_monthly"
     arguments.update({arg: bool(arguments.get(arg)) for arg in boolean_args})
 
     # Convert stock to upper case
@@ -476,6 +479,9 @@ def data_filter_by_dates(ws, start_date, end_date):
     ws = ws.loc[ws["entry_date"] <= end_date]
     return ws
 
+def data_filter_from_date(ws, start_date):
+    ws = ws.loc[ws["entry_date"] >= start_date]
+    return ws
 
 def prepare_data(ws):
     # Convert types
