@@ -233,10 +233,12 @@ def check_profit_levels(sim, current_date_dt, take_profit_variant):
 
 
 def check_fisher_based_take_profit(sim, current_date_dt, date_changed_reported):
-    # Check if the date is ok
+    # Check if the date is ok. Otherwise would result in incorrect exit.
     if date_changed_reported:
         print('skipping fisher distance check because of the weekend or holiday')
         return
+
+    reentry_threshold = config["simulator"]["fisher_distance_exit"]["reentry_threshold"]
 
     for stock in sim.current_positions:
         # Get historical data from the database
@@ -244,6 +246,7 @@ def check_fisher_based_take_profit(sim, current_date_dt, date_changed_reported):
 
         # Check if we have new data since the last calculation
         last_price_date = historical_prices.index[-1]
+
         if (stock not in sim.last_fisher_calculation or
                 sim.last_fisher_calculation[stock] is None or
                 'date' not in sim.last_fisher_calculation[stock] or
@@ -259,25 +262,31 @@ def check_fisher_based_take_profit(sim, current_date_dt, date_changed_reported):
                 'current': current_fisher_dist,
                 'previous': previous_fisher_dist
             }
+
         else:
             # Use stored values if no new data
             current_fisher_dist = sim.last_fisher_calculation[stock]['current']
             previous_fisher_dist = sim.last_fisher_calculation[stock]['previous']
 
+        # Check if Fisher distance has gone above the reentry threshold
+        if current_fisher_dist > reentry_threshold:
+            sim.fisher_distance_above_threshold[stock] = True
+            print(f"Fisher distance for {stock} went above reentry threshold: {current_fisher_dist:.4f}")
+
         # If crosses - need to exit the next day
-        if (
-                (previous_fisher_dist > 0 and current_fisher_dist <= 0) and
-                (sim.fisher_distance_exits[stock]['number_exits'] < config["simulator"]["fisher_distance_exit"][
-                    "max_exits"])
-        ):
-            print(
-                f"-> Fisher distance for {stock} crossed below zero (from {previous_fisher_dist:.4f} to {current_fisher_dist:.4f})")
-            next_day_dt = current_date_dt + timedelta(days=1)
-            price_data = get_price_from_db(stock, next_day_dt)
-            print(f"-- will take profit at the next day open price {price_data['open']}")
-            sim.check_and_update_fisher_based_profit(stock, price_data['open'],
-                                                     config["simulator"]["fisher_distance_exit"]["exit_proportion"],
-                                                     config["simulator"]["commission"])
+        # Check for crossing zero downwards as well
+        if (previous_fisher_dist > 0 and current_fisher_dist <= 0):
+            if sim.fisher_distance_above_threshold[stock] and sim.fisher_distance_exits[stock]['number_exits'] < config["simulator"]["fisher_distance_exit"]["max_exits"]:
+                print(f"-> Fisher distance for {stock} crossed below zero (from {previous_fisher_dist:.4f} to {current_fisher_dist:.4f})")
+                next_day_dt = current_date_dt + timedelta(days=1)
+                price_data = get_price_from_db(stock, next_day_dt)
+                print(f"-- will take profit at the next day open price {price_data['open']}")
+                sim.check_and_update_fisher_based_profit(stock, price_data['open'],
+                                                         config["simulator"]["fisher_distance_exit"]["exit_proportion"],
+                                                         config["simulator"]["commission"])
+                sim.fisher_distance_above_threshold[stock] = False  # Reset the flag after taking profit
+            else:
+                print(f"Skipping Fisher distance exit for {stock}: {'threshold not reached' if not sim.fisher_distance_above_threshold[stock] else 'max exits reached'}")
 
 def check_stop_loss(sim, current_date_dt):
 
@@ -373,7 +382,7 @@ def run_simulation(results_dict, take_profit_variant, close_higher_percentage, s
 
             # Check whether fisher distance take profits should be triggered
             if config["simulator"]["fisher_distance_exit"]["enabled"]:
-                check_fisher_based_take_profit(sim, current_date_dt, date_changed_reported)   
+                check_fisher_based_take_profit(sim, current_date_dt, date_changed_reported)
 
         # Exits
         day_exits = ws.loc[ws[f"control_exit_date"] == current_date_dt]

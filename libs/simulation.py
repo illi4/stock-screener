@@ -61,6 +61,7 @@ class Simulation:
 
         self.fisher_distance_exits = {}  # Dictionary to store Fisher distance values for a stock
         self.last_fisher_calculation = {}
+        self.fisher_distance_above_threshold = {}
 
     def set_initial_entry(self, stock, entry_price, proportion,
                           close_higher_percentage, allocation_reference_price,
@@ -117,7 +118,7 @@ class Simulation:
             'number_exits': 0
         }
         self.last_fisher_calculation[stock] = None
-
+        self.fisher_distance_above_threshold[stock] = False  # Initialize as False
 
     def check_and_update_trailing_stop(self, stock, current_high, price_increase_trigger, new_stop_loss_level):
         avg_entry_price = self.get_average_entry_price(stock)
@@ -322,3 +323,4 @@ class Simulation:
         self.pending_trail_stop_updates.pop(stock, None)
         self.fisher_distance_exits.pop(stock, None)
         self.last_fisher_calculation.pop(stock, None)
+        self.fisher_distance_above_threshold.pop(stock, None)

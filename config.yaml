@@ -118,7 +118,8 @@ simulator:
     enabled: true
     exit_proportion: 0.25
     max_exits: 3
-
+    reentry_threshold: 0.6
+    # ^^^ new threshold for allowing another exit. the value should go below zero and to this value again in order to take profit
 
   ### Take profit variants
   take_profit_variants:
