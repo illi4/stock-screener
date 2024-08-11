@@ -22,6 +22,8 @@ from libs.db import get_historical_prices
 
 import argparse
 import pandas as pd
+import random
+
 
 parser = argparse.ArgumentParser()
 
@@ -77,8 +79,17 @@ def average_dict_values(dict_list):
 def get_reference_dates(start_date, df):
     start_date = pd.to_datetime(start_date)
     future_dates = df[df['entry_date'] > start_date]['entry_date'].sort_values().unique()
-    reference_dates = [start_date] + list(future_dates[:3])
-    return reference_dates[:4]  # Ensure we have at most 4 dates
+
+    # Select the first 10 unique dates (including start_date)
+    candidate_dates = [start_date] + list(future_dates[:9])
+
+    # Randomly sample 5 dates from the candidate_dates
+    if len(candidate_dates) > 5:
+        reference_dates = random.sample(candidate_dates, 5)
+    else:
+        reference_dates = candidate_dates
+
+    return sorted(reference_dates)  # Return sorted dates for chronological order
 
 def average_results(results_list):
     averaged_results = {}
@@ -356,6 +367,8 @@ def run_simulations_with_sampling(ws, start_date):
     reference_dates = get_reference_dates(start_date, ws)
     all_results = []
     all_simulations = {}
+
+    print(f"(i) Using the following start dates for sampling: {reference_dates}")
 
     for date in reference_dates:
         print(f"==> Running simulation starting from {date}")
