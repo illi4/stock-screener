@@ -98,15 +98,9 @@ simulator:
     price_increase_trigger: 0.1  # % increase from average entry price (e.g. 0.07 is 7%)
     new_stop_loss_level: 0.05     # X% above average entry price. the result was better with the value of 3%, need testing
 
-  #stop_loss_level: 0.99
-  # stop loss to fully exit. this is calculated from the candle previous to entry day (when we have signal) low
-  # ^^^ decimal representation e.g. 0.05 equals 5%
-  # seems that 5% may be too conservative, needs further testing
-  # ^^^^^^ Note: replaced with the initial value from the sheet as this needs to be checked regularly
-
   ### Filters to use
 
-  # how_it_looks_filter: ["BEAR", "BP", "BRTOBULL", 'EXTR', 'MBR', "SIDE", "STEP"] # Note helpful - commented out
+  #how_it_looks_filter: ["BR", "MBR"] # Note helpful - commented out
   # reference: ["BEAR", "BP", "BR", "BRTOBULL", 'EXTR', 'MBR', "SIDE", "STEP"]  # Filter based on the 'how_it_looks' column
 
   # close_to_resistance: ["Y", "N"] # not helpful, commented out
