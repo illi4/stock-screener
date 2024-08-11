@@ -514,6 +514,9 @@ def prepare_data(ws):
         ws["control_exit_date"], format="%d/%m/%Y", errors="coerce"
     )
 
+    # Extra fields
+    ws["under_td_resistance"] = ws["under_td_resistance"].astype(bool)
+
     # Not needed in the new format
     for column in [
         "control_result_%",

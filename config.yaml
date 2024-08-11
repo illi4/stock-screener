@@ -111,7 +111,15 @@ simulator:
     fisher_weekly:
       min: -5000
       max: 5000
-
+    coppock_daily:
+      min: -5000
+      max: 5000
+    coppock_weekly:
+      min: -5000
+      max: 5000
+    weekly_mri_count:
+      min: 0
+      max: 100
 
   ### Fisher distance related take profit
   fisher_distance_exit:
