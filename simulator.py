@@ -76,6 +76,20 @@ def average_dict_values(dict_list):
     return result
 
 
+def randomly_exclude_rows(df, exclusion_rate):
+    """
+    Randomly exclude a percentage of rows from the dataframe.
+
+    :param df: Input dataframe
+    :param exclusion_rate: Percentage of rows to exclude (as decimal)
+    :return: Dataframe with randomly excluded rows
+    """
+    num_rows = len(df)
+    num_to_exclude = int(num_rows * exclusion_rate)
+    exclude_indices = random.sample(range(num_rows), num_to_exclude)
+    return df.drop(df.index[exclude_indices])
+
+
 def get_reference_dates(start_date, df):
     start_date = pd.to_datetime(start_date)
     future_dates = df[df['entry_date'] > start_date]['entry_date'].sort_values().unique()
@@ -83,13 +97,12 @@ def get_reference_dates(start_date, df):
     # Select the first 10 unique dates (including start_date)
     candidate_dates = [start_date] + list(future_dates[:9])
 
-    # Randomly sample 5 dates from the candidate_dates
-    if len(candidate_dates) > 5:
-        reference_dates = random.sample(candidate_dates, 5)
-    else:
-        reference_dates = candidate_dates
+    # Randomly sample the number of dates specified in the config
+    sample_size = min(config["simulator"]["sample_size"], len(candidate_dates))
+    reference_dates = random.sample(candidate_dates, sample_size)
 
     return sorted(reference_dates)  # Return sorted dates for chronological order
+
 
 def average_results(results_list):
     averaged_results = {}
@@ -156,8 +169,6 @@ def calculate_profit_contribution(take_profit_info):
     )
 
 def calculate_fisher_contribution(sim, stock):
-    #TODO: wherever it is checked only take profit on fisher crossing if 5%+, also need to implement the logic of it going above 0.6 to be valid again
-    #TODO: continue working on that, does not work correctly
     entry_price = sim.get_average_entry_price(stock)
     data = sim.fisher_distance_exits[stock]
     contribution = 0
@@ -357,6 +368,27 @@ def check_stop_loss(sim, current_date_dt):
         process_exit(sim, hits['stock'], hits['price_data'], forced_price=hits['stopped_out_price'])
 
 
+def check_stop_breakeven(sim, current_date_dt):
+    stops_hit = []
+
+    for stock in sim.current_positions:
+        if stock in sim.breakeven_stop_loss_prices:
+            price_data = get_price_from_db(stock, current_date_dt)
+            # check if the low for the day is below stop loss level
+            stop_loss_hit = (price_data['low'] < sim.breakeven_stop_loss_prices[stock])
+            if stop_loss_hit:
+                # calculate which price to use. some stocks gap down significantly
+                stopped_out_price = min(sim.breakeven_stop_loss_prices[stock], price_data['open'])
+
+                print(f'-> BREAKEVEN HIT ({stock}) @ ${stopped_out_price:.2f}')
+                # add this to stops_hit
+                stops_hit.append(dict(stock=stock, stopped_out_price=stopped_out_price, price_data=price_data))
+
+    # Process exits for the stocks
+    for hits in stops_hit:
+        process_exit(sim, hits['stock'], hits['price_data'], forced_price=hits['stopped_out_price'])
+
+
 #########################################
 #                                       #
 #         SIMULATION LOGIC 🔄           #
@@ -368,8 +400,6 @@ def run_simulations_with_sampling(ws, start_date):
     all_results = []
     all_simulations = {}
 
-    print(f"(i) Using the following start dates for sampling: {reference_dates}")
-
     for date in reference_dates:
         print(f"==> Running simulation starting from {date}")
         results_dict = {}
@@ -377,10 +407,16 @@ def run_simulations_with_sampling(ws, start_date):
 
         modified_ws = data_filter_from_date(ws, date)
 
+        # Randomly exclude rows based on the config parameter
+        exclusion_rate = config["simulator"]["random_exclusion_rate"]
+        modified_ws = randomly_exclude_rows(modified_ws, exclusion_rate)
+        print(f"Randomly excluded {exclusion_rate:.1%} of rows for this sample.")
+
         for current_simultaneous_positions in config["simulator"]["simultaneous_positions"]:
             for take_profit_variant in config["simulator"]["take_profit_variants"]:
                 for close_higher_percentage in config["simulator"]["close_higher_percentage_variants"]:
-                    for stop_below_bullish_reference_variant in config["simulator"]["stop_below_bullish_reference_variants"]:
+                    for stop_below_bullish_reference_variant in config["simulator"][
+                        "stop_below_bullish_reference_variants"]:
                         variant_name = f"{current_simultaneous_positions}pos_{take_profit_variant['variant_name']}_chp{close_higher_percentage}_stp{stop_below_bullish_reference_variant}"
                         results_dict, latest_sim = run_simulation(
                             modified_ws, results_dict, take_profit_variant, close_higher_percentage,
@@ -409,7 +445,7 @@ def run_simulations_with_sampling(ws, start_date):
                 else:
                     setattr(averaged_simulations[variant], attr, values[0])
 
-    return averaged_results, averaged_simulations
+    return averaged_results, averaged_simulations, reference_dates
 
 def run_simulation(ws, results_dict, take_profit_variant, close_higher_percentage, stop_below_bullish_reference_variant, current_simultaneous_positions):
     sim = Simulation(capital=config["simulator"]["capital"])
@@ -436,6 +472,7 @@ def run_simulation(ws, results_dict, take_profit_variant, close_higher_percentag
         # Process pending stop loss updates and trail updates at the beginning of each day
         sim.process_pending_stop_loss_updates()
         sim.process_pending_trail_stop_updates()
+        sim.process_pending_breakeven_stop_updates()
 
         if previous_date_month != current_date_month:
             sim.balances[current_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
@@ -469,12 +506,19 @@ def run_simulation(ws, results_dict, take_profit_variant, close_higher_percentag
                                                     config["simulator"]["stop_loss_management"]["price_increase_trigger"],
                                                     config["simulator"]["stop_loss_management"]["new_stop_loss_level"]
                                                     )
+            # Process for breakeven stop
+            if config["simulator"]["breakeven_stop_loss"]["enabled"]:
+                sim.check_and_update_breakeven_stop(stock,
+                                                    price_data['high'],
+                                                    config["simulator"]["breakeven_stop_loss"]["price_increase_trigger"]
+                                                    )
 
         # Check whether stocks reach the profit level for each stock
         # Also check for stop losses
         if len(sim.current_positions) > 0:
             check_profit_levels(sim, current_date_dt, take_profit_variant)
             check_stop_loss(sim, current_date_dt)
+            check_stop_breakeven(sim, current_date_dt)
 
             # Check whether fisher distance take profits should be triggered
             if config["simulator"]["fisher_distance_exit"]["enabled"]:
@@ -635,7 +679,12 @@ if __name__ == "__main__":
 
     if arguments["sampling"]:
         # Run simulations with sampling
-        results_dict, simulations = run_simulations_with_sampling(ws, start_date)
+        results_dict, simulations, reference_dates = run_simulations_with_sampling(ws, start_date)
+        print(f"\n(i) Using the following start dates for sampling:")
+        for reference_date in reference_dates:
+            print(reference_date)
+        print(f'(i) {config["simulator"]["random_exclusion_rate"]:.0%} of records were randomly excluded on each sample run')
+
     else:
         # Iterate over variants
         simulations = {}
@@ -653,3 +702,4 @@ if __name__ == "__main__":
 
     # Create the report
     create_report(results_dict, simulations, arguments["plot"])
+

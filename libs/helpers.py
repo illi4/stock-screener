@@ -514,9 +514,6 @@ def prepare_data(ws):
         ws["control_exit_date"], format="%d/%m/%Y", errors="coerce"
     )
 
-    # Extra fields
-    ws["under_td_resistance"] = ws["under_td_resistance"].astype(bool)
-
     # Not needed in the new format
     for column in [
         "control_result_%",
@@ -542,4 +539,13 @@ def filter_dataframe(df, config):
                 df = df[df[column] <= conditions['max']]
         else:
             print(f"Error: Filter conditions for {column} are not specified correctly.")
+
+    if 'how_it_looks_filter' in config['simulator']:
+        allowed_looks = config['simulator']['how_it_looks_filter']
+        df = df[df['how_it_looks'].isin(allowed_looks)]
+
+    if 'under_td_resistance' in config['simulator']:
+        allowed = config['simulator']['under_td_resistance']
+        df = df[df['under_td_resistance'].isin(allowed)]
+
     return df

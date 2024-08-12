@@ -75,35 +75,45 @@ simulator:
   capital: 10000
   commission: 1
   simultaneous_positions: # variants to go through, could be multiple to consider
-#    - 4
-    - 5
+#    - 1
+    - 2
+
+  # Parameters for sampling
+  # This is used when running --sampling for simulaton using different start dates and sample exclusions
+  sample_size: 10  # Number of sample dates to use
+  random_exclusion_rate: 0.15  # Percentage of rows to randomly exclude (as decimal)
 
   # Settings for partial entries (always on as position management is important)
   # The first entry will be partial and then will need to wait for higher close
   first_entry_allocation: 0.5  # percentage of initial entry (0.5 is 50%)
 
   close_higher_percentage_variants: # close above bullish reference candle is needed for the second entry
-    - 0       # 0%
-#    - 0.0055  # 0.55%
+#    - 0       # 0%
+    - 0.0055  # 0.55%
 #    - 0.01    # 1%
   # ^^^ to test variants later
 
   ### Stop-related behaviour
   stop_below_bullish_reference_variants: # this is for the level below the bullish candle's low 
 #    - 0
-    - 0.01
+#    - 0.01
+    - 0.025
 
   stop_loss_management:  # take profit if the price increases to an amount X and then falls back
-    price_increase_trigger: 0.10  # 10% increase from average entry price
-    new_stop_loss_level: 0.03     # X% above average entry price. the result was better with the value of 3%, test
+    price_increase_trigger: 0.1  # % increase from average entry price (e.g. 0.07 is 7%)
+    new_stop_loss_level: 0.05     # X% above average entry price. the result was better with the value of 3%, need testing
 
-  #stop_loss_level: 0.99
-  # stop loss to fully exit. this is calculated from the candle previous to entry day (when we have signal) low
-  # ^^^ decimal representation e.g. 0.05 equals 5%
-  # seems that 5% may be too conservative, needs further testing
-  # ^^^^^^ Note: replaced with the initial value from the sheet as this needs to be checked regularly
+  breakeven_stop_loss:  # to check if we want to use breakeven stop loss
+    enabled: false
+    price_increase_trigger: 0.05  # X% profit to trigger breakeven stop loss
 
   ### Filters to use
+
+  #how_it_looks_filter: ["BR", "MBR"] # Note helpful - commented out
+  #^^^ reference: ["BEAR", "BP", "BR", "BRTOBULL", 'EXTR', 'MBR', "SIDE", "STEP"]  # Filter based on the 'how_it_looks' column
+
+  #under_td_resistance: ["N"] # not helpful, commented out
+
   numerical_filters:
     fisher_daily:
       min: -5000
@@ -112,12 +122,12 @@ simulator:
       min: -5000
       max: 5000
     coppock_daily:
-      min: -5000
+      min: 0
       max: 5000
     coppock_weekly:
-      min: -5000
+      min: 0
       max: 5000
-    weekly_mri_count:
+    weekly_mri_count:  # does not matter per simulations
       min: 0
       max: 100
 
@@ -128,7 +138,7 @@ simulator:
     max_exits: 3
     reentry_threshold: 0.6
     # ^^^ new threshold for allowing another exit. the value should go below zero and to this value again in order to take profit
-    minimum_price_increase: 0.05  # 5% minimum price increase for Fisher distance TP validity (from average entry price)
+    minimum_price_increase: 0.03  # X% minimum price increase for Fisher distance TP validity (from average entry price)
 
   ### Take profit variants
   take_profit_variants:
@@ -136,7 +146,8 @@ simulator:
   - variant_name: "current"
     take_profit_values:
       - level: 1000%  # ridiculously high so that the baseline is kind of not taking profit
-        exit_proportion: 100%
+        exit_proportion: 50%
+        move_stop_price: False
 
 #  - variant_name: "baseline"  # similar to the current approach
 #    take_profit_values:
@@ -160,7 +171,7 @@ simulator:
 #        move_stop_price: True
 #        move_stop_from_tp_level: 5%  # this is a distance down from the take profit level (so if it pulls back X% from there)
 #
-#  - variant_name: "ultra_conservative"  # similar to the current approach
+#  - variant_name: "ultra_conservative"
 #    take_profit_values:
 #      - level: 10%
 #        move_stop_price: False

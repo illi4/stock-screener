@@ -50,6 +50,7 @@ class Simulation:
         # For executing stop trail updates / stop updates on the day AFTER the take profit is reached
         self.pending_stop_loss_updates = {}
         self.pending_trail_stop_updates = {}
+        self.pending_breakeven_stop_updates = {}
         self.trailing_stop_active = {}  # for reporting purposes
 
         # For reflecting entry allocations per stock (1st and then 2nd entry)
@@ -62,6 +63,10 @@ class Simulation:
         self.fisher_distance_exits = {}  # Dictionary to store Fisher distance values for a stock
         self.last_fisher_calculation = {}
         self.fisher_distance_above_threshold = {}
+
+        self.pending_breakeven_stop_updates = {}
+        self.breakeven_stop_active = {}
+        self.breakeven_stop_loss_prices = {}
 
     def set_initial_entry(self, stock, entry_price, proportion,
                           close_higher_percentage,
@@ -128,6 +133,16 @@ class Simulation:
             new_stop_price = avg_entry_price * (1 + new_stop_loss_level)
             print(f"-- {price_increase_trigger:.0%} reached: scheduled trailing stop update ({stock})")
             self.pending_trail_stop_updates[stock] = new_stop_price
+
+    def check_and_update_breakeven_stop(self, stock, current_high, price_increase_trigger):
+        if stock not in self.breakeven_stop_active:
+            avg_entry_price = self.get_average_entry_price(stock)
+
+            if current_high >= avg_entry_price * (1 + price_increase_trigger):
+                new_stop_price = avg_entry_price
+                print(f"-- {price_increase_trigger:.0%} reached: scheduled breakeven stop update ({stock})")
+                self.pending_breakeven_stop_updates[stock] = new_stop_price
+                self.breakeven_stop_active[stock] = True
 
     def check_and_process_second_entry(self, stock, close_price, next_open_price):
         reference_value = self.allocation_reference_price[stock]
@@ -210,6 +225,12 @@ class Simulation:
                 self.update_stop_level(stock, new_stop_level, trailing=True)
         self.pending_trail_stop_updates.clear()
 
+    def process_pending_breakeven_stop_updates(self):
+        for stock, new_stop_level in self.pending_breakeven_stop_updates.items():
+            if stock in self.current_positions:
+                self.update_breakeven_stop_level(stock, new_stop_level)
+        self.pending_breakeven_stop_updates.clear()
+
     def set_stop_loss(self, stock, stop_loss_price):
         self.stop_loss_prices[stock] = stop_loss_price
         print(f"-- stop loss for {stock} set at ${stop_loss_price:.2f}")
@@ -221,6 +242,14 @@ class Simulation:
             self.trailing_stop_active[stock] = True
 
         print(f"-- moved stop level for {stock} to ${new_stop_level:.2f} | trailing: {trailing}")
+
+    def update_breakeven_stop_level(self, stock, new_stop_level, trailing=False):
+        self.breakeven_stop_loss_prices[stock] = new_stop_level
+
+        if trailing:
+            self.breakeven_stop_active[stock] = True
+
+        print(f"-- added breakeven stop level for {stock} to ${new_stop_level:.2f} ")
 
     def update_trade_statistics(self, trade_result_percent, positions_num):
         self.all_trades.append(trade_result_percent)
@@ -325,3 +354,6 @@ class Simulation:
         self.fisher_distance_exits.pop(stock, None)
         self.last_fisher_calculation.pop(stock, None)
         self.fisher_distance_above_threshold.pop(stock, None)
+        self.pending_breakeven_stop_updates.pop(stock, None)
+        self.breakeven_stop_active.pop(stock, None)
+        self.breakeven_stop_loss_prices.pop(stock, None)
