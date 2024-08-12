@@ -76,6 +76,20 @@ def average_dict_values(dict_list):
     return result
 
 
+def randomly_exclude_rows(df, exclusion_rate):
+    """
+    Randomly exclude a percentage of rows from the dataframe.
+
+    :param df: Input dataframe
+    :param exclusion_rate: Percentage of rows to exclude (as decimal)
+    :return: Dataframe with randomly excluded rows
+    """
+    num_rows = len(df)
+    num_to_exclude = int(num_rows * exclusion_rate)
+    exclude_indices = random.sample(range(num_rows), num_to_exclude)
+    return df.drop(df.index[exclude_indices])
+
+
 def get_reference_dates(start_date, df):
     start_date = pd.to_datetime(start_date)
     future_dates = df[df['entry_date'] > start_date]['entry_date'].sort_values().unique()
@@ -83,13 +97,12 @@ def get_reference_dates(start_date, df):
     # Select the first 10 unique dates (including start_date)
     candidate_dates = [start_date] + list(future_dates[:9])
 
-    # Randomly sample 5 dates from the candidate_dates
-    if len(candidate_dates) > 5:
-        reference_dates = random.sample(candidate_dates, 5)
-    else:
-        reference_dates = candidate_dates
+    # Randomly sample the number of dates specified in the config
+    sample_size = min(config["simulator"]["sample_size"], len(candidate_dates))
+    reference_dates = random.sample(candidate_dates, sample_size)
 
     return sorted(reference_dates)  # Return sorted dates for chronological order
+
 
 def average_results(results_list):
     averaged_results = {}
@@ -156,8 +169,6 @@ def calculate_profit_contribution(take_profit_info):
     )
 
 def calculate_fisher_contribution(sim, stock):
-    #TODO: wherever it is checked only take profit on fisher crossing if 5%+, also need to implement the logic of it going above 0.6 to be valid again
-    #TODO: continue working on that, does not work correctly
     entry_price = sim.get_average_entry_price(stock)
     data = sim.fisher_distance_exits[stock]
     contribution = 0
@@ -375,10 +386,16 @@ def run_simulations_with_sampling(ws, start_date):
 
         modified_ws = data_filter_from_date(ws, date)
 
+        # Randomly exclude rows based on the config parameter
+        exclusion_rate = config["simulator"]["random_exclusion_rate"]
+        modified_ws = randomly_exclude_rows(modified_ws, exclusion_rate)
+        print(f"Randomly excluded {exclusion_rate:.1%} of rows for this sample.")
+
         for current_simultaneous_positions in config["simulator"]["simultaneous_positions"]:
             for take_profit_variant in config["simulator"]["take_profit_variants"]:
                 for close_higher_percentage in config["simulator"]["close_higher_percentage_variants"]:
-                    for stop_below_bullish_reference_variant in config["simulator"]["stop_below_bullish_reference_variants"]:
+                    for stop_below_bullish_reference_variant in config["simulator"][
+                        "stop_below_bullish_reference_variants"]:
                         variant_name = f"{current_simultaneous_positions}pos_{take_profit_variant['variant_name']}_chp{close_higher_percentage}_stp{stop_below_bullish_reference_variant}"
                         results_dict, latest_sim = run_simulation(
                             modified_ws, results_dict, take_profit_variant, close_higher_percentage,
@@ -637,6 +654,7 @@ if __name__ == "__main__":
         print(f"\n(i) Using the following start dates for sampling:")
         for reference_date in reference_dates:
             print(reference_date)
+        print(f'(i) {config["simulator"]["random_exclusion_rate"]:.0%} of records were randomly excluded on each sample run')
 
     else:
         # Iterate over variants
