@@ -46,13 +46,20 @@ Run `python scanner.py --h` to view context help
 Helper scripts (requires Google credentials):
 
 - Monitor exit conditions: 
-  ```
-  python monitor.py -method=anx
-  ```
+    ```
+    python monitor.py -method=anx
+    ```
 - Auto-fill paper trade entries: 
-  ```
-  python paperfill.py -method=anx
-  ```
+    ```
+    python paperfill.py -method=anx
+    ```
+- **Daily routine**: 
+    ```
+    python paperfill.py -method=anx
+    python monitor.py -method=anx
+    python scanner.py --update
+    python scanner.py --scan -method=anx
+    ```
 
 ### Settings
 

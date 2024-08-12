@@ -368,6 +368,27 @@ def check_stop_loss(sim, current_date_dt):
         process_exit(sim, hits['stock'], hits['price_data'], forced_price=hits['stopped_out_price'])
 
 
+def check_stop_breakeven(sim, current_date_dt):
+    stops_hit = []
+
+    for stock in sim.current_positions:
+        if stock in sim.breakeven_stop_loss_prices:
+            price_data = get_price_from_db(stock, current_date_dt)
+            # check if the low for the day is below stop loss level
+            stop_loss_hit = (price_data['low'] < sim.breakeven_stop_loss_prices[stock])
+            if stop_loss_hit:
+                # calculate which price to use. some stocks gap down significantly
+                stopped_out_price = min(sim.breakeven_stop_loss_prices[stock], price_data['open'])
+
+                print(f'-> BREAKEVEN HIT ({stock}) @ ${stopped_out_price:.2f}')
+                # add this to stops_hit
+                stops_hit.append(dict(stock=stock, stopped_out_price=stopped_out_price, price_data=price_data))
+
+    # Process exits for the stocks
+    for hits in stops_hit:
+        process_exit(sim, hits['stock'], hits['price_data'], forced_price=hits['stopped_out_price'])
+
+
 #########################################
 #                                       #
 #         SIMULATION LOGIC 🔄           #
@@ -451,6 +472,7 @@ def run_simulation(ws, results_dict, take_profit_variant, close_higher_percentag
         # Process pending stop loss updates and trail updates at the beginning of each day
         sim.process_pending_stop_loss_updates()
         sim.process_pending_trail_stop_updates()
+        sim.process_pending_breakeven_stop_updates()
 
         if previous_date_month != current_date_month:
             sim.balances[current_date_dt.strftime("%d/%m/%Y")] = sim.current_capital
@@ -484,12 +506,19 @@ def run_simulation(ws, results_dict, take_profit_variant, close_higher_percentag
                                                     config["simulator"]["stop_loss_management"]["price_increase_trigger"],
                                                     config["simulator"]["stop_loss_management"]["new_stop_loss_level"]
                                                     )
+            # Process for breakeven stop
+            if config["simulator"]["breakeven_stop_loss"]["enabled"]:
+                sim.check_and_update_breakeven_stop(stock,
+                                                    price_data['high'],
+                                                    config["simulator"]["breakeven_stop_loss"]["price_increase_trigger"]
+                                                    )
 
         # Check whether stocks reach the profit level for each stock
         # Also check for stop losses
         if len(sim.current_positions) > 0:
             check_profit_levels(sim, current_date_dt, take_profit_variant)
             check_stop_loss(sim, current_date_dt)
+            check_stop_breakeven(sim, current_date_dt)
 
             # Check whether fisher distance take profits should be triggered
             if config["simulator"]["fisher_distance_exit"]["enabled"]:

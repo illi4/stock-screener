@@ -80,8 +80,8 @@ simulator:
 
   # Parameters for sampling
   # This is used when running --sampling for simulaton using different start dates and sample exclusions
-  sample_size: 5  # Number of sample dates to use
-  random_exclusion_rate: 0.1  # Percentage of rows to randomly exclude (as decimal)
+  sample_size: 10  # Number of sample dates to use
+  random_exclusion_rate: 0.15  # Percentage of rows to randomly exclude (as decimal)
 
   # Settings for partial entries (always on as position management is important)
   # The first entry will be partial and then will need to wait for higher close
@@ -103,10 +103,14 @@ simulator:
     price_increase_trigger: 0.1  # % increase from average entry price (e.g. 0.07 is 7%)
     new_stop_loss_level: 0.05     # X% above average entry price. the result was better with the value of 3%, need testing
 
+  breakeven_stop_loss:  # to check if we want to use breakeven stop loss
+    enabled: false
+    price_increase_trigger: 0.05  # X% profit to trigger breakeven stop loss
+
   ### Filters to use
 
   #how_it_looks_filter: ["BR", "MBR"] # Note helpful - commented out
-  # reference: ["BEAR", "BP", "BR", "BRTOBULL", 'EXTR', 'MBR', "SIDE", "STEP"]  # Filter based on the 'how_it_looks' column
+  #^^^ reference: ["BEAR", "BP", "BR", "BRTOBULL", 'EXTR', 'MBR', "SIDE", "STEP"]  # Filter based on the 'how_it_looks' column
 
   #under_td_resistance: ["N"] # not helpful, commented out
 
@@ -123,7 +127,7 @@ simulator:
     coppock_weekly:
       min: 0
       max: 5000
-    weekly_mri_count:
+    weekly_mri_count:  # does not matter per simulations
       min: 0
       max: 100
 
