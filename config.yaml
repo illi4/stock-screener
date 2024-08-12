@@ -108,7 +108,7 @@ simulator:
   #how_it_looks_filter: ["BR", "MBR"] # Note helpful - commented out
   # reference: ["BEAR", "BP", "BR", "BRTOBULL", 'EXTR', 'MBR', "SIDE", "STEP"]  # Filter based on the 'how_it_looks' column
 
-  # close_to_resistance: ["Y", "N"] # not helpful, commented out
+  #under_td_resistance: ["N"] # not helpful, commented out
 
   numerical_filters:
     fisher_daily:

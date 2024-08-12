@@ -514,9 +514,6 @@ def prepare_data(ws):
         ws["control_exit_date"], format="%d/%m/%Y", errors="coerce"
     )
 
-    # Extra fields
-    ws["under_td_resistance"] = ws["under_td_resistance"].astype(bool)
-
     # Not needed in the new format
     for column in [
         "control_result_%",
@@ -547,8 +544,8 @@ def filter_dataframe(df, config):
         allowed_looks = config['simulator']['how_it_looks_filter']
         df = df[df['how_it_looks'].isin(allowed_looks)]
 
-    if 'close_to_resistance' in config['simulator']:
-        allowed = config['simulator']['close_to_resistance']
-        df = df[df['close_to_resistance'].isin(allowed)]
+    if 'under_td_resistance' in config['simulator']:
+        allowed = config['simulator']['under_td_resistance']
+        df = df[df['under_td_resistance'].isin(allowed)]
 
     return df
