@@ -331,7 +331,8 @@ def check_fisher_based_take_profit(sim, current_date_dt, date_changed_reported):
             sim.fisher_distance_above_threshold[stock] = True
             print(f"-> Fisher distance for {stock} went above reentry threshold: {current_fisher_dist:.4f}")
 
-        if (previous_fisher_dist > 0 and current_fisher_dist <= 0):
+        if (previous_fisher_dist > config["simulator"]["fisher_distance_exit"]["crossed_down_value"]
+                and current_fisher_dist <= config["simulator"]["fisher_distance_exit"]["crossed_down_value"]):
             if sim.fisher_distance_above_threshold[stock] and sim.fisher_distance_exits[stock]['number_exits'] < config["simulator"]["fisher_distance_exit"]["max_exits"]:
                 # Check if the price has increased by the minimum required percentage
                 entry_price = sim.get_average_entry_price(stock)
