@@ -131,7 +131,8 @@ def process_entry(sim, stock, entry_price, take_profit_variant, current_date, in
 
         # Set initial entry and stop / allocation reference prices 
         allocation_reference_price = get_highest_body_level(stock, current_date)
-        adjusted_stop_reference = get_lowest_price_before_entry(stock, current_date) * (1-stop_below_bullish_reference_variant)
+        lowest_price_before_entry = get_lowest_price_before_entry(stock, current_date)
+        adjusted_stop_reference = lowest_price_before_entry * (1-stop_below_bullish_reference_variant)
 
         sim.set_initial_entry(stock, entry_price,
                               config["simulator"]["first_entry_allocation"],
@@ -146,7 +147,10 @@ def process_entry(sim, stock, entry_price, take_profit_variant, current_date, in
         print(f"-- current capital on entry: ${sim.current_capital}, allocated to the position: ${sim.capital_per_position[stock]}")
         # Create a string of take profit prices
         tp_prices = " | ".join([f"${level['price']:.2f}" for level in sim.take_profit_info[stock]['levels']])
+        print(f"-- lowest price before entry (on the reference candle): ${lowest_price_before_entry:.2f}")
+        print(f"-- adjusted stop reference (to move to after 2nd entry): ${adjusted_stop_reference:.2f}")
         print(f"-- take profit levels: {tp_prices}")
+
 
         # Set the stop level using the value from the sheet
         sim.set_stop_loss(stock, initial_stop)
@@ -316,13 +320,16 @@ def check_fisher_based_take_profit(sim, current_date_dt, date_changed_reported):
                 'current': current_fisher_dist,
                 'previous': previous_fisher_dist
             }
+
         else:
             current_fisher_dist = sim.last_fisher_calculation[stock]['current']
             previous_fisher_dist = sim.last_fisher_calculation[stock]['previous']
 
+        print(f"-- fisher distance value ({stock}): {current_fisher_dist:.4f}")
+
         if (current_fisher_dist > reentry_threshold) and not sim.fisher_distance_above_threshold[stock]:
             sim.fisher_distance_above_threshold[stock] = True
-            print(f"Fisher distance for {stock} went above reentry threshold: {current_fisher_dist:.4f}")
+            print(f"-> Fisher distance for {stock} went above reentry threshold: {current_fisher_dist:.4f}")
 
         if (previous_fisher_dist > 0 and current_fisher_dist <= 0):
             if sim.fisher_distance_above_threshold[stock] and sim.fisher_distance_exits[stock]['number_exits'] < config["simulator"]["fisher_distance_exit"]["max_exits"]:
