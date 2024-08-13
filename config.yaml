@@ -147,7 +147,7 @@ simulator:
   - variant_name: "current"
     take_profit_values:
       - level: 1000%  # ridiculously high so that the baseline is kind of not taking profit
-        exit_proportion: 50%
+        exit_proportion: 25%
         move_stop_price: False
 
 #  - variant_name: "baseline"  # similar to the current approach
