@@ -131,7 +131,7 @@ class Simulation:
 
         if current_high >= avg_entry_price * (1 + price_increase_trigger):
             new_stop_price = avg_entry_price * (1 + new_stop_loss_level)
-            print(f"-- {price_increase_trigger:.0%} reached: scheduled trailing stop update ({stock})")
+            print(f"-> {price_increase_trigger:.0%} reached: scheduled trailing stop update ({stock})")
             self.pending_trail_stop_updates[stock] = new_stop_price
 
     def check_and_update_breakeven_stop(self, stock, current_high, price_increase_trigger):

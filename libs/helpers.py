@@ -544,8 +544,8 @@ def filter_dataframe(df, config):
         allowed_looks = config['simulator']['how_it_looks_filter']
         df = df[df['how_it_looks'].isin(allowed_looks)]
 
-    if 'under_td_resistance' in config['simulator']:
-        allowed = config['simulator']['under_td_resistance']
-        df = df[df['under_td_resistance'].isin(allowed)]
+    if 'weekly_mri_direction' in config['simulator']:
+        allowed = config['simulator']['weekly_mri_direction']
+        df = df[df['weekly_mri_direction'].isin(allowed)]
 
     return df
