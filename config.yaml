@@ -27,42 +27,28 @@ locality:
 logging:
   gsheet_name: "Trading journal R&D 2024"
   gsheet_tab_name: "US_anx"
-  gsheet_actual_price_col: "F"
+  #gsheet_actual_price_col: "F"  # redo
   gsheet_columns: # columns in the spreadsheet
     - stock
     - market
     - trade_type
     - entry_date
-    - entry_price_planned
-    - entry_price_actual
+    - total_allocation
+    - entry_price_allocation_1
+    - entry_price_allocation_2
+    - avg_entry_price
     - initial_stop_loss
     - control_exit_date
-    - exit_price_planned
     - main_exit_price
     - outcome
     - control_result_%
-    - max_level_reached
     - exit_price_portion
-    - threshold_1_expected_price
-    - threshold_1_actual_price
-    - threshold_1_exit_portion
-    - threshold_2_expected_price
-    - threshold_2_actual_price
-    - threshold_2_exit_portion
-    - threshold_3_expected_price
-    - threshold_3_actual_price
-    - threshold_3_exit_portion
-    - ma_200_decreasing
-    - weekly_mri_count
-    - weekly_mri_direction
-    - under_td_resistance
-    - broken_td_resistance_before_entry
-    - close_to_resistance
-    - how_it_looks
-    - fisher_daily
-    - fisher_weekly
-    - coppock_daily
-    - coppock_weekly
+    - take_profit_1_price
+    - take_profit_1_price_exit_portion
+    - take_profit_2_price
+    - take_profit_2_price_exit_portion
+    - take_profit_3_price
+    - take_profit_3_price_exit_portion
     - comments
 
 #==================================#

@@ -27,11 +27,12 @@ tab_name = config["logging"]["gsheet_tab_name"]
 def fill_prices():
 
     ws = gsheetsobj.sheet_to_df(sheet_name, tab_name)
+    price_column_name = 'Entry price allocation 1'
 
     for index, row in ws.iterrows():
         if (
             row["Trade type"] == "paper"
-            and row["Entry price actual"] == ""
+            and row[price_column_name] == ""
         ):  # only process paper trades with no entry price info
             stock_code = row["Stock"]
 
@@ -55,10 +56,15 @@ def fill_prices():
                 update_row = (
                     index + 2
                 )  # +2 to account for starting 0 and header
-                gsheetsobj.sheet_update(
-                    config["logging"]["gsheet_name"], tab_name, update_row,
-                    config["logging"]["gsheet_actual_price_col"], open_price
-                )
+
+                # gsheetsobj.sheet_update(
+                #     config["logging"]["gsheet_name"], tab_name, update_row,
+                #     config["logging"]["gsheet_actual_price_col"], open_price
+                # )
+                gsheet_name = config["logging"]["gsheet_name"]
+                gsheetsobj.sheet_update_by_column_name(gsheet_name, tab_name, update_row,
+                                                       price_column_name, open_price)
+
             else:
                 print(
                     f"{stock_code} ({market.market_code}): no update needed yet"
@@ -163,7 +169,8 @@ if __name__ == "__main__":
     fill_prices()
 
     # Backfill metrics
-    print("Backfilling indicator values")
-    backfill_metrics()
+    # Not currently used, was used when doing R&D
+    # print("Backfilling indicator values")
+    # backfill_metrics()
 
     print("Done")
