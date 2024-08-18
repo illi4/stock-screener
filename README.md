@@ -102,7 +102,8 @@ python simulator.py -start=2023-12-10 -end=2024-04-01 -method=mri --plot
 - `--plot`: Generate and include plots in the output Excel file
 - `--forced_price_update`: Force update of price data in the database
 - `-stock=STOCK_CODE`: Specify a single stock to simulate
-- `--sampling`: Enable sampling mode for multiple simulation runs
+- `--sampling`: Enable sampling mode for multiple simulation runs and averaging the results
+- `--rnd`: Use to run the simulation on the RND sheet which has a structure different from the post-RND one
 
 ### Configuration
 

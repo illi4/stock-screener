@@ -27,7 +27,6 @@ locality:
 logging:
   gsheet_name: "Trading journal R&D 2024"
   gsheet_tab_name: "US_anx"
-  #gsheet_actual_price_col: "F"  # redo
   gsheet_columns: # columns in the spreadsheet
     - stock
     - market
@@ -49,6 +48,44 @@ logging:
     - take_profit_2_price_exit_portion
     - take_profit_3_price
     - take_profit_3_price_exit_portion
+    - comments
+  # R&D spreadsheets, kept to be able to revisit
+  rnd_gsheet_tab_name: "US_anx_R&D"
+  rnd_gsheet_columns: # columns in the spreadsheet
+    - stock
+    - market
+    - trade_type
+    - entry_date
+    - entry_price_planned
+    - entry_price_allocation_1
+    - initial_stop_loss
+    - control_exit_date
+    - planned_exit_price
+    - main_exit_price
+    - outcome
+    - control_result_%
+    - max_level_reached
+    - exit_price_portion
+    - take_profit_1_price
+    - take_profit_1_actual_price
+    - take_profit_1_price_exit_portion
+    - take_profit_2_price
+    - take_profit_2_actual_price
+    - take_profit_2_price_exit_portion
+    - take_profit_3_price
+    - take_profit_3_actual_price
+    - take_profit_3_price_exit_portion
+    - ma200_decreasing
+    - weekly_mri
+    - weekly_mri_dir
+    - under_tdst
+    - broken_tdst
+    - close_to_resistance
+    - how_it_looks
+    - fisher_daily
+    - fisher_weekly
+    - coppock_daily
+    - coppock_weekly
     - comments
 
 #==================================#
@@ -94,21 +131,20 @@ simulator:
     price_increase_trigger: 0.05  # X% profit to trigger breakeven stop loss
 
   ### Filters to use
-  # Note: disabled after doing R&D and concluding on the approach
-
-#  numerical_filters:
-#    fisher_daily:
-#      min: -5000
-#      max: 5000
-#    fisher_weekly:
-#      min: -5000
-#      max: 5000
-#    coppock_daily:
-#      min: 0
-#      max: 5000
-#    coppock_weekly:
-#      min: 0
-#      max: 5000
+  # Note: This is only applied when run in the RND mode
+  numerical_filters:
+    fisher_daily:
+      min: -5000
+      max: 5000
+    fisher_weekly:
+      min: -5000
+      max: 5000
+    coppock_daily:
+      min: 0
+      max: 5000
+    coppock_weekly:
+      min: 0
+      max: 5000
 
   ### Fisher distance related take profit
   fisher_distance_exit:
