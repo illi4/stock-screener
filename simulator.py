@@ -30,10 +30,10 @@ parser = argparse.ArgumentParser()
 from libs.read_settings import read_config
 config = read_config()
 
-#from libs.signal import red_day_on_volume # not used
 from libs.simulation import Simulation
 from libs.db import check_earliest_price_date, delete_all_prices, bulk_add_prices, get_price_from_db
-from libs.helpers import create_report, define_simulator_args, data_filter_by_dates, prepare_data, filter_dataframe, data_filter_from_date
+from libs.helpers import (create_report, define_simulator_args, data_filter_by_dates,
+                          prepare_data, prepare_rnd_data, filter_dataframe, data_filter_from_date)
 
 pd.set_option("display.max_columns", None)
 
@@ -658,11 +658,17 @@ if __name__ == "__main__":
 
     # Get the sheet to a dataframe
     sheet_name = config["logging"]["gsheet_name"]
-    tab_name = config["logging"]["gsheet_tab_name"]
 
-    ws = gsheetsobj.sheet_to_df(sheet_name, tab_name)
-    ws.columns = config["logging"]["gsheet_columns"]
-    ws = prepare_data(ws)
+    if arguments["rnd"]:
+        tab_name = config["logging"]["rnd_gsheet_tab_name"]
+        ws = gsheetsobj.sheet_to_df(sheet_name, tab_name)
+        ws.columns = config["logging"]["rnd_gsheet_columns"]
+        ws = prepare_rnd_data(ws)
+    else:
+        tab_name = config["logging"]["gsheet_tab_name"]
+        ws = gsheetsobj.sheet_to_df(sheet_name, tab_name)
+        ws.columns = config["logging"]["gsheet_columns"]
+        ws = prepare_data(ws)
 
     # Dict to save all the results, start with empty
     results_dict = dict()
@@ -680,7 +686,8 @@ if __name__ == "__main__":
             exit(0)
 
     # Filter the dataset per the config for the numerical parameters
-    ws = filter_dataframe(ws, config)
+    if arguments["rnd"]:
+        ws = filter_dataframe(ws, config)
 
     # Get information on the price data if the date is new
     get_stock_prices(ws, prices_start_date)

@@ -76,6 +76,9 @@ def define_simulator_args():
         "--plot", action="store_true", help="Plot the latest simulation"
     )
     parser.add_argument(
+        "--rnd", action="store_true", help="Use the R&D sheet for simulation"
+    )
+    parser.add_argument(
         "--failsafe", action="store_true", help="Activate the failsafe approach"
     )
     parser.add_argument(
@@ -139,7 +142,7 @@ def define_simulator_args():
     arguments = vars(args)
 
     # Convert specific arguments to boolean, defaulting to False if not provided
-    boolean_args = ["plot", "failsafe", "forced_price_update", "sampling"]   # "show_monthly"
+    boolean_args = ["plot", "failsafe", "forced_price_update", "sampling", "rnd"]   # "show_monthly"
     arguments.update({arg: bool(arguments.get(arg)) for arg in boolean_args})
 
     # Convert stock to upper case
@@ -495,6 +498,44 @@ def prepare_data(ws):
         "take_profit_1_price",
         "take_profit_2_price",
         "take_profit_3_price"
+    ]
+    ws[num_cols] = ws[num_cols].apply(pd.to_numeric, errors="coerce")
+
+    ws["entry_date"] = pd.to_datetime(
+        ws["entry_date"], format="%d/%m/%Y", errors="coerce"
+    )
+    ws["control_exit_date"] = pd.to_datetime(
+        ws["control_exit_date"], format="%d/%m/%Y", errors="coerce"
+    )
+
+    # Not needed in the new format
+    for column in [
+        "control_result_%",
+        "exit_price_portion",
+        "take_profit_1_price_exit_portion",
+        "take_profit_2_price_exit_portion",
+        "take_profit_3_price_exit_portion"
+    ]:
+        ws[column] = ws[column].apply(p2f)
+
+    return ws
+
+
+def prepare_rnd_data(ws):
+    # Convert types
+    # This should be in gsheetobj
+    num_cols = [
+        "entry_price_planned",
+        "entry_price_allocation_1",
+        "main_exit_price",
+        "initial_stop_loss",
+        "take_profit_1_price",
+        "take_profit_2_price",
+        "take_profit_3_price",
+        "fisher_weekly",
+        "fisher_daily",
+        "coppock_weekly",
+        "coppock_daily"
     ]
     ws[num_cols] = ws[num_cols].apply(pd.to_numeric, errors="coerce")
 
