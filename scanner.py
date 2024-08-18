@@ -156,7 +156,7 @@ def scan_stock(stocks, market, method):
     shortlisted_stocks = []
     # placeholder for shortlisted stocks and their attributes
     # each stock will be a named tuple with the following definition:
-    Stock = namedtuple('Stock', ['code', 'name', 'volume', 'fisherDaily', 'fisherWeekly', 'coppockDaily', 'coppockWeekly'])
+    Stock = namedtuple('Stock', ['code', 'name', 'volume'])
 
     # Iterate through the list of stocks
     for i, stock in enumerate(stocks):
@@ -210,17 +210,13 @@ def scan_stock(stocks, market, method):
                     f'({format_number(volume_MA_5D)} > {format_number(config["filters"]["minimum_volume_level"])})'
                 )
                 # Calculate extra metrics only for shortlisted stocks for a faster process
-                metric_data = calculate_extra_metrics(ohlc_with_indicators_daily, ohlc_with_indicators_weekly)
+                # metric_data = calculate_extra_metrics(ohlc_with_indicators_daily, ohlc_with_indicators_weekly)
 
                 # Append the shortlist with a stock and its characteristics
                 shortlisted_stocks.append(
                     Stock(code=stock.code,
                           name=stock.name,
-                          volume=volume_MA_5D,
-                          fisherDaily=metric_data['fisherDaily'],
-                          fisherWeekly=metric_data['fisherWeekly'],
-                          coppockDaily=metric_data['coppockDaily'],
-                          coppockWeekly=metric_data['coppockWeekly']
+                          volume=volume_MA_5D
                           )
                 )
 

@@ -1,4 +1,4 @@
-from libs.techanalysis import MA, StochRSI, SAR #, SAR
+from libs.techanalysis import MA, StochRSI, coppock_curve
 from libs.helpers import format_bool
 import numpy as np
 import pandas as pd
@@ -180,6 +180,11 @@ def price_above_ma(ohlc_with_indicators_daily, ma_values, ma_length):
     )
     return condition
 
+def coppock_is_positive(ohlc_with_indicators_daily, ohlc_with_indicators_weekly):
+    coppock_daily = coppock_curve(ohlc_with_indicators_daily).iloc[-1].values[0]
+    coppock_weekly = coppock_curve(ohlc_with_indicators_weekly).iloc[-1].values[0]
+    condition = (coppock_daily > 0) and (coppock_weekly > 0)
+    return condition
 
 def recent_bullish_cross(ma_a, ma_b, a_length, b_length):
     return (
@@ -325,6 +330,9 @@ def bullish_anx_based(
     bullish_sars_condition = bullish_sars(ohlc_with_indicators_weekly)
     '''
 
+    # Factor: daily and weekly coppock curve above 0
+    coppock_condition = coppock_is_positive(ohlc_with_indicators_daily, ohlc_with_indicators_weekly)
+
     # Factor: price is above MA200
     ma200 = MA(ohlc_with_indicators_daily, 200)
     price_above_ma_condition = price_above_ma(ohlc_with_indicators_daily, ma200, 200)
@@ -341,18 +349,22 @@ def bullish_anx_based(
         print(
             f"- {stock_name} | "
             f"Price above MA200: [{format_bool(price_above_ma_condition)}] | "
-            f"Recent bullish cross: [{format_bool(recent_bullish_cross_condition)}] | not overextended: [{format_bool(not_overextended)}]"
+            f"Recent bullish cross: [{format_bool(recent_bullish_cross_condition)}] | "
+            f"not overextended: [{format_bool(not_overextended)}] | "
+            f"coppork D/W positive: [{format_bool(coppock_condition)}]"
         )
 
     confirmation = [
         price_above_ma_condition,
         recent_bullish_cross_condition,
-        not_overextended
+        not_overextended,
+        coppock_condition
     ]
-    numerical_score = round(
-        5 * sum(confirmation) / len(confirmation), 0
-    )  # score X (of 5)
+    # numerical_score = round(
+    #     5 * sum(confirmation) / len(confirmation), 0
+    # )  # score X (of 5)
     result = False not in confirmation
+    numerical_score = 5
 
     return result, numerical_score
 
