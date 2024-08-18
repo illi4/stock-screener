@@ -94,30 +94,21 @@ simulator:
     price_increase_trigger: 0.05  # X% profit to trigger breakeven stop loss
 
   ### Filters to use
+  # Note: disabled after doing R&D and concluding on the approach
 
-  # These filters are not helpful - thus commented out
-  # how_it_looks_filter: ["BEAR", "BP", "BRTOBULL", 'EXTR', "SIDE", "STEP"]
-  #  ^^^ reference: ["BEAR", "BP", "BR", "BRTOBULL", 'EXTR', 'MBR', "SIDE", "STEP"]  # Filter based on the 'how_it_looks' column
-  # under_td_resistance: ["N"] # not helpful, commented out
-  # ma_200_decreasing: ["N"]
-  # weekly_mri_direction: ['bull']
-
-  numerical_filters:
-    fisher_daily:
-      min: -5000
-      max: 5000
-    fisher_weekly:
-      min: -5000
-      max: 5000
-    coppock_daily:
-      min: 0
-      max: 5000
-    coppock_weekly:
-      min: 0
-      max: 5000
-    weekly_mri_count:  # does not matter per simulations
-      min: 0
-      max: 100
+#  numerical_filters:
+#    fisher_daily:
+#      min: -5000
+#      max: 5000
+#    fisher_weekly:
+#      min: -5000
+#      max: 5000
+#    coppock_daily:
+#      min: 0
+#      max: 5000
+#    coppock_weekly:
+#      min: 0
+#      max: 5000
 
   ### Fisher distance related take profit
   fisher_distance_exit:

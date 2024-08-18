@@ -487,26 +487,17 @@ def prepare_data(ws):
     # Convert types
     # This should be in gsheetobj
     num_cols = [
-        "entry_price_planned",
-        "entry_price_actual",
-        "exit_price_planned",
+        "entry_price_allocation_1",
+        "entry_price_allocation_2",
+        "avg_entry_price",
         "main_exit_price",
         "initial_stop_loss",
-        "threshold_1_expected_price",
-        "threshold_1_actual_price",
-        "threshold_2_expected_price",
-        "threshold_2_actual_price",
-        "threshold_3_expected_price",
-        "threshold_3_actual_price",
-        "weekly_mri_count",
-        "fisher_daily",
-        "fisher_weekly",
-        "coppock_daily",
-        "coppock_weekly"
+        "take_profit_1_price",
+        "take_profit_2_price",
+        "take_profit_3_price"
     ]
     ws[num_cols] = ws[num_cols].apply(pd.to_numeric, errors="coerce")
 
-    ws["max_level_reached"] = ws["max_level_reached"].apply(p2f)
     ws["entry_date"] = pd.to_datetime(
         ws["entry_date"], format="%d/%m/%Y", errors="coerce"
     )
@@ -518,10 +509,9 @@ def prepare_data(ws):
     for column in [
         "control_result_%",
         "exit_price_portion",
-        "threshold_1_exit_portion",
-        "threshold_2_exit_portion",
-        "threshold_3_exit_portion",
-        "max_level_reached",
+        "take_profit_1_price_exit_portion",
+        "take_profit_2_price_exit_portion",
+        "take_profit_3_price_exit_portion"
     ]:
         ws[column] = ws[column].apply(p2f)
 
@@ -530,6 +520,9 @@ def prepare_data(ws):
 
 # Apply filters from config to the DataFrame
 def filter_dataframe(df, config):
+    if 'numerical_filters' not in config["simulator"]:
+        return df
+
     filters = config["simulator"]["numerical_filters"]
     for column, conditions in filters.items():
         if isinstance(conditions, dict):  # Ensure conditions is a dictionary
@@ -539,13 +532,5 @@ def filter_dataframe(df, config):
                 df = df[df[column] <= conditions['max']]
         else:
             print(f"Error: Filter conditions for {column} are not specified correctly.")
-
-    if 'how_it_looks_filter' in config['simulator']:
-        allowed_looks = config['simulator']['how_it_looks_filter']
-        df = df[df['how_it_looks'].isin(allowed_looks)]
-
-    if 'weekly_mri_direction' in config['simulator']:
-        allowed = config['simulator']['weekly_mri_direction']
-        df = df[df['weekly_mri_direction'].isin(allowed)]
 
     return df
