@@ -489,7 +489,7 @@ def run_simulation(ws, results_dict, take_profit_variant, close_higher_percentag
         # Entries
         day_entries = ws.loc[ws["entry_date"] == current_date_dt]
         for key, row in day_entries.iterrows():
-            process_entry(sim, row["stock"], row["entry_price_actual"], take_profit_variant,
+            process_entry(sim, row["stock"], row["entry_price_allocation_1"], take_profit_variant,
                           current_date_dt, row["initial_stop_loss"], close_higher_percentage,
                           stop_below_bullish_reference_variant)
 
