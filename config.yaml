@@ -41,6 +41,7 @@ logging:
     - main_exit_price
     - outcome
     - control_result_%
+    - status
     - exit_price_portion
     - take_profit_1_price
     - take_profit_1_price_exit_portion
