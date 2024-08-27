@@ -37,6 +37,7 @@ logging:
     - entry_price_allocation_2
     - avg_entry_price
     - initial_stop_loss
+    - 2nd_stop_loss
     - control_exit_date
     - main_exit_price
     - outcome
