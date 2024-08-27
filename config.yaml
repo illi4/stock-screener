@@ -125,8 +125,8 @@ simulator:
     - 0.025
 
   stop_loss_management:  # take profit if the price increases to an amount X and then falls back
-    price_increase_trigger: 0.1  # % increase from average entry price (e.g. 0.07 is 7%)
-    new_stop_loss_level: 0.05     # X% above average entry price. the result was better with the value of 3%, need testing
+    price_increase_trigger: 0.08  # % increase from average entry price (e.g. 0.07 is 7%)
+    new_stop_loss_level: 0.04     # X% above average entry price. the result was better with the value of 3%, need testing
 
   breakeven_stop_loss:  # to check if we want to use breakeven stop loss
     enabled: false
