@@ -334,8 +334,9 @@ def bullish_anx_based(
     coppock_condition = coppock_is_positive(ohlc_with_indicators_daily, ohlc_with_indicators_weekly)
 
     # Factor: price is above MA200
-    ma200 = MA(ohlc_with_indicators_daily, 200)
-    price_above_ma_condition = price_above_ma(ohlc_with_indicators_daily, ma200, 200)
+    # Update: discarded
+    #ma200 = MA(ohlc_with_indicators_daily, 200)
+    #price_above_ma_condition = price_above_ma(ohlc_with_indicators_daily, ma200, 200)
 
     # Factor: bullish MA cross (MA7 and MA30)
     ma7 = MA(ohlc_with_indicators_daily, 7)
@@ -348,14 +349,14 @@ def bullish_anx_based(
     if output:
         print(
             f"- {stock_name} | "
-            f"Price above MA200: [{format_bool(price_above_ma_condition)}] | "
+            #f"Price above MA200: [{format_bool(price_above_ma_condition)}] | "
             f"Recent bullish cross: [{format_bool(recent_bullish_cross_condition)}] | "
             f"not overextended: [{format_bool(not_overextended)}] | "
             f"coppork D/W positive: [{format_bool(coppock_condition)}]"
         )
 
     confirmation = [
-        price_above_ma_condition,
+        #price_above_ma_condition,
         recent_bullish_cross_condition,
         not_overextended,
         coppock_condition
