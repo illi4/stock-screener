@@ -20,7 +20,7 @@ class Market:
 
         if self.market_code == "NASDAQ":
             self.exchange_url_part = "NASDAQ"
-            self.related_market_ticker = "ONEQ"  # nasdaq ETF
+            self.related_market_ticker = "ONEQ"
             self.stock_suffix = ''
         elif self.market_code == "ASX":
             self.exchange_url_part = "AU"
@@ -31,7 +31,7 @@ class Market:
             self.related_market_ticker = "CETF"
             self.stock_suffix = ''
 
-    def set_abbreviation(self, abbreviation):  # example of using stuff in classes
+    def set_abbreviation(self, abbreviation):
         self.abbreviation = abbreviation
 
 
@@ -43,22 +43,22 @@ def get_industry_mapping(exchange):
 
 
 # Using proper api
-def get_exchange_symbols(market_object, checked_workday):
+def get_exchange_symbols(market_object, checked_workday, min_market_cap):
     global session
 
     stocks = []
+    excluded_count = 0
 
     if session is None:
         session = requests.Session()
 
     url = f"https://eodhistoricaldata.com/api/eod-bulk-last-day/{market_object.exchange_url_part}?api_token={eod_key}&fmt=json&filter=extended&date={checked_workday}"
-    print(url)
     params = {"api_token": eod_key}
     max_attempts = 5
     attempt = 0
 
     while attempt < max_attempts:
-        r = session.get(url, params=params)  # to speed things up
+        r = session.get(url, params=params)
 
         if r.status_code == 404:
             print(f"Ticker not found, skipping")
@@ -66,7 +66,7 @@ def get_exchange_symbols(market_object, checked_workday):
 
         if r.status_code == 502:
             print("Received status code 502, retrying...")
-            time.sleep(1)  # Sleep for 1 second
+            time.sleep(1)
             attempt += 1
             continue
 
@@ -74,7 +74,6 @@ def get_exchange_symbols(market_object, checked_workday):
             print(f"Status response is not Ok: {r.status_code}")
             exit(0)
 
-        # Successful response, breaking out of the loop
         break
     else:
         print("Maximum attempts reached, exiting...")
@@ -82,17 +81,23 @@ def get_exchange_symbols(market_object, checked_workday):
 
     data = json.loads(r.text)
     for elem in data:
+        market_cap = elem.get("MarketCapitalization", 0)
 
-        stock = dict(
-            code=elem["code"],
-            name=elem["name"],
-            price=elem["close"],
-            volume=elem["volume"],
-            type=elem["type"],
-            exchange=market_object.market_code,
-        )
-        stocks.append(stock)
+        if market_cap >= min_market_cap:
+            stock = dict(
+                code=elem["code"],
+                name=elem["name"],
+                price=elem["close"],
+                volume=elem["volume"],
+                type=elem["type"],
+                exchange=market_object.market_code,
+                market_cap=market_cap
+            )
+            stocks.append(stock)
+        else:
+            excluded_count += 1
 
+    print(f"Excluded {excluded_count} stocks due to market cap below {min_market_cap}")
     return stocks
 
 

@@ -13,12 +13,13 @@ pricing:
 
 filters:
   overextended_threshold_percent: 300  # skip stocks which went up more than this amount over a week
-  minimum_volume_level: 350000  # min volume requirement (as 5-day moving average)
+  minimum_volume_level: 500000  # min volume requirement (as 5-day moving average)
   stocks_only: True  # filters out ETFs and Funds
   volume_to_average: 0.7  # what volume is required on the last candle compared to average (used for MRI approach)
   range_percentage: 40  # there must be this difference in % (at least) between now and N weeks before to exclude weak stocks (used for MRI approach)
   range_over_weeks: 12  # over what time to apply (used for MRI approach)
   higher_than_n_last_candles: 4  # the green candle close must be higher than N last candles (used for MRI approach)
+  minimum_market_cap: 1000000000  # 1 billion market cap min; applied when updating the stock list
 
 locality:
   tzinfo: Australia/Sydney
