@@ -25,6 +25,7 @@ class Stock(BaseModel):
     volume = FloatField(null=True)
     exchange = CharField()
     type = CharField(null=True)
+    market_cap = FloatField(null=True)
     date = DateTimeField(default=datetime.datetime.now)
 
 class Price(BaseModel):
@@ -139,14 +140,14 @@ def bulk_add_stocks(stocks_list_of_dict):
             Stock.insert_many(chunk).execute()
 
 
-def get_stocks(exchange=None, price_min=None, price_max=None, min_volume=None, codes=None):
+def get_stocks(exchange=None, price_min=None, price_max=None, min_volume=None, min_market_cap=None, codes=None):
     price_min = 0 if price_min is None else price_min
     price_max = 10e9 if price_max is None else price_max
     min_volume = 0 if min_volume is None else min_volume
+    min_market_cap = 0 if min_market_cap is None else min_market_cap
 
     try:
         if codes is not None:
-            # If a list of stock codes is provided
             if isinstance(codes, str):
                 codes = codes.split(',')
             stocks = Stock.select().where(Stock.code.in_(codes))
@@ -158,6 +159,7 @@ def get_stocks(exchange=None, price_min=None, price_max=None, min_volume=None, c
                 (Stock.price >= price_min)
                 & (Stock.price < price_max)
                 & (Stock.volume > min_volume)
+                & (Stock.market_cap >= min_market_cap)
                 & (Stock.exchange == exchange)
                 & (Stock.type == 'Common Stock')
             )
@@ -166,6 +168,7 @@ def get_stocks(exchange=None, price_min=None, price_max=None, min_volume=None, c
                 (Stock.price >= price_min)
                 & (Stock.price < price_max)
                 & (Stock.volume > min_volume)
+                & (Stock.market_cap >= min_market_cap)
                 & (Stock.exchange == exchange)
             )
         if len(stocks) == 0:

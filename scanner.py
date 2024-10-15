@@ -57,13 +57,12 @@ def get_current_date():
 
 
 def update_stocks(active_markets):
-
     checked_workday = get_current_date()
     print(f"Updating info on traded stocks as of {checked_workday}")
 
     for market in active_markets:
         print(f'Updating stock list for {market.market_code}')
-        stocks = get_exchange_symbols(market, checked_workday)
+        stocks = get_exchange_symbols(market, checked_workday, config["filters"]["minimum_market_cap"])
         rewrite_stocks(market.market_code, stocks)
 
 def check_update_date(active_markets):
