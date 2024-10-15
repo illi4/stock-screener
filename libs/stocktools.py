@@ -52,6 +52,7 @@ def get_exchange_symbols(market_object, checked_workday):
         session = requests.Session()
 
     url = f"https://eodhistoricaldata.com/api/eod-bulk-last-day/{market_object.exchange_url_part}?api_token={eod_key}&fmt=json&filter=extended&date={checked_workday}"
+    print(url)
     params = {"api_token": eod_key}
     max_attempts = 5
     attempt = 0

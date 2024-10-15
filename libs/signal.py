@@ -331,17 +331,18 @@ def bullish_anx_based(
     '''
 
     # Factor: daily and weekly coppock curve above 0
-    coppock_condition = coppock_is_positive(ohlc_with_indicators_daily, ohlc_with_indicators_weekly)
+    # Revised: condition removed
+    #coppock_condition = coppock_is_positive(ohlc_with_indicators_daily, ohlc_with_indicators_weekly)
 
     # Factor: price is above MA200
     # Update: discarded
-    #ma200 = MA(ohlc_with_indicators_daily, 200)
-    #price_above_ma_condition = price_above_ma(ohlc_with_indicators_daily, ma200, 200)
+    ma200 = MA(ohlc_with_indicators_daily, 200)
+    price_above_ma_condition = price_above_ma(ohlc_with_indicators_daily, ma200, 200)
 
     # Factor: bullish MA cross (MA7 and MA30)
-    ma7 = MA(ohlc_with_indicators_daily, 7)
-    ma30 = MA(ohlc_with_indicators_daily, 30)
-    recent_bullish_cross_condition = recent_bullish_cross(ma7, ma30, 7, 30)
+    ma3 = MA(ohlc_with_indicators_daily, length=3, ma_type='exponential')
+    ma14 = MA(ohlc_with_indicators_daily, length=14, ma_type='exponential')
+    recent_bullish_cross_condition = recent_bullish_cross(ma3, ma14, 3, 14)
 
     # Factor: Close for the last week is not more than X% from the 4 weeks ago
     not_overextended = weekly_not_overextended(ohlc_with_indicators_weekly)
@@ -349,17 +350,17 @@ def bullish_anx_based(
     if output:
         print(
             f"- {stock_name} | "
-            #f"Price above MA200: [{format_bool(price_above_ma_condition)}] | "
+            f"Price above MA200: [{format_bool(price_above_ma_condition)}] | "
             f"Recent bullish cross: [{format_bool(recent_bullish_cross_condition)}] | "
             f"not overextended: [{format_bool(not_overextended)}] | "
-            f"coppork D/W positive: [{format_bool(coppock_condition)}]"
+            #f"coppork D/W positive: [{format_bool(coppock_condition)}]"
         )
 
     confirmation = [
-        #price_above_ma_condition,
+        price_above_ma_condition,
         recent_bullish_cross_condition,
-        not_overextended,
-        coppock_condition
+        not_overextended
+        #coppock_condition
     ]
     # numerical_score = round(
     #     5 * sum(confirmation) / len(confirmation), 0

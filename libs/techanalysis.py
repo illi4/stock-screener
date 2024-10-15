@@ -162,17 +162,24 @@ def coppock_curve(df: pd.DataFrame, wma_length: int = 10, long_roc_length: int =
     return df[['Coppock_WMA']]  # df[['Close', 'ROC_long', 'ROC_short', 'Coppock', 'Coppock_WMA']]
 
 
-def MA(df, length, colname="close"):
+def MA(df, length, colname="close", ma_type="simple"):
     """
     Function to calculate MA (Moving Average)
     :param df: pandas dataframe which has the value column
     :param length: MA length (10/20/30)
     :param colname: column name to use ("close") by default
+    :param ma_type: type of moving average ("simple" or "exponential"), default is "simple"
     :return: pandas dataframe with columns MA10/MA20/... and timestamp
     """
 
-    # Calculate the MA values
-    ma_rolling = df[colname].rolling(window=length, min_periods=length).mean()
+    if ma_type.lower() == "simple":
+        # Calculate the Simple MA values
+        ma_rolling = df[colname].rolling(window=length, min_periods=length).mean()
+    elif ma_type.lower() == "exponential":
+        # Calculate the Exponential MA values
+        ma_rolling = df[colname].ewm(span=length, adjust=False).mean()
+    else:
+        raise ValueError("Invalid ma_type. Choose 'simple' or 'exponential'.")
 
     ma_df = df_from_series(
         data_series=ma_rolling,
