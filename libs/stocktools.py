@@ -115,7 +115,6 @@ def get_earnings_calendar(date_from, date_to):
     """
     global session
 
-    # Have to use a header otherwise get Forbidden error
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     }
@@ -131,11 +130,12 @@ def get_earnings_calendar(date_from, date_to):
         if response.status_code == 200:
             earnings_data = response.json()
 
-            # Extract stock symbols for the date range
-            for date in [date_from, date_to]:
-                if date in earnings_data.get('earnings', {}):
-                    stocks = earnings_data['earnings'][date].get('stocks', [])
-                    earnings_stocks.update(stock['symbol'] for stock in stocks)
+            # Extract stock symbols for all dates in the earnings data
+            if 'earnings' in earnings_data:
+                for date, date_data in earnings_data['earnings'].items():
+                    if 'stocks' in date_data:
+                        for stock in date_data['stocks']:
+                            earnings_stocks.add(stock['symbol'])
 
             print(f"Found {len(earnings_stocks)} stocks with earnings between {date_from} and {date_to}")
             return earnings_stocks
@@ -147,7 +147,6 @@ def get_earnings_calendar(date_from, date_to):
     except Exception as e:
         print(f"Error fetching earnings data: {e}")
         return set()
-
 
 def get_stock_data(code, reporting_date_start, max_retries=5, retry_delay=5):
     global session

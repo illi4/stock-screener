@@ -30,6 +30,18 @@ def get_data_start_date(input_date=None):
 
     return data_start_date
 
+def get_current_and_lookback_date(input_date=None):
+    if input_date is None:
+        current_date = arrow.now()
+    else:
+        current_date = arrow.get(input_date.strftime("%Y-%m-%d"), "YYYY-MM-DD")
+
+    lookback_date = current_date.shift(days=-5)
+
+    current_date, lookback_date = current_date.format("YYYY-MM-DD"), lookback_date.format("YYYY-MM-DD")
+
+    return current_date, lookback_date
+
 
 def get_previous_workday():
     current_datetime = arrow.now()

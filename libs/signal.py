@@ -194,6 +194,80 @@ def recent_bullish_cross(ma_a, ma_b, a_length, b_length):
     )
 
 
+def price_gapped_down(ohlc_with_indicators_daily, gap_threshold):
+    """
+    Check if the latest day's open price gapped down from previous day's lowest of open/close by more than threshold percentage.
+
+    Args:
+    ohlc_with_indicators_daily (pd.DataFrame): DataFrame containing OHLC data
+    gap_threshold (float): Minimum gap percentage required (in decimal form)
+
+    Returns:
+    bool: True if price gapped down by more than threshold, False otherwise
+    """
+    if len(ohlc_with_indicators_daily) < 2:
+        return False
+
+    # Get the lowest of previous day's open and close
+    previous_lowest = min(ohlc_with_indicators_daily["open"].iloc[-2], ohlc_with_indicators_daily["close"].iloc[-2])
+
+    # Get current open
+    current_lowest = min(ohlc_with_indicators_daily["open"].iloc[-1], ohlc_with_indicators_daily["close"].iloc[-1])
+    gap_percent = (previous_lowest - current_lowest) / previous_lowest 
+
+    gap_condition = gap_percent > gap_threshold
+
+    if gap_condition:
+        print(
+            f"- Gap down detected: {gap_percent:.1%} | Previous lowest (open/close): ${previous_lowest:.2f} | Current open: ${current_lowest:.2f}")
+
+    return gap_condition
+
+
+def earnings_gap_down(
+        ohlc_with_indicators_daily,
+        volume_daily,
+        ohlc_with_indicators_weekly,
+        output=True,
+        stock_name="",
+):
+    """
+    Check for earnings gap down signal based on configured threshold
+
+    Args:
+    ohlc_with_indicators_daily (pd.DataFrame): Daily OHLC data with indicators
+    volume_daily (pd.DataFrame): Daily volume data
+    ohlc_with_indicators_weekly (pd.DataFrame): Weekly OHLC data with indicators
+    output (bool): Whether to print output messages
+    stock_name (str): Name of the stock for output messages
+
+    Returns:
+    tuple: (bool, int) - Signal confirmation and numerical score
+    """
+    from libs.read_settings import read_config
+    config = read_config()
+
+    # Get gap threshold from config
+    gap_threshold = config["filters"].get("earnings_gap_threshold", 0.05)  # Default 5% if not specified
+
+    # Check for gap down
+    gap_down_condition = price_gapped_down(ohlc_with_indicators_daily, gap_threshold)
+
+    if output:
+        print(
+            f"- {stock_name} | "
+            f"Gap down condition: [{format_bool(gap_down_condition)}]"
+        )
+
+    confirmation = [gap_down_condition]
+
+    # Score is either 5 (confirmed) or 0 (not confirmed)
+    result = False not in confirmation
+    numerical_score = 5 if result else 0
+
+    return result, numerical_score
+
+
 def bullish_mri_based(
     ohlc_with_indicators_daily,
     volume_daily,

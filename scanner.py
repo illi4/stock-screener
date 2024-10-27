@@ -11,9 +11,10 @@ from libs.helpers import (
     get_current_workday,
     get_previous_workday_from_date,
     get_test_stocks,
+    get_current_and_lookback_date,
     get_data_start_date,
 )
-from libs.signal import bullish_mri_based, market_bearish, bullish_anx_based
+from libs.signal import bullish_mri_based, market_bearish, bullish_anx_based, earnings_gap_down
 from libs.stocktools import (
     get_stock_data,
     ohlc_daily_to_weekly,
@@ -200,6 +201,15 @@ def scan_stock(stocks, market, method):
                 output=True,
                 stock_name=stock.name,
             )
+        elif method == 'earnings':
+            confirmation, _ = earnings_gap_down(
+                ohlc_with_indicators_daily,
+                volume_daily,
+                ohlc_with_indicators_weekly,
+                output=True,
+                stock_name=stock.name,
+            )
+
 
 
         if confirmation:
@@ -245,11 +255,11 @@ def get_stocks_to_scan(market, method):
     Returns:
         List of stocks to scan
     """
-    global reporting_date_start, previous_workday_to_reporting_date
+    global current_date, lookback_date
 
     if method == 'earnings':
         # Get earnings stocks from StockTwits API
-        earnings_stocks = get_earnings_calendar(reporting_date_start, previous_workday_to_reporting_date)
+        earnings_stocks = get_earnings_calendar(lookback_date, current_date)
 
         if earnings_stocks:
             # Get stocks from database with our standard filters
@@ -348,11 +358,9 @@ if __name__ == "__main__":
     # Define the dates
     reporting_date_start = get_data_start_date(arguments["date"])
 
-    if arguments["date"] is None:
-        previous_workday_to_reporting_date = get_previous_workday()
-    else:
-        # If specific date provided, get previous workday relative to that date
-        previous_workday_to_reporting_date = get_previous_workday_from_date(arguments["date"])
+    # Lookback da for earnings. For simplification, looking 5 days back
+    # This will be enought to catch cases with Friday earnings, gap on Monday, and scanning on Tue even with holidays
+    current_date, lookback_date = get_current_and_lookback_date(arguments["date"])
 
     # Initiate market objects
     active_markets = []
