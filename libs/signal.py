@@ -279,7 +279,7 @@ def earnings_gap_down(
     config = read_config()
 
     # Get gap threshold from config
-    gap_threshold = config["filters"].get("earnings_gap_threshold", 0.05)  # Default 5% if not specified
+    gap_threshold = config["filters"].get("earnings_gap_threshold", None)
 
     # Check for gap down
     gap_down_condition = price_gapped_down(ohlc_with_indicators_daily, gap_threshold)
