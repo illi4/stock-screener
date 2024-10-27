@@ -113,11 +113,24 @@ def generate_indicators_daily_weekly(ohlc_daily):
 
 def report_on_shortlist(shortlist, exchange):
     checked_workday = get_current_date()
-    print(
-        f"{len(shortlist)} shortlisted stocks (sorted by 5-day MA vol) as of {checked_workday}:"
-    )
+    print(f"{len(shortlist)} shortlisted stocks (sorted by 5-day MA vol) as of {checked_workday}:")
+
+    # Group stocks by note type
+    groups = {}
     for stock in shortlist:
-        print(f"{stock.code} ({stock.name}) | Volume {stock.volume}") # | fisherDaily {stock.fisherDaily:.2f} | fisherWeekly {stock.fisherWeekly:.2f} | coppockDaily {stock.coppockDaily:.2f} | coppockWeekly {stock.coppockWeekly:.2f}")
+        note = stock.note if stock.note else "No specific trigger"
+        if note not in groups:
+            groups[note] = []
+        groups[note].append(stock)
+
+    # Sort each group by volume
+    for note, stocks in groups.items():
+        stocks.sort(key=lambda x: x.volume, reverse=True)
+
+        # Print header for each group
+        print(f"\nStocks with {note}:")
+        for stock in stocks:
+            print(f"{stock.code} ({stock.name}) | Volume {stock.volume}")
 
 
 def process_data_at_date(ohlc_daily, volume_daily):
@@ -159,7 +172,7 @@ def scan_stock(stocks, market, method):
     shortlisted_stocks = []
     # placeholder for shortlisted stocks and their attributes
     # each stock will be a named tuple with the following definition:
-    Stock = namedtuple('Stock', ['code', 'name', 'volume'])
+    Stock = namedtuple('Stock', ['code', 'name', 'volume', 'note'])
 
     # Iterate through the list of stocks
     for i, stock in enumerate(stocks):
@@ -194,7 +207,7 @@ def scan_stock(stocks, market, method):
                 stock_name=stock.name,
             )
         elif method == 'anx':
-            confirmation, _ = bullish_anx_based(
+            confirmation, numerical_score, trigger_note = bullish_anx_based(
                 ohlc_with_indicators_daily,
                 volume_daily,
                 ohlc_with_indicators_weekly,
@@ -209,6 +222,7 @@ def scan_stock(stocks, market, method):
                 output=True,
                 stock_name=stock.name,
             )
+            trigger_note = ''
 
 
 
@@ -228,7 +242,8 @@ def scan_stock(stocks, market, method):
                 shortlisted_stocks.append(
                     Stock(code=stock.code,
                           name=stock.name,
-                          volume=volume_MA_5D
+                          volume=volume_MA_5D,
+                          note=trigger_note
                           )
                 )
 
