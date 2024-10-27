@@ -42,6 +42,16 @@ def get_previous_workday():
     return current_datetime
 
 
+def get_previous_workday_from_date(date_value):
+    # If specific date provided, get previous workday relative to that date
+    current_datetime = arrow.get(date_value.strftime("%Y-%m-%d"), "YYYY-MM-DD")
+    current_dow = current_datetime.isoweekday()
+    if current_dow == 1:  # if Monday, go back 3 days to Friday
+        previous_workday = current_datetime.shift(days=-3).format("YYYY-MM-DD")
+    else:
+        previous_workday = current_datetime.shift(days=-1).format("YYYY-MM-DD")
+    return previous_workday
+
 def get_current_workday():
     current_datetime = arrow.now()
     current_datetime = current_datetime.format("YYYY-MM-DD")
@@ -180,8 +190,8 @@ def define_scanner_args():
         "-method",
         type=str,
         required=False,
-        choices=["mri", "anx"],
-        help="Method of shortlisting (mri or anx)"
+        choices=["mri", "anx", "earnings"],
+        help="Method of shortlisting (mri, anx, or earnings)"
     )
     parser.add_argument(
         "-stocks", type=str, required=False, help="Force checking specific stocks only"

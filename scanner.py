@@ -9,6 +9,7 @@ from libs.helpers import (
     format_number,
     get_previous_workday,
     get_current_workday,
+    get_previous_workday_from_date,
     get_test_stocks,
     get_data_start_date,
 )
@@ -17,6 +18,7 @@ from libs.stocktools import (
     get_stock_data,
     ohlc_daily_to_weekly,
     get_exchange_symbols,
+    get_earnings_calendar,
     Market
 )
 from libs.db import (
@@ -29,6 +31,7 @@ from libs.db import (
 from libs.techanalysis import td_indicators, MA, fisher_distance, coppock_curve
 import pandas as pd
 from time import time, sleep
+from datetime import datetime, timedelta
 
 from libs.read_settings import read_config
 config = read_config()
@@ -231,6 +234,53 @@ def scan_stock(stocks, market, method):
     return shortlisted_stocks
 
 
+def get_stocks_to_scan(market, method):
+    """
+    Get stocks for scanning based on method
+
+    Args:
+        market: Market object with market parameters
+        method: Scanning method (mri, anx, earnings)
+
+    Returns:
+        List of stocks to scan
+    """
+    global reporting_date_start, previous_workday_to_reporting_date
+
+    if method == 'earnings':
+        # Get earnings stocks from StockTwits API
+        earnings_stocks = get_earnings_calendar(reporting_date_start, previous_workday_to_reporting_date)
+
+        if earnings_stocks:
+            # Get stocks from database with our standard filters
+            db_stocks = get_stocks(
+                exchange=market.market_code,
+                price_min=config["pricing"]["min"],
+                price_max=config["pricing"]["max"],
+                min_volume=config["filters"]["minimum_volume_level"],
+            )
+
+            # Filter to only stocks that have earnings
+            filtered_stocks = [
+                stock for stock in db_stocks
+                if stock.code in earnings_stocks
+            ]
+
+            print(f"Found {len(filtered_stocks)} stocks in database with earnings that meet earning date criteria")
+            return filtered_stocks
+
+        return []
+
+    else:
+        # Default behavior for other methods
+        return get_stocks(
+            exchange=market.market_code,
+            price_min=config["pricing"]["min"],
+            price_max=config["pricing"]["max"],
+            min_volume=config["filters"]["minimum_volume_level"],
+        )
+
+
 def scan_exchange_stocks(market, method):
     # Check the market conditions
     market_ohlc_daily, market_volume_daily = get_stock_data(market.related_market_ticker, reporting_date_start)
@@ -243,12 +293,7 @@ def scan_exchange_stocks(market, method):
 
     # Get the stocks for scanning
     if arguments["stocks"] is None:
-        stocks = get_stocks(
-            exchange=market.market_code,
-            price_min=config["pricing"]["min"],
-            price_max=config["pricing"]["max"],
-            min_volume=config["filters"]["minimum_volume_level"],
-        )
+        stocks = get_stocks_to_scan(market, method)
     else:
         # Pass the parameter
         stocks = get_stocks(
@@ -266,7 +311,7 @@ def scan_exchange_stocks(market, method):
         f'and with volume of at least {format_number(config["filters"]["minimum_volume_level"])}\n'
     )
 
-    shortlist = scan_stock(stocks, market, method)  # this needs to be reworked to use named tuples
+    shortlist = scan_stock(stocks, market, method)
 
     # Sort the list by volume in decreasing order
     sorted_stocks = sorted(shortlist, key=lambda stock: stock.volume, reverse=True)
@@ -299,7 +344,15 @@ if __name__ == "__main__":
     start_time = time()
 
     arguments = define_scanner_args()
+
+    # Define the dates
     reporting_date_start = get_data_start_date(arguments["date"])
+
+    if arguments["date"] is None:
+        previous_workday_to_reporting_date = get_previous_workday()
+    else:
+        # If specific date provided, get previous workday relative to that date
+        previous_workday_to_reporting_date = get_previous_workday_from_date(arguments["date"])
 
     # Initiate market objects
     active_markets = []
