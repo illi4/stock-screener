@@ -213,7 +213,7 @@ def price_gapped_down(ohlc_with_indicators_daily, gap_threshold):
 
     # Get current open
     current_lowest = min(ohlc_with_indicators_daily["open"].iloc[-1], ohlc_with_indicators_daily["close"].iloc[-1])
-    gap_percent = (previous_lowest - current_lowest) / previous_lowest 
+    gap_percent = (previous_lowest - current_lowest) / previous_lowest
 
     gap_condition = gap_percent > gap_threshold
 
@@ -415,8 +415,8 @@ def bullish_anx_based(
 
     # Factor: bullish MA cross (MA7 and MA30)
     ma3 = MA(ohlc_with_indicators_daily, length=3, ma_type='exponential')
-    ma14 = MA(ohlc_with_indicators_daily, length=14, ma_type='exponential')
-    recent_bullish_cross_condition = recent_bullish_cross(ma3, ma14, 3, 14)
+    ma12 = MA(ohlc_with_indicators_daily, length=12, ma_type='exponential')
+    recent_bullish_cross_condition = recent_bullish_cross(ma3, ma12, 3, 12)
 
     # Factor: Close for the last week is not more than X% from the 4 weeks ago
     not_overextended = weekly_not_overextended(ohlc_with_indicators_weekly)
