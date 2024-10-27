@@ -30,6 +30,18 @@ def get_data_start_date(input_date=None):
 
     return data_start_date
 
+def get_current_and_lookback_date(input_date=None):
+    if input_date is None:
+        current_date = arrow.now()
+    else:
+        current_date = arrow.get(input_date.strftime("%Y-%m-%d"), "YYYY-MM-DD")
+
+    lookback_date = current_date.shift(days=-5)
+
+    current_date, lookback_date = current_date.format("YYYY-MM-DD"), lookback_date.format("YYYY-MM-DD")
+
+    return current_date, lookback_date
+
 
 def get_previous_workday():
     current_datetime = arrow.now()
@@ -41,6 +53,16 @@ def get_previous_workday():
     current_datetime = current_datetime.format("YYYY-MM-DD")
     return current_datetime
 
+
+def get_previous_workday_from_date(date_value):
+    # If specific date provided, get previous workday relative to that date
+    current_datetime = arrow.get(date_value.strftime("%Y-%m-%d"), "YYYY-MM-DD")
+    current_dow = current_datetime.isoweekday()
+    if current_dow == 1:  # if Monday, go back 3 days to Friday
+        previous_workday = current_datetime.shift(days=-3).format("YYYY-MM-DD")
+    else:
+        previous_workday = current_datetime.shift(days=-1).format("YYYY-MM-DD")
+    return previous_workday
 
 def get_current_workday():
     current_datetime = arrow.now()
@@ -180,8 +202,8 @@ def define_scanner_args():
         "-method",
         type=str,
         required=False,
-        choices=["mri", "anx"],
-        help="Method of shortlisting (mri or anx)"
+        choices=["mri", "anx", "earnings"],
+        help="Method of shortlisting (mri, anx, or earnings)"
     )
     parser.add_argument(
         "-stocks", type=str, required=False, help="Force checking specific stocks only"

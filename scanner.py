@@ -9,14 +9,17 @@ from libs.helpers import (
     format_number,
     get_previous_workday,
     get_current_workday,
+    get_previous_workday_from_date,
     get_test_stocks,
+    get_current_and_lookback_date,
     get_data_start_date,
 )
-from libs.signal import bullish_mri_based, market_bearish, bullish_anx_based
+from libs.signal import bullish_mri_based, market_bearish, bullish_anx_based, earnings_gap_down
 from libs.stocktools import (
     get_stock_data,
     ohlc_daily_to_weekly,
     get_exchange_symbols,
+    get_earnings_calendar,
     Market
 )
 from libs.db import (
@@ -29,6 +32,7 @@ from libs.db import (
 from libs.techanalysis import td_indicators, MA, fisher_distance, coppock_curve
 import pandas as pd
 from time import time, sleep
+from datetime import datetime, timedelta
 
 from libs.read_settings import read_config
 config = read_config()
@@ -109,11 +113,24 @@ def generate_indicators_daily_weekly(ohlc_daily):
 
 def report_on_shortlist(shortlist, exchange):
     checked_workday = get_current_date()
-    print(
-        f"{len(shortlist)} shortlisted stocks (sorted by 5-day MA vol) as of {checked_workday}:"
-    )
+    print(f"{len(shortlist)} shortlisted stocks (sorted by 5-day MA vol) as of {checked_workday}:")
+
+    # Group stocks by note type
+    groups = {}
     for stock in shortlist:
-        print(f"{stock.code} ({stock.name}) | Volume {stock.volume}") # | fisherDaily {stock.fisherDaily:.2f} | fisherWeekly {stock.fisherWeekly:.2f} | coppockDaily {stock.coppockDaily:.2f} | coppockWeekly {stock.coppockWeekly:.2f}")
+        note = stock.note if stock.note else "No specific trigger"
+        if note not in groups:
+            groups[note] = []
+        groups[note].append(stock)
+
+    # Sort each group by volume
+    for note, stocks in groups.items():
+        stocks.sort(key=lambda x: x.volume, reverse=True)
+
+        # Print header for each group
+        print(f"\nStocks with {note}:")
+        for stock in stocks:
+            print(f"{stock.code} ({stock.name}) | Volume {stock.volume}")
 
 
 def process_data_at_date(ohlc_daily, volume_daily):
@@ -155,7 +172,7 @@ def scan_stock(stocks, market, method):
     shortlisted_stocks = []
     # placeholder for shortlisted stocks and their attributes
     # each stock will be a named tuple with the following definition:
-    Stock = namedtuple('Stock', ['code', 'name', 'volume'])
+    Stock = namedtuple('Stock', ['code', 'name', 'volume', 'note'])
 
     # Iterate through the list of stocks
     for i, stock in enumerate(stocks):
@@ -190,13 +207,23 @@ def scan_stock(stocks, market, method):
                 stock_name=stock.name,
             )
         elif method == 'anx':
-            confirmation, _ = bullish_anx_based(
+            confirmation, numerical_score, trigger_note = bullish_anx_based(
                 ohlc_with_indicators_daily,
                 volume_daily,
                 ohlc_with_indicators_weekly,
                 output=True,
                 stock_name=stock.name,
             )
+        elif method == 'earnings':
+            confirmation, _ = earnings_gap_down(
+                ohlc_with_indicators_daily,
+                volume_daily,
+                ohlc_with_indicators_weekly,
+                output=True,
+                stock_name=stock.name,
+            )
+            trigger_note = ''
+
 
 
         if confirmation:
@@ -215,7 +242,8 @@ def scan_stock(stocks, market, method):
                 shortlisted_stocks.append(
                     Stock(code=stock.code,
                           name=stock.name,
-                          volume=volume_MA_5D
+                          volume=volume_MA_5D,
+                          note=trigger_note
                           )
                 )
 
@@ -231,6 +259,53 @@ def scan_stock(stocks, market, method):
     return shortlisted_stocks
 
 
+def get_stocks_to_scan(market, method):
+    """
+    Get stocks for scanning based on method
+
+    Args:
+        market: Market object with market parameters
+        method: Scanning method (mri, anx, earnings)
+
+    Returns:
+        List of stocks to scan
+    """
+    global current_date, lookback_date
+
+    if method == 'earnings':
+        # Get earnings stocks from StockTwits API
+        earnings_stocks = get_earnings_calendar(lookback_date, current_date)
+
+        if earnings_stocks:
+            # Get stocks from database with our standard filters
+            db_stocks = get_stocks(
+                exchange=market.market_code,
+                price_min=config["pricing"]["min"],
+                price_max=config["pricing"]["max"],
+                min_volume=config["filters"]["minimum_volume_level"],
+            )
+
+            # Filter to only stocks that have earnings
+            filtered_stocks = [
+                stock for stock in db_stocks
+                if stock.code in earnings_stocks
+            ]
+
+            print(f"Found {len(filtered_stocks)} stocks in database with earnings that meet earning date criteria")
+            return filtered_stocks
+
+        return []
+
+    else:
+        # Default behavior for other methods
+        return get_stocks(
+            exchange=market.market_code,
+            price_min=config["pricing"]["min"],
+            price_max=config["pricing"]["max"],
+            min_volume=config["filters"]["minimum_volume_level"],
+        )
+
+
 def scan_exchange_stocks(market, method):
     # Check the market conditions
     market_ohlc_daily, market_volume_daily = get_stock_data(market.related_market_ticker, reporting_date_start)
@@ -243,12 +318,7 @@ def scan_exchange_stocks(market, method):
 
     # Get the stocks for scanning
     if arguments["stocks"] is None:
-        stocks = get_stocks(
-            exchange=market.market_code,
-            price_min=config["pricing"]["min"],
-            price_max=config["pricing"]["max"],
-            min_volume=config["filters"]["minimum_volume_level"],
-        )
+        stocks = get_stocks_to_scan(market, method)
     else:
         # Pass the parameter
         stocks = get_stocks(
@@ -266,7 +336,7 @@ def scan_exchange_stocks(market, method):
         f'and with volume of at least {format_number(config["filters"]["minimum_volume_level"])}\n'
     )
 
-    shortlist = scan_stock(stocks, market, method)  # this needs to be reworked to use named tuples
+    shortlist = scan_stock(stocks, market, method)
 
     # Sort the list by volume in decreasing order
     sorted_stocks = sorted(shortlist, key=lambda stock: stock.volume, reverse=True)
@@ -299,7 +369,13 @@ if __name__ == "__main__":
     start_time = time()
 
     arguments = define_scanner_args()
+
+    # Define the dates
     reporting_date_start = get_data_start_date(arguments["date"])
+
+    # Lookback da for earnings. For simplification, looking 5 days back
+    # This will be enought to catch cases with Friday earnings, gap on Monday, and scanning on Tue even with holidays
+    current_date, lookback_date = get_current_and_lookback_date(arguments["date"])
 
     # Initiate market objects
     active_markets = []

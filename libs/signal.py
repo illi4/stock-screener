@@ -194,6 +194,111 @@ def recent_bullish_cross(ma_a, ma_b, a_length, b_length):
     )
 
 
+def price_crossed_ma(ohlc_daily, ma_values_faster, ma_length_faster, ma_values_slower, ma_length_slower):
+    """
+    Check if price crossed above MA and closed above it on the most recent candle.
+
+    Args:
+        ohlc_daily: DataFrame with OHLC data
+        ma_values_faster: MA values DataFrame
+        ma_length_faster: Length of MA to check
+        ma_values_slower: MA values DataFrame
+        ma_length_slower: Length of MA to check
+
+    Returns:
+        bool: True if price crossed and closed above MA
+    """
+    if len(ohlc_daily) < 2:
+        return False
+
+    # Check if previous close was below MA and current close is above
+    prev_close_below = ohlc_daily["low"].iloc[-1] < ma_values_slower[f"ma{ma_length_slower}"].iloc[-1]
+    curr_close_above = ohlc_daily["close"].iloc[-1] > ma_values_slower[f"ma{ma_length_slower}"].iloc[-1]
+
+    # It also should be a green candle
+    green_candle =  ohlc_daily["close"].iloc[-1] > ohlc_daily["open"].iloc[-1]
+
+    # And finally on the previous candle, the fast MA should be above slow MA
+    ma_above_previously = ma_values_faster[f"ma{ma_length_faster}"].iloc[-2] > ma_values_slower[f"ma{ma_length_slower}"].iloc[-2]
+    ma_above_now = ma_values_faster[f"ma{ma_length_faster}"].iloc[-1] > ma_values_slower[f"ma{ma_length_slower}"].iloc[-1]
+
+    return prev_close_below and curr_close_above and green_candle and ma_above_previously and ma_above_now
+
+
+def price_gapped_down(ohlc_with_indicators_daily, gap_threshold):
+    """
+    Check if the latest day's open price gapped down from previous day's lowest of open/close by more than threshold percentage.
+
+    Args:
+    ohlc_with_indicators_daily (pd.DataFrame): DataFrame containing OHLC data
+    gap_threshold (float): Minimum gap percentage required (in decimal form)
+
+    Returns:
+    bool: True if price gapped down by more than threshold, False otherwise
+    """
+    if len(ohlc_with_indicators_daily) < 2:
+        return False
+
+    # Get the lowest of previous day's open and close
+    previous_lowest = min(ohlc_with_indicators_daily["open"].iloc[-2], ohlc_with_indicators_daily["close"].iloc[-2])
+
+    # Get current open
+    current_lowest = min(ohlc_with_indicators_daily["open"].iloc[-1], ohlc_with_indicators_daily["close"].iloc[-1])
+    gap_percent = (previous_lowest - current_lowest) / previous_lowest
+
+    gap_condition = gap_percent > gap_threshold
+
+    if gap_condition:
+        print(
+            f"- Gap down detected: {gap_percent:.1%} | Previous lowest (open/close): ${previous_lowest:.2f} | Current open: ${current_lowest:.2f}")
+
+    return gap_condition
+
+
+def earnings_gap_down(
+        ohlc_with_indicators_daily,
+        volume_daily,
+        ohlc_with_indicators_weekly,
+        output=True,
+        stock_name="",
+):
+    """
+    Check for earnings gap down signal based on configured threshold
+
+    Args:
+    ohlc_with_indicators_daily (pd.DataFrame): Daily OHLC data with indicators
+    volume_daily (pd.DataFrame): Daily volume data
+    ohlc_with_indicators_weekly (pd.DataFrame): Weekly OHLC data with indicators
+    output (bool): Whether to print output messages
+    stock_name (str): Name of the stock for output messages
+
+    Returns:
+    tuple: (bool, int) - Signal confirmation and numerical score
+    """
+    from libs.read_settings import read_config
+    config = read_config()
+
+    # Get gap threshold from config
+    gap_threshold = config["filters"].get("earnings_gap_threshold", 0.05)  # Default 5% if not specified
+
+    # Check for gap down
+    gap_down_condition = price_gapped_down(ohlc_with_indicators_daily, gap_threshold)
+
+    if output:
+        print(
+            f"- {stock_name} | "
+            f"Gap down condition: [{format_bool(gap_down_condition)}]"
+        )
+
+    confirmation = [gap_down_condition]
+
+    # Score is either 5 (confirmed) or 0 (not confirmed)
+    result = False not in confirmation
+    numerical_score = 5 if result else 0
+
+    return result, numerical_score
+
+
 def bullish_mri_based(
     ohlc_with_indicators_daily,
     volume_daily,
@@ -307,68 +412,53 @@ def bullish_mri_based(
 
 
 def bullish_anx_based(
-    ohlc_with_indicators_daily,
-    volume_daily,
-    ohlc_with_indicators_weekly,
-    output=True,
-    stock_name="",
+        ohlc_with_indicators_daily,
+        volume_daily,
+        ohlc_with_indicators_weekly,
+        output=True,
+        stock_name="",
 ):
-    """
-    :param ohlc_with_indicators_daily: daily OHLC with indicators (pandas df)
-    :param volume_daily: volume values (pandas df)
-    :param ohlc_with_indicators_weekly: weekly OHLC with indicators (pandas df)
-    :param output: should the output be printed
-    :param stock_name: name of a stock
-    :return:
-    """
-
-    # Parabolic SARS calculation for checking the trend (1: bullish, -1: bearish)
-    # Factor: Weekly SARS wave is bullish
-    # The result is inconsistent with ANX indicator on tradingview so not using it, has to be checked manually
-    '''
-    ohlc_with_indicators_weekly = SAR(ohlc_with_indicators_weekly)
-    bullish_sars_condition = bullish_sars(ohlc_with_indicators_weekly)
-    '''
-
-    # Factor: daily and weekly coppock curve above 0
-    # Revised: condition removed
-    #coppock_condition = coppock_is_positive(ohlc_with_indicators_daily, ohlc_with_indicators_weekly)
-
-    # Factor: price is above MA200
-    # Update: discarded
-    ma200 = MA(ohlc_with_indicators_daily, 200)
-    price_above_ma_condition = price_above_ma(ohlc_with_indicators_daily, ma200, 200)
-
-    # Factor: bullish MA cross (MA7 and MA30)
+    # Existing MA calculations
     ma3 = MA(ohlc_with_indicators_daily, length=3, ma_type='exponential')
-    ma14 = MA(ohlc_with_indicators_daily, length=14, ma_type='exponential')
-    recent_bullish_cross_condition = recent_bullish_cross(ma3, ma14, 3, 14)
+    ma12 = MA(ohlc_with_indicators_daily, length=12, ma_type='exponential')
+    ma200 = MA(ohlc_with_indicators_daily, 200)
 
-    # Factor: Close for the last week is not more than X% from the 4 weeks ago
+    # Check both conditions
+    ma_cross_condition = recent_bullish_cross(ma3, ma12, 3, 12)
+    price_cross_condition = price_crossed_ma(ohlc_with_indicators_daily, ma3, 3, ma12, 12)
+
+    # Combined trigger condition (either MA cross or price cross)
+    trigger_condition = ma_cross_condition or price_cross_condition
+
+    # Create note about which condition triggered
+    trigger_note = ""
+    if ma_cross_condition:
+        trigger_note = "MA3/MA12 bullish cross"
+    elif price_cross_condition :
+        trigger_note = "Price crossed above MA12"
+
+    # Other existing conditions
+    price_above_ma_condition = price_above_ma(ohlc_with_indicators_daily, ma200, 200)
     not_overextended = weekly_not_overextended(ohlc_with_indicators_weekly)
 
     if output:
         print(
             f"- {stock_name} | "
             f"Price above MA200: [{format_bool(price_above_ma_condition)}] | "
-            f"Recent bullish cross: [{format_bool(recent_bullish_cross_condition)}] | "
-            f"not overextended: [{format_bool(not_overextended)}] | "
-            #f"coppork D/W positive: [{format_bool(coppock_condition)}]"
+            f"Trigger condition: [{format_bool(trigger_condition)}] ({trigger_note}) | "
+            f"not overextended: [{format_bool(not_overextended)}]"
         )
 
     confirmation = [
         price_above_ma_condition,
-        recent_bullish_cross_condition,
+        trigger_condition,
         not_overextended
-        #coppock_condition
     ]
-    # numerical_score = round(
-    #     5 * sum(confirmation) / len(confirmation), 0
-    # )  # score X (of 5)
+
     result = False not in confirmation
     numerical_score = 5
 
-    return result, numerical_score
+    return result, numerical_score, trigger_note
 
 
 def red_day_on_volume(

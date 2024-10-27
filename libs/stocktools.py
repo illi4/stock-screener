@@ -101,6 +101,53 @@ def get_exchange_symbols(market_object, checked_workday, min_market_cap):
     return stocks
 
 
+# Add to stocktools.py
+def get_earnings_calendar(date_from, date_to):
+    """
+    Fetch earnings calendar from StockTwits API for given date range
+
+    Args:
+        date_from (str): Start date in YYYY-MM-DD format
+        date_to (str): End date in YYYY-MM-DD format
+
+    Returns:
+        set: Set of stock symbols that have earnings in the date range
+    """
+    global session
+
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    }
+
+    if session is None:
+        session = requests.Session()
+
+    url = f"https://api.stocktwits.com/api/2/discover/earnings_calendar?date_from={date_from}&date_to={date_to}"
+    earnings_stocks = set()
+
+    try:
+        response = session.get(url, headers=headers)
+        if response.status_code == 200:
+            earnings_data = response.json()
+
+            # Extract stock symbols for all dates in the earnings data
+            if 'earnings' in earnings_data:
+                for date, date_data in earnings_data['earnings'].items():
+                    if 'stocks' in date_data:
+                        for stock in date_data['stocks']:
+                            earnings_stocks.add(stock['symbol'])
+
+            print(f"Found {len(earnings_stocks)} stocks with earnings between {date_from} and {date_to}")
+            return earnings_stocks
+
+        else:
+            print(f"Failed to fetch earnings data: {response.status_code}")
+            return set()
+
+    except Exception as e:
+        print(f"Error fetching earnings data: {e}")
+        return set()
+
 def get_stock_data(code, reporting_date_start, max_retries=5, retry_delay=5):
     global session
     if session is None:

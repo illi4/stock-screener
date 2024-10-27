@@ -96,7 +96,7 @@ python simulator.py -start=2023-12-10 -end=2024-04-01 -method=mri --plot
 #### Required Parameters:
 - `-start=YYYY-MM-DD`: Start date for the simulation
 - `-end=YYYY-MM-DD`: End date for the simulation
-- `-method=anx|mri`: Method of shortlisting
+- `-method=anx|mri|earnings`: Method of shortlisting
 
 #### Optional Parameters:
 - `--plot`: Generate and include plots in the output Excel file
