@@ -36,7 +36,7 @@ def get_current_and_lookback_date(input_date=None):
     else:
         current_date = arrow.get(input_date.strftime("%Y-%m-%d"), "YYYY-MM-DD")
 
-    lookback_date = current_date.shift(days=-5)
+    lookback_date = current_date.shift(days=-6)  # to cover for scenarios of weekends, holidays, etc
 
     current_date, lookback_date = current_date.format("YYYY-MM-DD"), lookback_date.format("YYYY-MM-DD")
 
