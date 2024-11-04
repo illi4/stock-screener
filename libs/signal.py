@@ -411,6 +411,34 @@ def bullish_mri_based(
     return result, numerical_score
 
 
+def is_ma_rising(ma_values, ma_length, lookback_period=5, spread=2):
+    """
+    Check if moving average is rising by comparing points spread around each value
+
+    Args:
+        ma_values: DataFrame with MA values
+        ma_length: Length of MA (for column name)
+        lookback_period: Number of points to check
+        spread: Number of periods to look back for each comparison
+
+    Returns:
+        bool: True if MA is rising over the period
+    """
+    if len(ma_values) < lookback_period + spread:
+        return False
+
+    ma_series = ma_values[f'ma{ma_length}'].tail(lookback_period + spread)
+    # Compare each point with a point 'spread' periods before
+    rising_checks = []
+    for i in range(spread, len(ma_series)):
+        rising_checks.append(ma_series.iloc[i] > ma_series.iloc[i - spread])
+
+    # Calculate what percentage of checks were true
+    rising_percentage = sum(rising_checks) / len(rising_checks)
+    # Return True if at least 80% of checks showed rising values
+    return rising_percentage >= 0.8
+
+
 def bullish_anx_based(
         ohlc_with_indicators_daily,
         volume_daily,
@@ -421,11 +449,15 @@ def bullish_anx_based(
     # Existing MA calculations
     ma3 = MA(ohlc_with_indicators_daily, length=3, ma_type='exponential')
     ma12 = MA(ohlc_with_indicators_daily, length=12, ma_type='exponential')
+    ma50 = MA(ohlc_with_indicators_daily, 50)  # Add MA50 calculation
     ma200 = MA(ohlc_with_indicators_daily, 200)
 
     # Check both conditions
     ma_cross_condition = recent_bullish_cross(ma3, ma12, 3, 12)
     price_cross_condition = price_crossed_ma(ohlc_with_indicators_daily, ma3, 3, ma12, 12)
+
+    # Add MA50 rising condition with spread comparison
+    ma50_rising = is_ma_rising(ma50, 50, lookback_period=5, spread=2)
 
     # Combined trigger condition (either MA cross or price cross)
     trigger_condition = ma_cross_condition or price_cross_condition
@@ -434,7 +466,7 @@ def bullish_anx_based(
     trigger_note = ""
     if ma_cross_condition:
         trigger_note = "MA3/MA12 bullish cross"
-    elif price_cross_condition :
+    elif price_cross_condition:
         trigger_note = "Price crossed above MA12"
 
     # Other existing conditions
@@ -442,16 +474,24 @@ def bullish_anx_based(
     not_overextended = weekly_not_overextended(ohlc_with_indicators_weekly)
 
     if output:
+        # Get actual MA50 values for detailed output
+        ma50_values = ma50['ma50'].tail(5)
+        ma50_current = ma50_values.iloc[-1]
+        ma50_prev = ma50_values.iloc[-3]  # Looking 2 periods back
+        ma50_change = (ma50_current - ma50_prev) / ma50_prev * 100
+
         print(
             f"- {stock_name} | "
             f"Price above MA200: [{format_bool(price_above_ma_condition)}] | "
             f"Trigger condition: [{format_bool(trigger_condition)}] ({trigger_note}) | "
+            f"MA50 rising: [{format_bool(ma50_rising)}] ({ma50_change:+.2f}%) | "  # Added percentage change
             f"not overextended: [{format_bool(not_overextended)}]"
         )
 
     confirmation = [
         price_above_ma_condition,
         trigger_condition,
+        ma50_rising,
         not_overextended
     ]
 
@@ -459,7 +499,6 @@ def bullish_anx_based(
     numerical_score = 5
 
     return result, numerical_score, trigger_note
-
 
 def red_day_on_volume(
     ohlc_with_indicators_daily,
