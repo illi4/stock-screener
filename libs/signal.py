@@ -196,7 +196,8 @@ def recent_bullish_cross(ma_a, ma_b, a_length, b_length):
 
 def price_crossed_ma(ohlc_daily, ma_values_faster, ma_length_faster, ma_values_slower, ma_length_slower):
     """
-    Check if price crossed above MA and closed above it on the most recent candle.
+    Check if price crossed above MA and closed above it on the most recent candle,
+    ensuring only the current candle touches the MA, not the previous one.
 
     Args:
         ohlc_daily: DataFrame with OHLC data
@@ -206,23 +207,47 @@ def price_crossed_ma(ohlc_daily, ma_values_faster, ma_length_faster, ma_values_s
         ma_length_slower: Length of MA to check
 
     Returns:
-        bool: True if price crossed and closed above MA
+        bool: True if price crossed and closed above MA under the specified conditions
     """
     if len(ohlc_daily) < 2:
         return False
 
-    # Check if previous close was below MA and current close is above
-    prev_close_below = ohlc_daily["low"].iloc[-1] < ma_values_slower[f"ma{ma_length_slower}"].iloc[-1]
-    curr_close_above = ohlc_daily["close"].iloc[-1] > ma_values_slower[f"ma{ma_length_slower}"].iloc[-1]
+    # Check that the previous candle was entirely above the MA
+    prev_candle_touches = (
+        ohlc_daily["low"].iloc[-2] <= ma_values_slower[f"ma{ma_length_slower}"].iloc[-2]
+    )
 
-    # It also should be a green candle
-    green_candle =  ohlc_daily["close"].iloc[-1] > ohlc_daily["open"].iloc[-1]
+    # Current candle should touch and close above MA
+    curr_touches_ma = (
+        ohlc_daily["low"].iloc[-1] <= ma_values_slower[f"ma{ma_length_slower}"].iloc[-1]
+    )
+    curr_close_above = (
+        ohlc_daily["close"].iloc[-1] > ma_values_slower[f"ma{ma_length_slower}"].iloc[-1]
+    )
 
-    # And finally on the previous candle, the fast MA should be above slow MA
-    ma_above_previously = ma_values_faster[f"ma{ma_length_faster}"].iloc[-2] > ma_values_slower[f"ma{ma_length_slower}"].iloc[-2]
-    ma_above_now = ma_values_faster[f"ma{ma_length_faster}"].iloc[-1] > ma_values_slower[f"ma{ma_length_slower}"].iloc[-1]
+    # It should be a green candle
+    green_candle = ohlc_daily["close"].iloc[-1] > ohlc_daily["open"].iloc[-1]
 
-    return prev_close_below and curr_close_above and green_candle and ma_above_previously and ma_above_now
+    # Fast MA should be above slow MA for both candles
+    ma_above_previously = (
+        ma_values_faster[f"ma{ma_length_faster}"].iloc[-2] >
+        ma_values_slower[f"ma{ma_length_slower}"].iloc[-2]
+    )
+    ma_above_now = (
+        ma_values_faster[f"ma{ma_length_faster}"].iloc[-1] >
+        ma_values_slower[f"ma{ma_length_slower}"].iloc[-1]
+    )
+
+    # Return true only if current candle touches and closes above MA,
+    # previous candle doesn't touch MA, and other conditions are met
+    return (
+        not prev_candle_touches and  # Previous candle doesn't touch MA
+        curr_touches_ma and          # Current candle touches MA
+        curr_close_above and         # Current candle closes above MA
+        green_candle and            # Current candle is green
+        ma_above_previously and     # Fast MA above slow MA on previous candle
+        ma_above_now               # Fast MA above slow MA on current candle
+    )
 
 
 def price_gapped_down(ohlc_with_indicators_daily, gap_threshold):
