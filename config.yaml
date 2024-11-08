@@ -13,7 +13,7 @@ pricing:
 
 filters:
   overextended_threshold_percent: 300  # skip stocks which went up more than this amount over a week
-  minimum_volume_level: 500000  # min volume requirement (as 5-day moving average)
+  minimum_volume_level: 300000  # min volume requirement (as 5-day moving average)
   stocks_only: True  # filters out ETFs and Funds
   volume_to_average: 0.7  # what volume is required on the last candle compared to average (used for MRI approach)
   range_percentage: 40  # there must be this difference in % (at least) between now and N weeks before to exclude weak stocks (used for MRI approach)

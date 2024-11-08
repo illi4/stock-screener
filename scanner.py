@@ -118,7 +118,7 @@ def report_on_shortlist(shortlist, exchange):
     # Group stocks by note type
     groups = {}
     for stock in shortlist:
-        note = stock.note if stock.note else "No specific trigger"
+        note = stock.note if stock.note else ""
         if note not in groups:
             groups[note] = []
         groups[note].append(stock)
@@ -128,7 +128,7 @@ def report_on_shortlist(shortlist, exchange):
         stocks.sort(key=lambda x: x.volume, reverse=True)
 
         # Print header for each group
-        print(f"\nStocks with {note}:")
+        print(f"\nStocks {note}:")
         for stock in stocks:
             print(f"{stock.code} ({stock.name}) | Volume {stock.volume}")
 

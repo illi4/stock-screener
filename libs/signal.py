@@ -238,13 +238,14 @@ def price_crossed_ma(ohlc_daily, ma_values_faster, ma_length_faster, ma_values_s
         ma_values_slower[f"ma{ma_length_slower}"].iloc[-1]
     )
 
+
     # Return true only if current candle touches and closes above MA,
     # previous candle doesn't touch MA, and other conditions are met
     return (
-        not prev_candle_touches and  # Previous candle doesn't touch MA
+        #not prev_candle_touches and  # Previous candle doesn't touch MA  # dropped this rule
         curr_touches_ma and          # Current candle touches MA
         curr_close_above and         # Current candle closes above MA
-        green_candle and            # Current candle is green
+        #green_candle and            # Current candle is green  # dropped this rule
         ma_above_previously and     # Fast MA above slow MA on previous candle
         ma_above_now               # Fast MA above slow MA on current candle
     )
