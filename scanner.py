@@ -128,7 +128,7 @@ def report_on_shortlist(shortlist, exchange):
         stocks.sort(key=lambda x: x.volume, reverse=True)
 
         # Print header for each group
-        print(f"\nStocks {note}:")
+        print(f"\nShortlist {note}")
         for stock in stocks:
             print(f"{stock.code} ({stock.name}) | Volume {stock.volume}")
 
