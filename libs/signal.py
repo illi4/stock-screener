@@ -465,6 +465,73 @@ def is_ma_rising(ma_values, ma_length, lookback_period=5, spread=2):
     return rising_percentage >= 0.8
 
 
+def check_recent_green_candle(ohlc_daily, lookback=3):
+    """
+    Check if there's at least one green candle in the most recent N candles.
+
+    Args:
+    ohlc_daily (pd.DataFrame): DataFrame with OHLC data
+    lookback (int): Number of recent candles to check
+
+    Returns:
+    bool: True if there's at least one green candle in the period
+    """
+    recent_candles = ohlc_daily.tail(lookback)
+    green_candles = (recent_candles['close'] > recent_candles['open']).any()
+    return green_candles
+
+
+def check_max_drawdown(ohlc_daily, lookback=14, max_drawdown_percent=0.15):
+    """
+    Check if the stock hasn't dropped more than specified percentage from recent high.
+
+    Args:
+    ohlc_daily (pd.DataFrame): DataFrame with OHLC data
+    lookback (int): Number of recent candles to check
+    max_drawdown_percent (float): Maximum allowed drawdown as decimal
+
+    Returns:
+    bool: True if drawdown is within acceptable range
+    """
+    recent_data = ohlc_daily.tail(lookback)
+    recent_high = recent_data['high'].max()
+    recent_low = recent_data['low'].min()
+
+    drawdown = (recent_high - recent_low) / recent_high
+    return drawdown <= max_drawdown_percent
+
+
+def check_wick_conditions(ohlc_daily, lookback=5, max_wick_bodies=2):
+    """
+    Check if recent candles don't have significant upper wicks.
+    Upper wick should not be larger than max_wick_bodies times the candle's range.
+
+    Args:
+    ohlc_daily (pd.DataFrame): DataFrame with OHLC data
+    lookback (int): Number of recent candles to check
+    max_wick_bodies (float): Maximum allowed wick size as multiple of candle range
+
+    Returns:
+    bool: True if wick conditions are met
+    """
+    recent_candles = ohlc_daily.tail(lookback)
+
+    for _, candle in recent_candles.iterrows():
+        body_high = max(candle['open'], candle['close'])
+        candle_range = abs(candle['high'] - candle['low'])
+        upper_wick = candle['high'] - body_high
+
+        # Skip check if candle range is too small to avoid division by zero
+        if candle_range < 0.0001:
+            continue
+
+        # Compare upper wick to the candle's range
+        if upper_wick > (candle_range * max_wick_bodies):
+            return False
+
+    return True
+
+
 def bullish_anx_based(
         ohlc_with_indicators_daily,
         volume_daily,
@@ -475,12 +542,17 @@ def bullish_anx_based(
     # Existing MA calculations
     ma3 = MA(ohlc_with_indicators_daily, length=3, ma_type='exponential')
     ma12 = MA(ohlc_with_indicators_daily, length=12, ma_type='exponential')
-    ma50 = MA(ohlc_with_indicators_daily, 50)  # Add MA50 calculation
+    ma50 = MA(ohlc_with_indicators_daily, 50)
     ma200 = MA(ohlc_with_indicators_daily, 200)
 
-    # Check both conditions
+    # Check base conditions
     ma_cross_condition = recent_bullish_cross(ma3, ma12, 3, 12)
     price_cross_condition = price_crossed_ma(ohlc_with_indicators_daily, ma3, 3, ma12, 12)
+
+    # Add new conditions
+    recent_green_condition = check_recent_green_candle(ohlc_with_indicators_daily)
+    drawdown_condition = check_max_drawdown(ohlc_with_indicators_daily)
+    wick_condition = check_wick_conditions(ohlc_with_indicators_daily)
 
     # Add MA50 rising condition with spread comparison
     ma50_rising = is_ma_rising(ma50, 50, lookback_period=5, spread=2)
@@ -491,9 +563,9 @@ def bullish_anx_based(
     # Create note about which condition triggered
     trigger_note = ""
     if ma_cross_condition:
-        trigger_note = "MA3/MA12 bullish cross"
+        trigger_note = "[MA3/MA12 bullish cross]"
     elif price_cross_condition:
-        trigger_note = "Price crossed above MA12"
+        trigger_note = "[Price crossed above MA12]"
 
     # Other existing conditions
     price_above_ma_condition = price_above_ma(ohlc_with_indicators_daily, ma200, 200)
@@ -510,15 +582,21 @@ def bullish_anx_based(
             f"- {stock_name} | "
             f"Price above MA200: [{format_bool(price_above_ma_condition)}] | "
             f"Trigger condition: [{format_bool(trigger_condition)}] ({trigger_note}) | "
-            f"MA50 rising: [{format_bool(ma50_rising)}] ({ma50_change:+.2f}%) | "  # Added percentage change
-            f"not overextended: [{format_bool(not_overextended)}]"
+            f"MA50 rising: [{format_bool(ma50_rising)}] ({ma50_change:+.2f}%) | "
+            f"not overextended: [{format_bool(not_overextended)}] | "
+            f"Recent green: [{format_bool(recent_green_condition)}] | "
+            f"Drawdown OK: [{format_bool(drawdown_condition)}] | "
+            f"Wick OK: [{format_bool(wick_condition)}]"
         )
 
     confirmation = [
         price_above_ma_condition,
         trigger_condition,
         ma50_rising,
-        not_overextended
+        not_overextended,
+        recent_green_condition,  # New condition
+        drawdown_condition,  # New condition
+        wick_condition  # New condition
     ]
 
     result = False not in confirmation
