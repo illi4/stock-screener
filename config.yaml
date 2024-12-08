@@ -6,6 +6,7 @@
 
 markets: # Supported: ASX, NASDAQ, NYSE. In a list so that scanner can work on multiple markets.
   - NASDAQ
+  - NYSE
 
 pricing:
   min: 0.005  # minimum price to filter stocks when running scanner
@@ -25,6 +26,10 @@ filters:
 locality:
   tzinfo: Australia/Sydney
   shift_update_day: True  # shift update day by 1 by default, useful for being located in AU and trading US
+
+strategy:
+  anx:
+    trigger_type: "ma_cross"  # Options: "ma_cross", "price_cross", "both"
 
 logging:
   gsheet_name: "Trading journal R&D 2024"
