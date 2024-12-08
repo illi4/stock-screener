@@ -53,7 +53,7 @@ def get_current_date():
             current_date = get_current_workday()
         else:
             current_date = get_previous_workday()
-            print(f'(i) Shifting update date to previous workday per config')
+            #print(f'(i) Shifting update date to previous workday per config')
     else:
         current_date = arguments["date"].strftime("%Y-%m-%d")
 

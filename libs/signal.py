@@ -539,37 +539,50 @@ def bullish_anx_based(
         output=True,
         stock_name="",
 ):
+    # Read config for strategy settings
+    config = read_config()
+    trigger_type = config["strategy"]["anx"]["trigger_type"]
+
     # Existing MA calculations
     ma3 = MA(ohlc_with_indicators_daily, length=3, ma_type='exponential')
     ma12 = MA(ohlc_with_indicators_daily, length=12, ma_type='exponential')
     ma50 = MA(ohlc_with_indicators_daily, 50)
     ma200 = MA(ohlc_with_indicators_daily, 200)
 
-    # Check base conditions
-    ma_cross_condition = recent_bullish_cross(ma3, ma12, 3, 12)
-    price_cross_condition = price_crossed_ma(ohlc_with_indicators_daily, ma3, 3, ma12, 12)
+    # Check trigger conditions based on config
+    ma_cross_condition = False
+    price_cross_condition = False
 
-    # Add new conditions
-    recent_green_condition = check_recent_green_candle(ohlc_with_indicators_daily)
-    drawdown_condition = check_max_drawdown(ohlc_with_indicators_daily)
-    wick_condition = check_wick_conditions(ohlc_with_indicators_daily)
+    if trigger_type in ["ma_cross", "both"]:
+        ma_cross_condition = recent_bullish_cross(ma3, ma12, 3, 12)
 
-    # Add MA50 rising condition with spread comparison
-    ma50_rising = is_ma_rising(ma50, 50, lookback_period=5, spread=2)
+    if trigger_type in ["price_cross", "both"]:
+        price_cross_condition = price_crossed_ma(ohlc_with_indicators_daily, ma3, 3, ma12, 12)
 
-    # Combined trigger condition (either MA cross or price cross)
-    trigger_condition = ma_cross_condition or price_cross_condition
+    # Combined trigger condition based on strategy setting
+    if trigger_type == "both":
+        trigger_condition = ma_cross_condition or price_cross_condition
+    else:
+        trigger_condition = ma_cross_condition if trigger_type == "ma_cross" else price_cross_condition
 
     # Create note about which condition triggered
     trigger_note = ""
-    if ma_cross_condition:
+    if ma_cross_condition and trigger_type != "price_cross":
         trigger_note = "[MA3/MA12 bullish cross]"
-    elif price_cross_condition:
+    elif price_cross_condition and trigger_type != "ma_cross":
         trigger_note = "[Price crossed above MA12]"
 
     # Other existing conditions
     price_above_ma_condition = price_above_ma(ohlc_with_indicators_daily, ma200, 200)
     not_overextended = weekly_not_overextended(ohlc_with_indicators_weekly)
+
+    # Add MA50 rising condition with spread comparison
+    ma50_rising = is_ma_rising(ma50, 50, lookback_period=5, spread=2)
+
+    # Add new conditions
+    recent_green_condition = check_recent_green_candle(ohlc_with_indicators_daily)
+    drawdown_condition = check_max_drawdown(ohlc_with_indicators_daily)
+    wick_condition = check_wick_conditions(ohlc_with_indicators_daily)
 
     if output:
         # Get actual MA50 values for detailed output
@@ -580,6 +593,7 @@ def bullish_anx_based(
 
         print(
             f"- {stock_name} | "
+            f"Strategy type: {trigger_type} | "
             f"Price above MA200: [{format_bool(price_above_ma_condition)}] | "
             f"Trigger condition: [{format_bool(trigger_condition)}] ({trigger_note}) | "
             f"MA50 rising: [{format_bool(ma50_rising)}] ({ma50_change:+.2f}%) | "
@@ -594,9 +608,9 @@ def bullish_anx_based(
         trigger_condition,
         ma50_rising,
         not_overextended,
-        recent_green_condition,  # New condition
-        drawdown_condition,  # New condition
-        wick_condition  # New condition
+        recent_green_condition,
+        drawdown_condition,
+        wick_condition
     ]
 
     result = False not in confirmation
