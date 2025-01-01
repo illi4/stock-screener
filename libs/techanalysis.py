@@ -162,89 +162,77 @@ def coppock_curve(df: pd.DataFrame, wma_length: int = 10, long_roc_length: int =
     return df[['Coppock_WMA']]  # df[['Close', 'ROC_long', 'ROC_short', 'Coppock', 'Coppock_WMA']]
 
 
-def LUCID_SAR(df: pd.DataFrame, AF_initial: float = 0.02, AF_increment: float = 0.02,
-              AF_maximum: float = 0.2) -> pd.DataFrame:
-    '''
-    This code finaly works, but beware of stock splits!
-    '''
-    high = df['high'].values
-    low = df['low'].values
-    sar = np.zeros(len(high))
-    uptrend = np.zeros(len(high), dtype=bool)
-    ep = np.zeros(len(high))
-    new_trend = np.zeros(len(high))
-    af = np.zeros(len(high))
+def lucid_sar(df: pd.DataFrame,
+              af_initial: float = 0.02,
+              af_increment: float = 0.02,
+              af_maximum: float = 0.2) -> pd.DataFrame:
+    """
+    Calculate the Parabolic SAR (Stop And Reverse) technical indicator.
 
-    # Initialize variables
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame with 'high' and 'low' price columns
+    af_initial : float
+        Initial acceleration factor (default: 0.02)
+    af_increment : float
+        Acceleration factor increment (default: 0.02)
+    af_maximum : float
+        Maximum acceleration factor (default: 0.2)
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with columns: sar, uptrend, ep, new_trend
+
+    Note: Be cautious of stock splits as they can affect calculations.
+    """
+    high, low = df['high'].values, df['low'].values
+    size = len(high)
+
+    # Initialize arrays
+    sar = np.zeros(size)
+    uptrend = np.zeros(size, dtype=bool)
+    ep = np.zeros(size)
+    new_trend = np.zeros(size, dtype=bool)
+    af = np.zeros(size)
+
+    # Set initial values
     sar[0] = low[0]
     ep[0] = high[0]
     uptrend[0] = True
-    new_trend[0] = False
-    af[0] = AF_initial
-    reversal_state = 0
+    af[0] = af_initial
 
-    for i in range(1, len(df)):
-        if reversal_state == 0:
-            if uptrend[i - 1]:
-                ep[i] = max(high[i], ep[i - 1])
+    for i in range(1, size):
+        # Update extreme point and acceleration factor
+        ep[i] = max(high[i], ep[i - 1]) if uptrend[i - 1] else min(low[i], ep[i - 1])
+        af[i] = (af_initial if new_trend[i - 1] else
+                 min(af_maximum, af[i - 1] + af_increment) if ep[i] != ep[i - 1] else af[i - 1])
+
+        # Calculate base SAR
+        sar[i] = sar[i - 1] + af[i] * (ep[i] - sar[i - 1])
+
+        # Handle uptrend
+        if uptrend[i - 1]:
+            sar[i] = min(sar[i], low[i - 1], low[i - 2] if i >= 2 else low[i - 1])
+            if sar[i] > low[i]:
+                uptrend[i] = False
+                new_trend[i] = True
+                sar[i] = max(high[i], ep[i - 1])
+                ep[i] = min(low[i], low[i - 1])
             else:
-                ep[i] = min(low[i], ep[i - 1])
+                uptrend[i] = True
 
-            if new_trend[i - 1]:
-                af[i] = AF_initial
-            else:
-                if ep[i] != ep[i - 1]:
-                    af[i] = min(AF_maximum, af[i - 1] + AF_increment)
-                else:
-                    af[i] = af[i - 1]
-
-            sar[i] = sar[i - 1] + af[i] * (ep[i] - sar[i - 1])
-
-            if uptrend[i - 1]:
-                sar[i] = min(sar[i], low[i - 1])
-                if i >= 2:
-                    sar[i] = min(sar[i], low[i - 2])
-                if sar[i] > low[i]:
-                    uptrend[i] = False
-                    new_trend[i] = True
-                    sar[i] = max(high[i], ep[i - 1])
-                    ep[i] = min(low[i], low[i - 1])
-                    reversal_state = 2
-                else:
-                    uptrend[i] = True
-                    new_trend[i] = False
-            else:
-                sar[i] = max(sar[i], high[i - 1])
-                if i >= 2:
-                    sar[i] = max(sar[i], high[i - 2])
-                if sar[i] < high[i]:
-                    uptrend[i] = True
-                    new_trend[i] = True
-                    sar[i] = min(low[i], ep[i - 1])
-                    ep[i] = max(high[i], high[i - 1])
-                    reversal_state = 1
-                else:
-                    uptrend[i] = False
-                    new_trend[i] = False
+        # Handle downtrend
         else:
-            if reversal_state == 1:
-                ep[i] = high[i]
-                if low[i] < sar[i]:
-                    sar[i] = ep[i]
-                    ep[i] = low[i]
-                    reversal_state = 2
-                    uptrend[i] = False
+            sar[i] = max(sar[i], high[i - 1], high[i - 2] if i >= 2 else high[i - 1])
+            if sar[i] < high[i]:
+                uptrend[i] = True
+                new_trend[i] = True
+                sar[i] = min(low[i], ep[i - 1])
+                ep[i] = max(high[i], high[i - 1])
             else:
-                ep[i] = low[i]
-                if high[i] > sar[i]:
-                    sar[i] = ep[i]
-                    ep[i] = high[i]
-                    reversal_state = 1
-                    uptrend[i] = True
-
-        # Reset reversal_state if needed
-        if reversal_state != 0:
-            reversal_state = 0
+                uptrend[i] = False
 
     return pd.DataFrame({
         'sar': sar,

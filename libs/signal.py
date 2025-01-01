@@ -1,4 +1,4 @@
-from libs.techanalysis import MA, StochRSI, coppock_curve, LUCID_SAR
+from libs.techanalysis import MA, StochRSI, coppock_curve, lucid_sar
 from libs.helpers import format_bool
 import numpy as np
 import pandas as pd
@@ -543,13 +543,9 @@ def bullish_anx_based(
     config = read_config()
     trigger_type = config["strategy"]["anx"]["trigger_type"]
 
-    #HERE#
-    #TEST: Check weekly values first on a sample of stocks#
-    #OK#
-    #LUCID SAR # DOES NOT WORK WELL, COMMENTED
     print(ohlc_with_indicators_weekly.head(10))   # stock splits is an issue
     print(ohlc_with_indicators_weekly.tail(10))   # need to update and test
-    sar_values = LUCID_SAR(ohlc_with_indicators_weekly)
+    sar_values = lucid_sar(ohlc_with_indicators_weekly)   # the lucid sar itself works well
     print(sar_values)
     exit(0)
 
