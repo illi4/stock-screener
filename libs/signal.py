@@ -548,7 +548,7 @@ def bullish_anx_based(
     #OK#
     #LUCID SAR # DOES NOT WORK WELL, COMMENTED
     print(ohlc_with_indicators_weekly.head(10))   # stock splits is an issue
-    print(ohlc_with_indicators_weekly.tail(10))
+    print(ohlc_with_indicators_weekly.tail(10))   # need to update and test
     sar_values = LUCID_SAR(ohlc_with_indicators_weekly)
     print(sar_values)
     exit(0)
