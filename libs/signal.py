@@ -1,4 +1,4 @@
-from libs.techanalysis import MA, StochRSI, coppock_curve
+from libs.techanalysis import MA, StochRSI, coppock_curve, LUCID_SAR
 from libs.helpers import format_bool
 import numpy as np
 import pandas as pd
@@ -548,6 +548,12 @@ def bullish_anx_based(
     ma12 = MA(ohlc_with_indicators_daily, length=12, ma_type='exponential')
     ma50 = MA(ohlc_with_indicators_daily, 50)
     ma200 = MA(ohlc_with_indicators_daily, 200)
+
+    #LUCID SAR # DOES NOT WORK WELL, COMMENTED
+    # print(ohlc_with_indicators_weekly.tail(10))
+    # sar_values = LUCID_SAR(ohlc_with_indicators_weekly)
+    # print(sar_values)
+    # exit(0)
 
     # Check trigger conditions based on config
     ma_cross_condition = False
