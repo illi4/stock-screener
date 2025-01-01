@@ -185,18 +185,86 @@ def LUCID_SAR(df: pd.DataFrame, AF_initial: float = 0.02, AF_increment: float = 
         - sar: SAR values
         - uptrend: Boolean indicating if current trend is up (True) or down (False)
     """
+    # REDOING
+
     high = df['high'].values
     low = df['low'].values
 
     sar = np.zeros(len(high))
     uptrend = np.zeros(len(high), dtype=bool)
+    ep = np.zeros(len(high))
+    new_trend = np.zeros(len(high))
+    af = np.zeros(len(high))
 
     # Initialize variables
     sar[0] = low[0]  # Start SAR at the first low
+    ep[0] = high[0]  # Extreme Point starts as the first high
     uptrend[0] = True  # Assume initial trend is up
-    af = AF_initial  # Initial acceleration factor
-    ep = high[0]  # Extreme Point starts as the first high
+    new_trend[0] = False
+    af[0] = AF_initial  # Initial acceleration factor
 
+    reversal_state = 0 # set the reversal state to default
+
+    for i in range(1, len(df)): # start from the second bar as the initials are set
+        if reversal_state == 0:  # initial
+            if uptrend[i - 1]:
+                ep[i] = max(high[i], ep[i-1])
+            else:
+                ep[i] = min(low[i], ep[i-1])
+            if new_trend[i-1]:
+                af[i] = AF_initial
+            else:
+                if ep[i] != ep[i-1]:
+                    af[i] = min(AF_maximum, af[i-1] + AF_increment)
+                else:
+                    af[i] = af[i-1]
+            sar[i] = sar[i-1] + af[i] * (ep[i] - sar[i-1])
+
+            if uptrend[i - 1]:
+                sar[i] = min(sar[i], low[i-1])
+                if i >= 2:
+                    sar[i] = min(sar[i], low[i - 2])
+                if sar[i] > low[i]:
+                    uptrend[i] = False
+                    new_trend[i] = True
+                    sar[i] = max(high[i], ep[i-1])
+                    ep[i] = min(low[i], low[i-1])
+                    reversal_state = 2
+                else:
+                    uptrend[i] = True
+                    new_trend[i] = False
+            else:
+                sar[i] = max(sar[i], high[i - 1])
+                if i >= 2:
+                    sar[i] = min(sar[i], high[i - 2])
+                if sar[i] < high[i]:
+                    uptrend[i] = True
+                    new_trend[i] = True
+                    sar[i] = min(low[i], ep[i - 1])
+                    ep[i] = max(high[i], high[i - 1])
+                    reversal_state = 1
+                else:
+                    uptrend[i] = False
+                    new_trend[i] = False
+
+        if reversal_state != 0:
+            if reversal_state == 1:
+                ep[i] = high[i]
+                if low[i] < sar[i]:
+                    sar[i] = ep[i]
+                    ep[i] = low[i]
+                    reversal_state == 2
+                    uptrend[i] = False
+            else:
+                ep[i] = low[i]
+                if high[i] > sar[i]:
+                    sar[i] = ep[i]
+                    ep[i] = high[i]
+                    reversal_state == 1
+                    uptrend[i] = True
+
+    '''
+    # OLDER IMPLEMENTATION by ai#
     for i in range(1, len(df)):
         if uptrend[i - 1]:  # Uptrend logic
             sar[i] = sar[i - 1] + af * (ep - sar[i - 1])
@@ -226,8 +294,9 @@ def LUCID_SAR(df: pd.DataFrame, AF_initial: float = 0.02, AF_increment: float = 
                 if low[i] < ep:  # Update Extreme Point if a new low is reached
                     ep = low[i]
                     af = min(AF_maximum, af + AF_increment)  # Increment acceleration factor
+    '''
 
-    return pd.DataFrame({'sar': sar, 'uptrend': uptrend}, index=df.index)
+    return pd.DataFrame({'sar': sar, 'uptrend': uptrend, 'ep': ep, 'new_trend': new_trend}, index=df.index)
 
 
 def MA(df, length, colname="close", ma_type="simple"):

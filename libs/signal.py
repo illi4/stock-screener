@@ -543,17 +543,22 @@ def bullish_anx_based(
     config = read_config()
     trigger_type = config["strategy"]["anx"]["trigger_type"]
 
+    #HERE#
+    #TEST: Check weekly values first on a sample of stocks#
+    #OK#
+    #LUCID SAR # DOES NOT WORK WELL, COMMENTED
+    print(ohlc_with_indicators_weekly.head(10))   # stock splits is an issue
+    print(ohlc_with_indicators_weekly.tail(10))
+    sar_values = LUCID_SAR(ohlc_with_indicators_weekly)
+    print(sar_values)
+    exit(0)
+
     # Existing MA calculations
     ma3 = MA(ohlc_with_indicators_daily, length=3, ma_type='exponential')
     ma12 = MA(ohlc_with_indicators_daily, length=12, ma_type='exponential')
     ma50 = MA(ohlc_with_indicators_daily, 50)
     ma200 = MA(ohlc_with_indicators_daily, 200)
 
-    #LUCID SAR # DOES NOT WORK WELL, COMMENTED
-    # print(ohlc_with_indicators_weekly.tail(10))
-    # sar_values = LUCID_SAR(ohlc_with_indicators_weekly)
-    # print(sar_values)
-    # exit(0)
 
     # Check trigger conditions based on config
     ma_cross_condition = False
