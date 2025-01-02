@@ -119,9 +119,17 @@ def generate_indicators_daily_weekly(ohlc_daily):
     return ohlc_with_indicators_daily, ohlc_with_indicators_weekly
 
 
-def report_on_shortlist(shortlist, exchange):
+def report_on_shortlist(market_code, direction, shortlist, exchange):
+    if direction.upper() == 'BULL':
+        direction_description = 'BULL 💹'
+    elif direction.upper() == 'BEAR':
+        direction_description = 'BEAR 🔻'
+
+    print()
+    print(f"◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎︎︎︎︎ Results for {market_code} ({direction_description}) ◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎︎︎︎")
+
     checked_workday = get_current_date()
-    print(f"{len(shortlist)} shortlisted stocks (sorted by 5-day MA vol) as of {checked_workday}:")
+    print(f"{len(shortlist)} shortlisted stocks on {checked_workday}:")
 
     # Group stocks by note type
     groups = {}
@@ -153,10 +161,10 @@ def report_on_sentiment(shortlists):
                          if 'bear' in shortlists[market.market_code])
 
         # Print summary totals and sentiment
-        sentiment = "Bearish" if total_bear > total_bull else "Bullish"
+        sentiment = "Bearish 🐻" if total_bear > total_bull else "Bullish 🐂"
 
-        print("◼︎◼︎◼︎︎ Bearish vs bullish signals for all markets ︎◼︎◼︎︎◼︎︎")
-        print(f"Market sentiment: {sentiment} ({total_bull} bullish | {total_bear} bearish)")
+        print("◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎︎︎ Market sentiment ︎◼︎◼︎◼︎◼︎◼︎◼︎︎◼︎◼︎◼︎◼︎◼︎◼︎︎")
+        print(f"{sentiment} ({total_bull} bullish | {total_bear} bearish)")
 
 
 def process_data_at_date(ohlc_daily, volume_daily):
@@ -402,8 +410,9 @@ def scan_stocks(active_markets):
         print('Error: Directions for the strategy must be specified in the config')
         exit(0)
 
-    # Initialize price database
-    initialize_price_database()
+    # Initialize price database unless using existing data
+    if not arguments["use_existing_price_data"]:
+        initialize_price_database()
 
     # First pass: get all stocks and fetch data
     start_date = get_data_start_date(arguments["date"])
@@ -451,21 +460,24 @@ def scan_stocks(active_markets):
                                                                    start_date)
 
     # Report results
-    print("\nFinished scanning ✅")
+    print("\nFinished scanning")
     print()
     report_on_sentiment(shortlists)
 
     for market in active_markets:
         for direction in config["strategy"][arguments["method"]]['directions']:
-            print()
-            print(f"◼︎◼︎◼︎︎ Results for {market.market_code} ({direction.upper()}) ◼︎◼︎◼︎")
             if len(shortlists[market.market_code][direction]) > 0:
                 report_on_shortlist(
+                    market.market_code,
+                    direction,
                     shortlists[market.market_code][direction],
                     market.market_code,
                 )
             else:
-                print(f"No shortlisted stocks for {market.market_code}")
+                print()
+                print(f"◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎︎︎︎︎ No shortlisted stocks for "
+                      f"{market.market_code} ({direction.upper()}) "
+                      f"◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎︎︎")
 
 
 def fetch_and_store_stock_data(stocks, start_date, end_date=None, clear_existing=False):
@@ -479,6 +491,12 @@ def fetch_and_store_stock_data(stocks, start_date, end_date=None, clear_existing
     end_date: End date for data fetch (optional)
     clear_existing: Whether to clear existing price data before storing
     """
+
+    # If the argument is set to use the existing data, no need to fetch anything
+    if arguments["use_existing_price_data"]:
+        print("Using existing price data from database...")
+        return
+
     print("Fetching and storing stock price data...")
 
     try:

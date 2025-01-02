@@ -208,6 +208,11 @@ def define_scanner_args():
     parser.add_argument(
         "-stocks", type=str, required=False, help="Force checking specific stocks only"
     )
+    parser.add_argument(
+        "--use_existing_price_data",
+        action="store_true",
+        help="Use existing price data without fetching new data"  # false by default
+    )
 
     args = parser.parse_args()
     arguments = vars(args)
