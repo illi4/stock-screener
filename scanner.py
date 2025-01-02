@@ -3,6 +3,8 @@ import warnings
 warnings.filterwarnings("ignore")
 from collections import namedtuple
 from collections import defaultdict
+import peewee
+from tqdm import tqdm
 
 from libs.helpers import (
     define_scanner_args,
@@ -29,6 +31,11 @@ from libs.db import (
     delete_all_stocks,
     get_stocks,
     get_update_date,
+    delete_all_stock_prices,
+    create_stock_price_table,
+    bulk_add_stock_prices,
+    get_stock_price_data,
+    initialize_price_database
 )
 from libs.techanalysis import td_indicators, MA, fisher_distance, coppock_curve
 import pandas as pd
@@ -185,7 +192,7 @@ def calculate_extra_metrics(ohlc_with_indicators_daily, ohlc_with_indicators_wee
         return metric_values
 
 
-def scan_stock(stocks, market, method, direction):
+def scan_stock(stocks, market, method, direction, start_date):
     # Scans the stocks using particular method and strategy
 
     stock_suffix = market.stock_suffix
@@ -199,12 +206,11 @@ def scan_stock(stocks, market, method, direction):
         print(f"\n{stock.code} [{stock.name}] ({i + 1}/{len(stocks)})")
 
         # Obtain OHLC data for the stocks
-        ohlc_daily, volume_daily = get_stock_data(
-            f"{stock.code}{stock_suffix}", reporting_date_start
-        )
+        # Get data from local database instead of API
+        ohlc_daily, volume_daily = get_stock_price_data(stock.code, start_date)
         if ohlc_daily is None:
-            print("No data on the asset")
-            continue  # skip this asset if there is no data
+            print("No data available for the asset")
+            continue
 
         ohlc_daily, volume_daily = process_data_at_date(ohlc_daily, volume_daily)
 
@@ -376,7 +382,11 @@ def scan_exchange_stocks(market, method, direction):
         f'and with volume of at least {format_number(config["filters"]["minimum_volume_level"])}\n'
     )
 
-    shortlist = scan_stock(stocks, market, method, direction)
+    # Fetch and store stock data for all stocks
+    start_date = get_data_start_date(arguments["date"])
+    fetch_and_store_stock_data(stocks, start_date)
+
+    shortlist = scan_stock(stocks, market, method, direction, start_date)
 
     # Sort the list by volume in decreasing order
     sorted_stocks = sorted(shortlist, key=lambda stock: stock.volume, reverse=True)
@@ -385,20 +395,64 @@ def scan_exchange_stocks(market, method, direction):
 
 
 def scan_stocks(active_markets):
-
     # Create shortlists placeholder for each market
-    #shortlists = dict()
     shortlists = defaultdict(lambda: defaultdict(list))
 
     if 'directions' not in config["strategy"][arguments["method"]].keys():
         print('Error: Directions for the strategy must be specified in the config')
         exit(0)
 
-    for market in active_markets:
-        for direction in config["strategy"][arguments["method"]]['directions']:
-            shortlists[market.market_code][direction] = scan_exchange_stocks(market, arguments["method"], direction)
+    # Initialize price database
+    initialize_price_database()
 
-    # Count the total number of stocks indicated for bull vs bear direction when both are present
+    # First pass: get all stocks and fetch data
+    start_date = get_data_start_date(arguments["date"])
+    all_market_stocks = {}
+    processed_stocks = set()  # Keep track of stocks we've already processed
+
+    for market in active_markets:
+        print(f"\nProcessing {market.market_code}...")
+        if arguments["stocks"] is None:
+            stocks = get_stocks_to_scan(market, arguments["method"])
+        else:
+            stocks = get_stocks(codes=arguments["stocks"])
+
+        if arguments["num"] is not None:
+            print(f"Limiting to the first {arguments['num']} stocks")
+            stocks = stocks[: arguments["num"]]
+
+        # Filter out already processed stocks
+        stocks_to_process = []
+        for stock in stocks:
+            if stock.code not in processed_stocks:
+                stocks_to_process.append(stock)
+                processed_stocks.add(stock.code)
+
+        all_market_stocks[market.market_code] = stocks
+
+        if stocks_to_process:
+            total_number = len(stocks_to_process)
+            print(
+                f'Processing {total_number} stocks priced {config["pricing"]["min"]} to {config["pricing"]["max"]} '
+                f'and with volume of at least {format_number(config["filters"]["minimum_volume_level"])}\n'
+            )
+
+            # Fetch and store data for this market's new stocks
+            fetch_and_store_stock_data(stocks_to_process, start_date)
+        else:
+            print("All stocks already processed, skipping data fetch")
+
+    # Second pass: run scans for each market using stored data
+    for market in active_markets:
+        stocks = all_market_stocks[market.market_code]
+        for direction in config["strategy"][arguments["method"]]['directions']:
+            print(f"\nScanning {market.market_code} for {direction.upper()} signals...")
+            shortlists[market.market_code][direction] = scan_stock(stocks, market, arguments["method"], direction,
+                                                                   start_date)
+
+    # Report results
+    print("\nFinished scanning ✅")
+    print()
     report_on_sentiment(shortlists)
 
     for market in active_markets:
@@ -413,6 +467,62 @@ def scan_stocks(active_markets):
             else:
                 print(f"No shortlisted stocks for {market.market_code}")
 
+
+def fetch_and_store_stock_data(stocks, start_date, end_date=None, clear_existing=False):
+    """
+    Fetch stock data for all stocks and store in database.
+    Now with option to clear existing data or append.
+
+    Args:
+    stocks: List of stock objects
+    start_date: Start date for data fetch
+    end_date: End date for data fetch (optional)
+    clear_existing: Whether to clear existing price data before storing
+    """
+    print("Fetching and storing stock price data...")
+
+    try:
+        # First try to create the table if it doesn't exist
+        create_stock_price_table()
+    except peewee.OperationalError:
+        print("Table already exists")
+        if clear_existing:
+            print("Clearing existing data...")
+            delete_all_stock_prices()
+
+    prices_to_add = []
+    total_stocks = len(stocks)
+
+    # Use tqdm for progress bar
+    with tqdm(stocks, total=total_stocks, desc='Fetching data') as pbar:
+        for stock in pbar:
+            market = Market(stock.exchange)
+            stock_code = f"{stock.code}{market.stock_suffix}"
+
+            # Update progress bar description
+            pbar.set_description(f"Fetching {stock_code}")
+
+            try:
+                price_df, volume_df = get_stock_data(stock_code, start_date)
+                if price_df is not None:
+                    # Combine price and volume data
+                    for idx, row in price_df.iterrows():
+                        prices_to_add.append({
+                            'stock': stock.code,
+                            'date': row['timestamp'].to_pydatetime(),
+                            'open': float(row['open']),
+                            'high': float(row['high']),
+                            'low': float(row['low']),
+                            'close': float(row['close']),
+                            'volume': float(volume_df.iloc[idx]['volume'])
+                        })
+            except Exception as e:
+                tqdm.write(f"Error fetching data for {stock_code}: {str(e)}")
+                continue
+
+    if prices_to_add:
+        print(f"\nStoring price data for {total_stocks} stocks...")
+        bulk_add_stock_prices(prices_to_add)
 
 if __name__ == "__main__":
 
