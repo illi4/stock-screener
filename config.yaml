@@ -32,7 +32,7 @@ strategy:
     trigger_type: "ma_cross"  # Options: "ma_cross", "price_cross", "both"
     directions:  # enumerate directions e.g. bull/bear
       - bull
-      #- bear
+      - bear
   earnings:
     directions:
       - bull

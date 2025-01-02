@@ -193,6 +193,13 @@ def recent_bullish_cross(ma_a, ma_b, a_length, b_length):
                 ma_a[f"ma{a_length}"].iloc[-2] < ma_b[f"ma{b_length}"].iloc[-2]
     )
 
+def recent_bearish_cross(ma_a, ma_b, a_length, b_length):
+    return (
+                ma_a[f"ma{a_length}"].iloc[-1] < ma_b[f"ma{b_length}"].iloc[-1]
+                    and
+                ma_a[f"ma{a_length}"].iloc[-2] > ma_b[f"ma{b_length}"].iloc[-2]
+    )
+
 
 def price_crossed_ma(ohlc_daily, ma_values_faster, ma_length_faster, ma_values_slower, ma_length_slower):
     """
@@ -469,6 +476,9 @@ def is_bullish_sar(sar_values):
     # Check whether SAR indicates uptrend
     return (sar_values["uptrend"].iloc[-1])
 
+def is_bearish_sar(sar_values):
+    # Check whether SAR indicates uptrend
+    return (not sar_values["uptrend"].iloc[-1])
 
 def check_recent_green_candle(ohlc_daily, lookback=3):
     """
@@ -554,11 +564,11 @@ def bullish_anx_based(
     # Check for the uptrend Lucid SAR conditions
     bullish_sar_condition = is_bullish_sar(sar_values)
 
-    # Existing MA calculations
+    # MA calculations
     ma3 = MA(ohlc_with_indicators_daily, length=3, ma_type='exponential')
     ma12 = MA(ohlc_with_indicators_daily, length=12, ma_type='exponential')
-    ma50 = MA(ohlc_with_indicators_daily, 50)
-    ma200 = MA(ohlc_with_indicators_daily, 200)
+    ma50 = MA(ohlc_with_indicators_daily, length=50, ma_type='exponential')
+    ma200 = MA(ohlc_with_indicators_daily, length=200, ma_type='exponential')
 
     # Check trigger conditions based on config
     ma_cross_condition = False
@@ -627,6 +637,65 @@ def bullish_anx_based(
         recent_green_condition,
         drawdown_condition,
         wick_condition
+    ]
+
+    result = False not in confirmation
+    numerical_score = 5  # not used but keep for the output structure
+
+    return result, numerical_score, trigger_note
+
+def bearish_anx_based(
+        ohlc_with_indicators_daily,
+        volume_daily,
+        ohlc_with_indicators_weekly,
+        output=True,
+        stock_name="",
+):
+    # Read config for strategy settings
+    config = read_config()
+    trigger_type = config["strategy"]["anx"]["trigger_type"]
+
+    # Lucid SAR calculations
+    sar_values = lucid_sar(ohlc_with_indicators_weekly)   # the lucid sar itself works well
+
+    # Check for the uptrend Lucid SAR conditions
+    # TODO: add check of bearish cross happening on the wave change, not just inside the wave
+    bearish_sar_condition = is_bearish_sar(sar_values)
+
+    # MA calculations
+    ma3 = MA(ohlc_with_indicators_daily, length=3, ma_type='exponential')
+    ma12 = MA(ohlc_with_indicators_daily, length=12, ma_type='exponential')
+    ma50 = MA(ohlc_with_indicators_daily, length=50, ma_type='exponential')
+    ma200 = MA(ohlc_with_indicators_daily, length=200, ma_type='exponential')
+
+    # Check trigger conditions based on config
+    ma_cross_condition = False
+    price_cross_condition = False
+
+    if trigger_type in ["price_cross", "both"]:
+        raise NotImplementedError("Price cross triger not supported for the bearish direction")
+
+    ma_cross_condition = recent_bearish_cross(ma3, ma12, 3, 12)
+    trigger_condition = ma_cross_condition
+    trigger_note = "[MA3/MA12 bearish cross]"
+
+    if output:
+        # Get actual MA50 values for detailed output
+        # ma50_values = ma50['ma50'].tail(5)
+        # ma50_current = ma50_values.iloc[-1]
+        # ma50_prev = ma50_values.iloc[-3]  # Looking 2 periods back
+        # ma50_change = (ma50_current - ma50_prev) / ma50_prev * 100
+
+        print(
+            f"- {stock_name} | "
+            f"Strategy type: {trigger_type} | " 
+            f"Price trigger: [{format_bool(trigger_condition)}] {trigger_note} | "
+            f"Bearish weekly SAR: [{format_bool(bearish_sar_condition)}] | "
+        )
+
+    confirmation = [
+        trigger_condition,
+        bearish_sar_condition
     ]
 
     result = False not in confirmation

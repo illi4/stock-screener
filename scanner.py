@@ -15,7 +15,7 @@ from libs.helpers import (
     get_current_and_lookback_date,
     get_data_start_date,
 )
-from libs.signal import bullish_mri_based, market_bearish, bullish_anx_based, earnings_gap_down
+from libs.signal import bullish_mri_based, market_bearish, bullish_anx_based, earnings_gap_down, bearish_anx_based
 from libs.stocktools import (
     get_stock_data,
     ohlc_daily_to_weekly,
@@ -133,6 +133,24 @@ def report_on_shortlist(shortlist, exchange):
         for stock in stocks:
             print(f"{stock.code} ({stock.name}) | Volume {stock.volume}")
 
+def report_on_sentiment(shortlists):
+    # Report on market sentiment when both directions are in the config
+    configured_directions = config["strategy"][arguments["method"]]['directions']
+    if ('bull' in configured_directions and 'bear' in configured_directions):
+        total_bull = sum(len(shortlists[market.market_code]['bull'])
+                         for market in active_markets
+                         if 'bull' in shortlists[market.market_code])
+
+        total_bear = sum(len(shortlists[market.market_code]['bear'])
+                         for market in active_markets
+                         if 'bear' in shortlists[market.market_code])
+
+        # Print summary totals and sentiment
+        sentiment = "Bearish" if total_bear > total_bull else "Bullish"
+
+        print("◼︎◼︎◼︎︎ Bearish vs bullish signals for all markets ︎◼︎◼︎︎◼︎︎")
+        print(f"Market sentiment: {sentiment} ({total_bull} bullish | {total_bear} bearish)")
+
 
 def process_data_at_date(ohlc_daily, volume_daily):
     # Removes most recent columns if there is an argument to look at a particular date
@@ -223,7 +241,14 @@ def scan_stock(stocks, market, method, direction):
                     output=True,
                     stock_name=stock.name,
                 )
-            # TODO: Implement bearish scan
+            elif direction == 'bear':
+                confirmation, numerical_score, trigger_note = bearish_anx_based(
+                    ohlc_with_indicators_daily,
+                    volume_daily,
+                    ohlc_with_indicators_weekly,
+                    output=True,
+                    stock_name=stock.name,
+                )
         elif method == 'earnings':
             confirmation, _ = earnings_gap_down(
                 ohlc_with_indicators_daily,
@@ -369,12 +394,12 @@ def scan_stocks(active_markets):
         print('Error: Directions for the strategy must be specified in the config')
         exit(0)
 
-    ### HERE ###
     for market in active_markets:
         for direction in config["strategy"][arguments["method"]]['directions']:
             shortlists[market.market_code][direction] = scan_exchange_stocks(market, arguments["method"], direction)
 
-    ### HERE ###
+    # Count the total number of stocks indicated for bull vs bear direction when both are present
+    report_on_sentiment(shortlists)
 
     for market in active_markets:
         for direction in config["strategy"][arguments["method"]]['directions']:
