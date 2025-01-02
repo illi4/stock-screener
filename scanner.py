@@ -6,6 +6,10 @@ from collections import defaultdict
 import peewee
 from tqdm import tqdm
 
+# For concurrent fetching of stock prices
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import Lock
+
 from libs.helpers import (
     define_scanner_args,
     dates_diff,
@@ -477,27 +481,61 @@ def scan_stocks(active_markets):
             )
 
 
-def fetch_and_store_stock_data(stocks, start_date, end_date=None, clear_existing=False):
+def fetch_prices_for_stock(stock, market, start_date):
     """
-    Fetch stock data for all stocks and store in database.
-    Now with option to clear existing data or append.
+    Fetch price data for a single stock.
 
     Args:
-    stocks: List of stock objects
-    start_date: Start date for data fetch
-    end_date: End date for data fetch (optional)
-    clear_existing: Whether to clear existing price data before storing
-    """
+        stock: Stock object containing code and exchange info
+        market: Market object for the stock
+        start_date: Start date for price data
 
-    # If the argument is set to use the existing data, no need to fetch anything
+    Returns:
+        tuple: (stock_code, list of price dictionaries)
+    """
+    try:
+        stock_code = f"{stock.code}{market.stock_suffix}"
+        price_df, volume_df = get_stock_data(stock_code, start_date)
+
+        if price_df is not None:
+            prices_to_add = []
+            for idx, row in price_df.iterrows():
+                prices_to_add.append({
+                    'stock': stock.code,
+                    'date': row['timestamp'].to_pydatetime(),
+                    'open': float(row['open']),
+                    'high': float(row['high']),
+                    'low': float(row['low']),
+                    'close': float(row['close']),
+                    'volume': float(volume_df.iloc[idx]['volume'])
+                })
+            return stock.code, prices_to_add
+
+        return stock.code, []
+
+    except Exception as e:
+        print(f"Error fetching data for {stock_code}: {str(e)}")
+        return stock.code, []
+
+
+def fetch_and_store_stock_data(stocks, start_date, end_date=None, clear_existing=False, max_workers=5):
+    """
+    Fetch stock data for all stocks and store in database using parallel processing.
+
+    Args:
+        stocks: List of stock objects
+        start_date: Start date for data fetch
+        end_date: End date for data fetch (optional)
+        clear_existing: Whether to clear existing price data before storing
+        max_workers: Maximum number of concurrent threads
+    """
     if arguments["use_existing_price_data"]:
         print("Using existing price data from database...")
         return
 
-    print("Fetching and storing stock price data...")
+    print("Fetching and storing stock price data in concurrent batches...")
 
     try:
-        # First try to create the table if it doesn't exist
         create_stock_price_table()
     except peewee.OperationalError:
         print("Table already exists")
@@ -505,39 +543,50 @@ def fetch_and_store_stock_data(stocks, start_date, end_date=None, clear_existing
             print("Clearing existing data...")
             delete_all_stock_prices()
 
-    prices_to_add = []
-    total_stocks = len(stocks)
+    # Create a lock for thread-safe database operations
+    db_lock = Lock()
 
-    # Use tqdm for progress bar
-    with tqdm(stocks, total=total_stocks, desc='Fetching data') as pbar:
-        for stock in pbar:
-            market = Market(stock.exchange)
-            stock_code = f"{stock.code}{market.stock_suffix}"
+    # Create a market lookup dictionary to avoid creating Market objects repeatedly
+    market_lookup = {stock.exchange: Market(stock.exchange) for stock in stocks}
 
-            # Update progress bar description
-            pbar.set_description(f"Fetching {stock_code}")
+    def process_batch(batch):
+        """Process a batch of stocks and store their prices"""
+        all_prices = []
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Create futures for each stock in the batch
+            future_to_stock = {
+                executor.submit(
+                    fetch_prices_for_stock,
+                    stock,
+                    market_lookup[stock.exchange],
+                    start_date
+                ): stock for stock in batch
+            }
 
-            try:
-                price_df, volume_df = get_stock_data(stock_code, start_date)
-                if price_df is not None:
-                    # Combine price and volume data
-                    for idx, row in price_df.iterrows():
-                        prices_to_add.append({
-                            'stock': stock.code,
-                            'date': row['timestamp'].to_pydatetime(),
-                            'open': float(row['open']),
-                            'high': float(row['high']),
-                            'low': float(row['low']),
-                            'close': float(row['close']),
-                            'volume': float(volume_df.iloc[idx]['volume'])
-                        })
-            except Exception as e:
-                tqdm.write(f"Error fetching data for {stock_code}: {str(e)}")
-                continue
+            # Process completed futures
+            for future in as_completed(future_to_stock):
+                stock_code, prices = future.result()
+                if prices:
+                    all_prices.extend(prices)
 
-    if prices_to_add:
-        print(f"\nStoring price data for {total_stocks} stocks...")
-        bulk_add_stock_prices(prices_to_add)
+        # Store the batch of prices in the database
+        if all_prices:
+            with db_lock:
+                try:
+                    bulk_add_stock_prices(all_prices)
+                except Exception as e:
+                    print(f"Error storing prices: {str(e)}")
+
+    # Process stocks in batches to manage memory usage
+    batch_size = 100
+    total_batches = (len(stocks) + batch_size - 1) // batch_size
+
+    with tqdm(total=len(stocks), desc='Fetching data') as pbar:
+        for i in range(0, len(stocks), batch_size):
+            batch = stocks[i:i + batch_size]
+            process_batch(batch)
+            pbar.update(len(batch))
+
 
 if __name__ == "__main__":
 
