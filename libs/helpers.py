@@ -208,6 +208,11 @@ def define_scanner_args():
     parser.add_argument(
         "-stocks", type=str, required=False, help="Force checking specific stocks only"
     )
+    parser.add_argument(
+        "--use_existing_price_data",
+        action="store_true",
+        help="Use existing price data without fetching new data"  # false by default
+    )
 
     args = parser.parse_args()
     arguments = vars(args)
@@ -597,3 +602,22 @@ def filter_dataframe(df, config):
             print(f"Error: Filter conditions for {column} are not specified correctly.")
 
     return df
+
+
+def create_header(text, width=60):
+    """Create a centered header with consistent width.
+
+    Args:
+        text (str): The text to display in the header
+        width (int): Total width of the header including decorations
+
+    Returns:
+        str: Formatted header string
+    """
+    box_char = "◼︎"
+    content_width = width - 4  # Leave space for one box char on each end
+    padded_text = f" {text} "
+    left_padding = (content_width - len(padded_text)) // 2
+    right_padding = content_width - len(padded_text) - left_padding
+
+    return f"{box_char * 2}{box_char * left_padding}{padded_text}{box_char * right_padding}{box_char * 2}"

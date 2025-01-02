@@ -40,8 +40,10 @@ Run `python scanner.py --h` to view context help
   ```
 - Scan and shortlist:
   ```
-  python scanner.py --scan -method=anx [-stocks=STOCK1,STOCK2,...] [-num=100]
+  python scanner.py --scan -method=anx [-stocks=STOCK1,STOCK2,...] [-num=100] [--use_existing_price_data]
   ```
+
+Note that new prices must be fetched on a new day to get the most recent OHLC data. However, if you are running the scanner again and want to reuse the fetched data, you can run the scanner with the parameter `--use_existing_price_data`. This will keep the prices table untouched. 
 
 Helper scripts (requires Google credentials):
 

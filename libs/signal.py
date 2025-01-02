@@ -1,4 +1,4 @@
-from libs.techanalysis import MA, StochRSI, coppock_curve, LUCID_SAR
+from libs.techanalysis import MA, StochRSI, coppock_curve, lucid_sar
 from libs.helpers import format_bool
 import numpy as np
 import pandas as pd
@@ -191,6 +191,13 @@ def recent_bullish_cross(ma_a, ma_b, a_length, b_length):
                 ma_a[f"ma{a_length}"].iloc[-1] > ma_b[f"ma{b_length}"].iloc[-1]
                     and
                 ma_a[f"ma{a_length}"].iloc[-2] < ma_b[f"ma{b_length}"].iloc[-2]
+    )
+
+def recent_bearish_cross(ma_a, ma_b, a_length, b_length):
+    return (
+                ma_a[f"ma{a_length}"].iloc[-1] < ma_b[f"ma{b_length}"].iloc[-1]
+                    and
+                ma_a[f"ma{a_length}"].iloc[-2] > ma_b[f"ma{b_length}"].iloc[-2]
     )
 
 
@@ -465,6 +472,14 @@ def is_ma_rising(ma_values, ma_length, lookback_period=5, spread=2):
     return rising_percentage >= 0.8
 
 
+def is_bullish_sar(sar_values):
+    # Check whether SAR indicates uptrend
+    return (sar_values["uptrend"].iloc[-1])
+
+def is_bearish_sar(sar_values):
+    # Check whether SAR indicates uptrend
+    return (not sar_values["uptrend"].iloc[-1])
+
 def check_recent_green_candle(ohlc_daily, lookback=3):
     """
     Check if there's at least one green candle in the most recent N candles.
@@ -543,17 +558,17 @@ def bullish_anx_based(
     config = read_config()
     trigger_type = config["strategy"]["anx"]["trigger_type"]
 
-    # Existing MA calculations
+    # Lucid SAR calculations
+    sar_values = lucid_sar(ohlc_with_indicators_weekly)   # the lucid sar itself works well
+
+    # Check for the uptrend Lucid SAR conditions
+    bullish_sar_condition = is_bullish_sar(sar_values)
+
+    # MA calculations
     ma3 = MA(ohlc_with_indicators_daily, length=3, ma_type='exponential')
     ma12 = MA(ohlc_with_indicators_daily, length=12, ma_type='exponential')
-    ma50 = MA(ohlc_with_indicators_daily, 50)
-    ma200 = MA(ohlc_with_indicators_daily, 200)
-
-    #LUCID SAR # DOES NOT WORK WELL, COMMENTED
-    # print(ohlc_with_indicators_weekly.tail(10))
-    # sar_values = LUCID_SAR(ohlc_with_indicators_weekly)
-    # print(sar_values)
-    # exit(0)
+    ma50 = MA(ohlc_with_indicators_daily, length=50, ma_type='exponential')
+    ma200 = MA(ohlc_with_indicators_daily, length=200, ma_type='exponential')
 
     # Check trigger conditions based on config
     ma_cross_condition = False
@@ -585,10 +600,13 @@ def bullish_anx_based(
     # Add MA50 rising condition with spread comparison
     ma50_rising = is_ma_rising(ma50, 50, lookback_period=5, spread=2)
 
-    # Add new conditions
-    recent_green_condition = check_recent_green_candle(ohlc_with_indicators_daily)
-    drawdown_condition = check_max_drawdown(ohlc_with_indicators_daily)
-    wick_condition = check_wick_conditions(ohlc_with_indicators_daily)
+    # Add new conditions when looking at price cross rather than MA cross
+    if trigger_type in ["price_cross", "both"]:
+        recent_green_condition = check_recent_green_candle(ohlc_with_indicators_daily)
+        drawdown_condition = check_max_drawdown(ohlc_with_indicators_daily)
+        wick_condition = check_wick_conditions(ohlc_with_indicators_daily)
+    else:
+        recent_green_condition = drawdown_condition = wick_condition = True
 
     if output:
         # Get actual MA50 values for detailed output
@@ -601,10 +619,11 @@ def bullish_anx_based(
             f"- {stock_name} | "
             f"Strategy type: {trigger_type} | "
             f"Price above MA200: [{format_bool(price_above_ma_condition)}] | "
-            f"Trigger condition: [{format_bool(trigger_condition)}] ({trigger_note}) | "
+            f"Price trigger: [{format_bool(trigger_condition)}] {trigger_note} | "
+            f"Bullish weekly SAR: [{format_bool(bullish_sar_condition)}] | "
             f"MA50 rising: [{format_bool(ma50_rising)}] ({ma50_change:+.2f}%) | "
             f"not overextended: [{format_bool(not_overextended)}] | "
-            f"Recent green: [{format_bool(recent_green_condition)}] | "
+            f"Recent green OK: [{format_bool(recent_green_condition)}] | "
             f"Drawdown OK: [{format_bool(drawdown_condition)}] | "
             f"Wick OK: [{format_bool(wick_condition)}]"
         )
@@ -612,6 +631,7 @@ def bullish_anx_based(
     confirmation = [
         price_above_ma_condition,
         trigger_condition,
+        bullish_sar_condition,
         ma50_rising,
         not_overextended,
         recent_green_condition,
@@ -620,7 +640,66 @@ def bullish_anx_based(
     ]
 
     result = False not in confirmation
-    numerical_score = 5
+    numerical_score = 5  # not used but keep for the output structure
+
+    return result, numerical_score, trigger_note
+
+def bearish_anx_based(
+        ohlc_with_indicators_daily,
+        volume_daily,
+        ohlc_with_indicators_weekly,
+        output=True,
+        stock_name="",
+):
+    # Read config for strategy settings
+    config = read_config()
+    trigger_type = config["strategy"]["anx"]["trigger_type"]
+
+    # Lucid SAR calculations
+    sar_values = lucid_sar(ohlc_with_indicators_weekly)   # the lucid sar itself works well
+
+    # Check for the uptrend Lucid SAR conditions
+    # TODO: add check of bearish cross happening on the wave change, not just inside the wave
+    bearish_sar_condition = is_bearish_sar(sar_values)
+
+    # MA calculations
+    ma3 = MA(ohlc_with_indicators_daily, length=3, ma_type='exponential')
+    ma12 = MA(ohlc_with_indicators_daily, length=12, ma_type='exponential')
+    ma50 = MA(ohlc_with_indicators_daily, length=50, ma_type='exponential')
+    ma200 = MA(ohlc_with_indicators_daily, length=200, ma_type='exponential')
+
+    # Check trigger conditions based on config
+    ma_cross_condition = False
+    price_cross_condition = False
+
+    if trigger_type in ["price_cross", "both"]:
+        raise NotImplementedError("Price cross triger not supported for the bearish direction")
+
+    ma_cross_condition = recent_bearish_cross(ma3, ma12, 3, 12)
+    trigger_condition = ma_cross_condition
+    trigger_note = "[MA3/MA12 bearish cross]"
+
+    if output:
+        # Get actual MA50 values for detailed output
+        # ma50_values = ma50['ma50'].tail(5)
+        # ma50_current = ma50_values.iloc[-1]
+        # ma50_prev = ma50_values.iloc[-3]  # Looking 2 periods back
+        # ma50_change = (ma50_current - ma50_prev) / ma50_prev * 100
+
+        print(
+            f"- {stock_name} | "
+            f"Strategy type: {trigger_type} | " 
+            f"Price trigger: [{format_bool(trigger_condition)}] {trigger_note} | "
+            f"Bearish weekly SAR: [{format_bool(bearish_sar_condition)}] | "
+        )
+
+    confirmation = [
+        trigger_condition,
+        bearish_sar_condition
+    ]
+
+    result = False not in confirmation
+    numerical_score = 5  # not used but keep for the output structure
 
     return result, numerical_score, trigger_note
 

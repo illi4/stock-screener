@@ -6,6 +6,7 @@ from peewee import DoesNotExist
 from datetime import timedelta
 import pandas as pd
 import sys
+from playhouse.shortcuts import chunked
 
 from libs.read_settings import read_config
 config = read_config()
@@ -228,3 +229,79 @@ def get_historical_prices(stock, end_date, days=60):
     df.set_index('timestamp', inplace=True)
 
     return df
+
+
+class StockPrice(BaseModel):
+    stock = CharField()
+    date = DateTimeField()
+    open = FloatField()
+    high = FloatField()
+    low = FloatField()
+    close = FloatField()
+    volume = FloatField()
+
+    class Meta:
+        indexes = (
+            (('stock', 'date'), True),  # Unique index
+        )
+
+
+def create_stock_price_table():
+    StockPrice.create_table()
+
+
+def delete_all_stock_prices():
+    StockPrice.delete().execute()
+
+
+def bulk_add_stock_prices(prices_list):
+    with db.atomic():
+        for batch in chunked(prices_list, 100):
+            StockPrice.insert_many(batch).execute()
+
+
+def get_stock_price_data(stock, start_date, end_date=None):
+    """
+    Retrieve stock price data from the database for a given date range.
+
+    Args:
+    stock (str): Stock symbol
+    start_date (datetime): Start date
+    end_date (datetime, optional): End date. If None, retrieves all data after start_date
+
+    Returns:
+    tuple: (price_df, volume_df) containing price and volume data
+    """
+    query = StockPrice.select().where(
+        (StockPrice.stock == stock) &
+        (StockPrice.date >= start_date)
+    )
+
+    if end_date:
+        query = query.where(StockPrice.date <= end_date)
+
+    query = query.order_by(StockPrice.date)
+
+    if query.count() == 0:
+        return None, None
+
+    df = pd.DataFrame([(p.date, p.open, p.high, p.low, p.close, p.volume)
+                       for p in query],
+                      columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+
+    price_df = df[['timestamp', 'open', 'high', 'low', 'close']]
+    volume_df = df[['timestamp', 'volume']]
+
+    return price_df, volume_df
+
+def initialize_price_database():
+    """
+    Initialize the stock price database by creating the table if it doesn't exist
+    and clearing any existing data.
+    """
+    try:
+        create_stock_price_table()
+        delete_all_stock_prices()  # Clear once at the beginning
+    except peewee.OperationalError:
+        print("Table exists, clearing data...")
+        delete_all_stock_prices()

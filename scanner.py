@@ -2,6 +2,9 @@
 import warnings
 warnings.filterwarnings("ignore")
 from collections import namedtuple
+from collections import defaultdict
+import peewee
+from tqdm import tqdm
 
 from libs.helpers import (
     define_scanner_args,
@@ -13,8 +16,9 @@ from libs.helpers import (
     get_test_stocks,
     get_current_and_lookback_date,
     get_data_start_date,
+    create_header
 )
-from libs.signal import bullish_mri_based, market_bearish, bullish_anx_based, earnings_gap_down
+from libs.signal import bullish_mri_based, market_bearish, bullish_anx_based, earnings_gap_down, bearish_anx_based
 from libs.stocktools import (
     get_stock_data,
     ohlc_daily_to_weekly,
@@ -28,6 +32,11 @@ from libs.db import (
     delete_all_stocks,
     get_stocks,
     get_update_date,
+    delete_all_stock_prices,
+    create_stock_price_table,
+    bulk_add_stock_prices,
+    get_stock_price_data,
+    initialize_price_database
 )
 from libs.techanalysis import td_indicators, MA, fisher_distance, coppock_curve
 import pandas as pd
@@ -111,26 +120,54 @@ def generate_indicators_daily_weekly(ohlc_daily):
     return ohlc_with_indicators_daily, ohlc_with_indicators_weekly
 
 
-def report_on_shortlist(shortlist, exchange):
-    checked_workday = get_current_date()
-    print(f"{len(shortlist)} shortlisted stocks (sorted by 5-day MA vol) as of {checked_workday}:")
+def report_on_shortlist(market_code, direction, shortlist, exchange):
+    if direction.upper() == 'BULL':
+        direction_description = 'BULL 💹'
+    elif direction.upper() == 'BEAR':
+        direction_description = 'BEAR 🔻'
 
-    # Group stocks by note type
-    groups = {}
-    for stock in shortlist:
-        note = stock.note if stock.note else ""
-        if note not in groups:
-            groups[note] = []
-        groups[note].append(stock)
+    print()
+    if len(shortlist) > 0:
+        print(create_header(f"Results for {market_code} ({direction_description})"))
+        checked_workday = get_current_date()
+        print(f"{len(shortlist)} shortlisted stocks on {checked_workday}:")
 
-    # Sort each group by volume
-    for note, stocks in groups.items():
-        stocks.sort(key=lambda x: x.volume, reverse=True)
+        # Group stocks by note type
+        groups = {}
+        for stock in shortlist:
+            note = stock.note if stock.note else ""
+            if note not in groups:
+                groups[note] = []
+            groups[note].append(stock)
 
-        # Print header for each group
-        print(f"\nShortlist {note}")
-        for stock in stocks:
-            print(f"{stock.code} ({stock.name}) | Volume {stock.volume}")
+        # Sort each group by volume
+        for note, stocks in groups.items():
+            stocks.sort(key=lambda x: x.volume, reverse=True)
+
+            # Print header for each group
+            print(f"\nShortlist {note}")
+            for stock in stocks:
+                print(f"{stock.code} ({stock.name}) | Volume {stock.volume}")
+    else:
+        print(create_header(f"No shortlisted stocks for {market_code} ({direction_description})"))
+
+def report_on_sentiment(shortlists):
+    # Report on market sentiment when both directions are in the config
+    configured_directions = config["strategy"][arguments["method"]]['directions']
+    if ('bull' in configured_directions and 'bear' in configured_directions):
+        total_bull = sum(len(shortlists[market.market_code]['bull'])
+                         for market in active_markets
+                         if 'bull' in shortlists[market.market_code])
+
+        total_bear = sum(len(shortlists[market.market_code]['bear'])
+                         for market in active_markets
+                         if 'bear' in shortlists[market.market_code])
+
+        # Print summary totals and sentiment
+        sentiment = "Bearish 🐻" if total_bear > total_bull else "Bullish 🐂"
+
+        print(create_header("Market Sentiment"))
+        print(f"{sentiment} ({total_bull} bullish | {total_bear} bearish)")
 
 
 def process_data_at_date(ohlc_daily, volume_daily):
@@ -166,23 +203,25 @@ def calculate_extra_metrics(ohlc_with_indicators_daily, ohlc_with_indicators_wee
         return metric_values
 
 
-def scan_stock(stocks, market, method):
+def scan_stock(stocks, market, method, direction, start_date):
+    # Scans the stocks using particular method and strategy
 
     stock_suffix = market.stock_suffix
     shortlisted_stocks = []
-    # placeholder for shortlisted stocks and their attributes
-    # each stock will be a named tuple with the following definition:
+    # Placeholder for shortlisted stocks and their attributes
+    # Each stock will be a named tuple with the following definition:
     Stock = namedtuple('Stock', ['code', 'name', 'volume', 'note'])
 
     # Iterate through the list of stocks
     for i, stock in enumerate(stocks):
         print(f"\n{stock.code} [{stock.name}] ({i + 1}/{len(stocks)})")
-        ohlc_daily, volume_daily = get_stock_data(
-            f"{stock.code}{stock_suffix}", reporting_date_start
-        )
+
+        # Obtain OHLC data for the stocks
+        # Get data from local database instead of API
+        ohlc_daily, volume_daily = get_stock_price_data(stock.code, start_date)
         if ohlc_daily is None:
-            print("No data on the asset")
-            continue  # skip this asset if there is no data
+            print("No data available for the asset")
+            continue
 
         ohlc_daily, volume_daily = process_data_at_date(ohlc_daily, volume_daily)
 
@@ -198,6 +237,9 @@ def scan_stock(stocks, market, method):
 
         # Check for confirmation depending on the method
         if method == 'mri':
+            # Raise NotImplemented because directional scan is not supported
+            raise NotImplementedError("Directional scan not supported for MRI method")
+            """
             confirmation, _ = bullish_mri_based(
                 ohlc_with_indicators_daily,
                 volume_daily,
@@ -206,14 +248,24 @@ def scan_stock(stocks, market, method):
                 output=True,
                 stock_name=stock.name,
             )
+            """
         elif method == 'anx':
-            confirmation, numerical_score, trigger_note = bullish_anx_based(
-                ohlc_with_indicators_daily,
-                volume_daily,
-                ohlc_with_indicators_weekly,
-                output=True,
-                stock_name=stock.name,
-            )
+            if direction == 'bull':
+                confirmation, numerical_score, trigger_note = bullish_anx_based(
+                    ohlc_with_indicators_daily,
+                    volume_daily,
+                    ohlc_with_indicators_weekly,
+                    output=True,
+                    stock_name=stock.name,
+                )
+            elif direction == 'bear':
+                confirmation, numerical_score, trigger_note = bearish_anx_based(
+                    ohlc_with_indicators_daily,
+                    volume_daily,
+                    ohlc_with_indicators_weekly,
+                    output=True,
+                    stock_name=stock.name,
+                )
         elif method == 'earnings':
             confirmation, _ = earnings_gap_down(
                 ohlc_with_indicators_daily,
@@ -223,7 +275,6 @@ def scan_stock(stocks, market, method):
                 stock_name=stock.name,
             )
             trigger_note = ''
-
 
 
         if confirmation:
@@ -306,8 +357,13 @@ def get_stocks_to_scan(market, method):
         )
 
 
-def scan_exchange_stocks(market, method):
-    # Check the market conditions
+def scan_exchange_stocks(market, method, direction):
+    """
+    Function to scan the market for relevant stocks
+    """
+
+    """
+    # Check the market conditions: not using it
     market_ohlc_daily, market_volume_daily = get_stock_data(market.related_market_ticker, reporting_date_start)
     market_ohlc_daily, market_volume_daily = process_market_data_at_date(market_ohlc_daily, market_volume_daily)
     is_market_bearish, _ = market_bearish(market_ohlc_daily, market_volume_daily, output=True)
@@ -315,6 +371,7 @@ def scan_exchange_stocks(market, method):
     if is_market_bearish:
         print("Overall market sentiment is bearish, not scanning individual stocks")
         exit(0)
+    """
 
     # Get the stocks for scanning
     if arguments["stocks"] is None:
@@ -336,7 +393,11 @@ def scan_exchange_stocks(market, method):
         f'and with volume of at least {format_number(config["filters"]["minimum_volume_level"])}\n'
     )
 
-    shortlist = scan_stock(stocks, market, method)
+    # Fetch and store stock data for all stocks
+    start_date = get_data_start_date(arguments["date"])
+    fetch_and_store_stock_data(stocks, start_date)
+
+    shortlist = scan_stock(stocks, market, method, direction, start_date)
 
     # Sort the list by volume in decreasing order
     sorted_stocks = sorted(shortlist, key=lambda stock: stock.volume, reverse=True)
@@ -345,24 +406,138 @@ def scan_exchange_stocks(market, method):
 
 
 def scan_stocks(active_markets):
-
     # Create shortlists placeholder for each market
-    shortlists = dict()
+    shortlists = defaultdict(lambda: defaultdict(list))
+
+    if 'directions' not in config["strategy"][arguments["method"]].keys():
+        print('Error: Directions for the strategy must be specified in the config')
+        exit(0)
+
+    # Initialize price database unless using existing data
+    if not arguments["use_existing_price_data"]:
+        initialize_price_database()
+
+    # First pass: get all stocks and fetch data
+    start_date = get_data_start_date(arguments["date"])
+    all_market_stocks = {}
+    processed_stocks = set()  # Keep track of stocks we've already processed
 
     for market in active_markets:
-        shortlists[market.market_code] = scan_exchange_stocks(market, arguments["method"])  # need to pass the whole object
+        print(f"\nProcessing {market.market_code}...")
+        if arguments["stocks"] is None:
+            stocks = get_stocks_to_scan(market, arguments["method"])
+        else:
+            stocks = get_stocks(codes=arguments["stocks"])
+
+        if arguments["num"] is not None:
+            print(f"Limiting to the first {arguments['num']} stocks")
+            stocks = stocks[: arguments["num"]]
+
+        # Filter out already processed stocks
+        stocks_to_process = []
+        for stock in stocks:
+            if stock.code not in processed_stocks:
+                stocks_to_process.append(stock)
+                processed_stocks.add(stock.code)
+
+        all_market_stocks[market.market_code] = stocks
+
+        if stocks_to_process:
+            total_number = len(stocks_to_process)
+            print(
+                f'Processing {total_number} stocks priced {config["pricing"]["min"]} to {config["pricing"]["max"]} '
+                f'and with volume of at least {format_number(config["filters"]["minimum_volume_level"])}\n'
+            )
+
+            # Fetch and store data for this market's new stocks
+            fetch_and_store_stock_data(stocks_to_process, start_date)
+        else:
+            print("All stocks already processed, skipping data fetch")
+
+    # Second pass: run scans for each market using stored data
+    for market in active_markets:
+        stocks = all_market_stocks[market.market_code]
+        for direction in config["strategy"][arguments["method"]]['directions']:
+            print(f"\nScanning {market.market_code} for {direction.upper()} signals...")
+            shortlists[market.market_code][direction] = scan_stock(stocks, market, arguments["method"], direction,
+                                                                   start_date)
+
+    # Report results
+    print("\nFinished scanning")
+    print()
+    report_on_sentiment(shortlists)
 
     for market in active_markets:
-        print()
-        print(f"Results for {market.market_code}")
-        if len(shortlists[market.market_code]) > 0:
+        for direction in config["strategy"][arguments["method"]]['directions']:
             report_on_shortlist(
-                shortlists[market.market_code],
+                market.market_code,
+                direction,
+                shortlists[market.market_code][direction],
                 market.market_code,
             )
-        else:
-            print(f"No shortlisted stocks for {market.market_code}")
 
+
+def fetch_and_store_stock_data(stocks, start_date, end_date=None, clear_existing=False):
+    """
+    Fetch stock data for all stocks and store in database.
+    Now with option to clear existing data or append.
+
+    Args:
+    stocks: List of stock objects
+    start_date: Start date for data fetch
+    end_date: End date for data fetch (optional)
+    clear_existing: Whether to clear existing price data before storing
+    """
+
+    # If the argument is set to use the existing data, no need to fetch anything
+    if arguments["use_existing_price_data"]:
+        print("Using existing price data from database...")
+        return
+
+    print("Fetching and storing stock price data...")
+
+    try:
+        # First try to create the table if it doesn't exist
+        create_stock_price_table()
+    except peewee.OperationalError:
+        print("Table already exists")
+        if clear_existing:
+            print("Clearing existing data...")
+            delete_all_stock_prices()
+
+    prices_to_add = []
+    total_stocks = len(stocks)
+
+    # Use tqdm for progress bar
+    with tqdm(stocks, total=total_stocks, desc='Fetching data') as pbar:
+        for stock in pbar:
+            market = Market(stock.exchange)
+            stock_code = f"{stock.code}{market.stock_suffix}"
+
+            # Update progress bar description
+            pbar.set_description(f"Fetching {stock_code}")
+
+            try:
+                price_df, volume_df = get_stock_data(stock_code, start_date)
+                if price_df is not None:
+                    # Combine price and volume data
+                    for idx, row in price_df.iterrows():
+                        prices_to_add.append({
+                            'stock': stock.code,
+                            'date': row['timestamp'].to_pydatetime(),
+                            'open': float(row['open']),
+                            'high': float(row['high']),
+                            'low': float(row['low']),
+                            'close': float(row['close']),
+                            'volume': float(volume_df.iloc[idx]['volume'])
+                        })
+            except Exception as e:
+                tqdm.write(f"Error fetching data for {stock_code}: {str(e)}")
+                continue
+
+    if prices_to_add:
+        print(f"\nStoring price data for {total_stocks} stocks...")
+        bulk_add_stock_prices(prices_to_add)
 
 if __name__ == "__main__":
 
