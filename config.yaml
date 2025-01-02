@@ -30,6 +30,12 @@ locality:
 strategy:
   anx:
     trigger_type: "ma_cross"  # Options: "ma_cross", "price_cross", "both"
+    directions:  # enumerate directions e.g. bull/bear
+      - bull
+      #- bear
+  earnings:
+    directions:
+      - bull
 
 logging:
   gsheet_name: "Trading journal R&D 2024"

@@ -2,6 +2,7 @@
 import warnings
 warnings.filterwarnings("ignore")
 from collections import namedtuple
+from collections import defaultdict
 
 from libs.helpers import (
     define_scanner_args,
@@ -166,17 +167,20 @@ def calculate_extra_metrics(ohlc_with_indicators_daily, ohlc_with_indicators_wee
         return metric_values
 
 
-def scan_stock(stocks, market, method):
+def scan_stock(stocks, market, method, direction):
+    # Scans the stocks using particular method and strategy
 
     stock_suffix = market.stock_suffix
     shortlisted_stocks = []
-    # placeholder for shortlisted stocks and their attributes
-    # each stock will be a named tuple with the following definition:
+    # Placeholder for shortlisted stocks and their attributes
+    # Each stock will be a named tuple with the following definition:
     Stock = namedtuple('Stock', ['code', 'name', 'volume', 'note'])
 
     # Iterate through the list of stocks
     for i, stock in enumerate(stocks):
         print(f"\n{stock.code} [{stock.name}] ({i + 1}/{len(stocks)})")
+
+        # Obtain OHLC data for the stocks
         ohlc_daily, volume_daily = get_stock_data(
             f"{stock.code}{stock_suffix}", reporting_date_start
         )
@@ -198,6 +202,9 @@ def scan_stock(stocks, market, method):
 
         # Check for confirmation depending on the method
         if method == 'mri':
+            # Raise NotImplemented because directional scan is not supported
+            raise NotImplementedError("Directional scan not supported for MRI method")
+            """
             confirmation, _ = bullish_mri_based(
                 ohlc_with_indicators_daily,
                 volume_daily,
@@ -206,14 +213,17 @@ def scan_stock(stocks, market, method):
                 output=True,
                 stock_name=stock.name,
             )
+            """
         elif method == 'anx':
-            confirmation, numerical_score, trigger_note = bullish_anx_based(
-                ohlc_with_indicators_daily,
-                volume_daily,
-                ohlc_with_indicators_weekly,
-                output=True,
-                stock_name=stock.name,
-            )
+            if direction == 'bull':
+                confirmation, numerical_score, trigger_note = bullish_anx_based(
+                    ohlc_with_indicators_daily,
+                    volume_daily,
+                    ohlc_with_indicators_weekly,
+                    output=True,
+                    stock_name=stock.name,
+                )
+            # TODO: Implement bearish scan
         elif method == 'earnings':
             confirmation, _ = earnings_gap_down(
                 ohlc_with_indicators_daily,
@@ -223,7 +233,6 @@ def scan_stock(stocks, market, method):
                 stock_name=stock.name,
             )
             trigger_note = ''
-
 
 
         if confirmation:
@@ -306,8 +315,13 @@ def get_stocks_to_scan(market, method):
         )
 
 
-def scan_exchange_stocks(market, method):
-    # Check the market conditions
+def scan_exchange_stocks(market, method, direction):
+    """
+    Function to scan the market for relevant stocks
+    """
+
+    """
+    # Check the market conditions: not using it
     market_ohlc_daily, market_volume_daily = get_stock_data(market.related_market_ticker, reporting_date_start)
     market_ohlc_daily, market_volume_daily = process_market_data_at_date(market_ohlc_daily, market_volume_daily)
     is_market_bearish, _ = market_bearish(market_ohlc_daily, market_volume_daily, output=True)
@@ -315,6 +329,7 @@ def scan_exchange_stocks(market, method):
     if is_market_bearish:
         print("Overall market sentiment is bearish, not scanning individual stocks")
         exit(0)
+    """
 
     # Get the stocks for scanning
     if arguments["stocks"] is None:
@@ -336,7 +351,7 @@ def scan_exchange_stocks(market, method):
         f'and with volume of at least {format_number(config["filters"]["minimum_volume_level"])}\n'
     )
 
-    shortlist = scan_stock(stocks, market, method)
+    shortlist = scan_stock(stocks, market, method, direction)
 
     # Sort the list by volume in decreasing order
     sorted_stocks = sorted(shortlist, key=lambda stock: stock.volume, reverse=True)
@@ -347,21 +362,31 @@ def scan_exchange_stocks(market, method):
 def scan_stocks(active_markets):
 
     # Create shortlists placeholder for each market
-    shortlists = dict()
+    #shortlists = dict()
+    shortlists = defaultdict(lambda: defaultdict(list))
+
+    if 'directions' not in config["strategy"][arguments["method"]].keys():
+        print('Error: Directions for the strategy must be specified in the config')
+        exit(0)
+
+    ### HERE ###
+    for market in active_markets:
+        for direction in config["strategy"][arguments["method"]]['directions']:
+            shortlists[market.market_code][direction] = scan_exchange_stocks(market, arguments["method"], direction)
+
+    ### HERE ###
 
     for market in active_markets:
-        shortlists[market.market_code] = scan_exchange_stocks(market, arguments["method"])  # need to pass the whole object
-
-    for market in active_markets:
-        print()
-        print(f"◼︎◼︎◼︎︎ Results for {market.market_code} ◼︎◼︎◼︎")
-        if len(shortlists[market.market_code]) > 0:
-            report_on_shortlist(
-                shortlists[market.market_code],
-                market.market_code,
-            )
-        else:
-            print(f"No shortlisted stocks for {market.market_code}")
+        for direction in config["strategy"][arguments["method"]]['directions']:
+            print()
+            print(f"◼︎◼︎◼︎︎ Results for {market.market_code} ({direction.upper()}) ◼︎◼︎◼︎")
+            if len(shortlists[market.market_code][direction]) > 0:
+                report_on_shortlist(
+                    shortlists[market.market_code][direction],
+                    market.market_code,
+                )
+            else:
+                print(f"No shortlisted stocks for {market.market_code}")
 
 
 if __name__ == "__main__":
