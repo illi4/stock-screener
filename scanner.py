@@ -16,6 +16,7 @@ from libs.helpers import (
     get_test_stocks,
     get_current_and_lookback_date,
     get_data_start_date,
+    create_header
 )
 from libs.signal import bullish_mri_based, market_bearish, bullish_anx_based, earnings_gap_down, bearish_anx_based
 from libs.stocktools import (
@@ -126,27 +127,29 @@ def report_on_shortlist(market_code, direction, shortlist, exchange):
         direction_description = 'BEAR 🔻'
 
     print()
-    print(f"◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎︎︎︎︎ Results for {market_code} ({direction_description}) ◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎︎︎︎")
+    if len(shortlist) > 0:
+        print(create_header(f"Results for {market_code} ({direction_description})"))
+        checked_workday = get_current_date()
+        print(f"{len(shortlist)} shortlisted stocks on {checked_workday}:")
 
-    checked_workday = get_current_date()
-    print(f"{len(shortlist)} shortlisted stocks on {checked_workday}:")
+        # Group stocks by note type
+        groups = {}
+        for stock in shortlist:
+            note = stock.note if stock.note else ""
+            if note not in groups:
+                groups[note] = []
+            groups[note].append(stock)
 
-    # Group stocks by note type
-    groups = {}
-    for stock in shortlist:
-        note = stock.note if stock.note else ""
-        if note not in groups:
-            groups[note] = []
-        groups[note].append(stock)
+        # Sort each group by volume
+        for note, stocks in groups.items():
+            stocks.sort(key=lambda x: x.volume, reverse=True)
 
-    # Sort each group by volume
-    for note, stocks in groups.items():
-        stocks.sort(key=lambda x: x.volume, reverse=True)
-
-        # Print header for each group
-        print(f"\nShortlist {note}")
-        for stock in stocks:
-            print(f"{stock.code} ({stock.name}) | Volume {stock.volume}")
+            # Print header for each group
+            print(f"\nShortlist {note}")
+            for stock in stocks:
+                print(f"{stock.code} ({stock.name}) | Volume {stock.volume}")
+    else:
+        print(create_header(f"No shortlisted stocks for {market_code} ({direction_description})"))
 
 def report_on_sentiment(shortlists):
     # Report on market sentiment when both directions are in the config
@@ -163,7 +166,7 @@ def report_on_sentiment(shortlists):
         # Print summary totals and sentiment
         sentiment = "Bearish 🐻" if total_bear > total_bull else "Bullish 🐂"
 
-        print("◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎︎︎ Market sentiment ︎◼︎◼︎◼︎◼︎◼︎◼︎︎◼︎◼︎◼︎◼︎◼︎◼︎︎")
+        print(create_header("Market Sentiment"))
         print(f"{sentiment} ({total_bull} bullish | {total_bear} bearish)")
 
 
@@ -466,18 +469,12 @@ def scan_stocks(active_markets):
 
     for market in active_markets:
         for direction in config["strategy"][arguments["method"]]['directions']:
-            if len(shortlists[market.market_code][direction]) > 0:
-                report_on_shortlist(
-                    market.market_code,
-                    direction,
-                    shortlists[market.market_code][direction],
-                    market.market_code,
-                )
-            else:
-                print()
-                print(f"◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎︎︎︎︎ No shortlisted stocks for "
-                      f"{market.market_code} ({direction.upper()}) "
-                      f"◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎◼︎︎︎")
+            report_on_shortlist(
+                market.market_code,
+                direction,
+                shortlists[market.market_code][direction],
+                market.market_code,
+            )
 
 
 def fetch_and_store_stock_data(stocks, start_date, end_date=None, clear_existing=False):
