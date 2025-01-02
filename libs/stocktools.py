@@ -153,7 +153,8 @@ def get_stock_data(code, reporting_date_start, max_retries=5, retry_delay=5):
     if session is None:
         session = requests.Session()
 
-    url = f"https://eodhistoricaldata.com/api/eod/{code}?api_token={eod_key}&order=a&fmt=json&from={reporting_date_start}"
+    #Note: cannot use the eod api endpoint because it is not split adjusted
+    url = f"https://eodhd.com/api/technical/{code}?function=splitadjusted&api_token={eod_key}&order=a&fmt=json&from={reporting_date_start}"
 
     params = {"api_token": eod_key}
 

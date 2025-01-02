@@ -465,6 +465,11 @@ def is_ma_rising(ma_values, ma_length, lookback_period=5, spread=2):
     return rising_percentage >= 0.8
 
 
+def is_bullish_sar(sar_values):
+    # Check whether SAR indicates uptrend
+    return (sar_values["uptrend"].iloc[-1])
+
+
 def check_recent_green_candle(ohlc_daily, lookback=3):
     """
     Check if there's at least one green candle in the most recent N candles.
@@ -543,18 +548,17 @@ def bullish_anx_based(
     config = read_config()
     trigger_type = config["strategy"]["anx"]["trigger_type"]
 
-    print(ohlc_with_indicators_weekly.head(10))   # stock splits is an issue
-    print(ohlc_with_indicators_weekly.tail(10))   # need to update and test
+    # Lucid SAR calculations
     sar_values = lucid_sar(ohlc_with_indicators_weekly)   # the lucid sar itself works well
-    print(sar_values)
-    exit(0)
+
+    # Check for the uptrend Lucid SAR conditions
+    bullish_sar_condition = is_bullish_sar(sar_values)
 
     # Existing MA calculations
     ma3 = MA(ohlc_with_indicators_daily, length=3, ma_type='exponential')
     ma12 = MA(ohlc_with_indicators_daily, length=12, ma_type='exponential')
     ma50 = MA(ohlc_with_indicators_daily, 50)
     ma200 = MA(ohlc_with_indicators_daily, 200)
-
 
     # Check trigger conditions based on config
     ma_cross_condition = False
@@ -586,10 +590,13 @@ def bullish_anx_based(
     # Add MA50 rising condition with spread comparison
     ma50_rising = is_ma_rising(ma50, 50, lookback_period=5, spread=2)
 
-    # Add new conditions
-    recent_green_condition = check_recent_green_candle(ohlc_with_indicators_daily)
-    drawdown_condition = check_max_drawdown(ohlc_with_indicators_daily)
-    wick_condition = check_wick_conditions(ohlc_with_indicators_daily)
+    # Add new conditions when looking at price cross rather than MA cross
+    if trigger_type in ["price_cross", "both"]:
+        recent_green_condition = check_recent_green_candle(ohlc_with_indicators_daily)
+        drawdown_condition = check_max_drawdown(ohlc_with_indicators_daily)
+        wick_condition = check_wick_conditions(ohlc_with_indicators_daily)
+    else:
+        recent_green_condition = drawdown_condition = wick_condition = True
 
     if output:
         # Get actual MA50 values for detailed output
@@ -602,10 +609,11 @@ def bullish_anx_based(
             f"- {stock_name} | "
             f"Strategy type: {trigger_type} | "
             f"Price above MA200: [{format_bool(price_above_ma_condition)}] | "
-            f"Trigger condition: [{format_bool(trigger_condition)}] ({trigger_note}) | "
+            f"Price trigger: [{format_bool(trigger_condition)}] {trigger_note} | "
+            f"Bullish weekly SAR: [{format_bool(bullish_sar_condition)}] | "
             f"MA50 rising: [{format_bool(ma50_rising)}] ({ma50_change:+.2f}%) | "
             f"not overextended: [{format_bool(not_overextended)}] | "
-            f"Recent green: [{format_bool(recent_green_condition)}] | "
+            f"Recent green OK: [{format_bool(recent_green_condition)}] | "
             f"Drawdown OK: [{format_bool(drawdown_condition)}] | "
             f"Wick OK: [{format_bool(wick_condition)}]"
         )
@@ -613,6 +621,7 @@ def bullish_anx_based(
     confirmation = [
         price_above_ma_condition,
         trigger_condition,
+        bullish_sar_condition,
         ma50_rising,
         not_overextended,
         recent_green_condition,
@@ -621,7 +630,7 @@ def bullish_anx_based(
     ]
 
     result = False not in confirmation
-    numerical_score = 5
+    numerical_score = 5  # not used but keep for the output structure
 
     return result, numerical_score, trigger_note
 

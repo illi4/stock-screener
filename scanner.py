@@ -354,7 +354,7 @@ def scan_stocks(active_markets):
 
     for market in active_markets:
         print()
-        print(f"Results for {market.market_code}")
+        print(f"◼︎◼︎◼︎︎ Results for {market.market_code} ◼︎◼︎◼︎")
         if len(shortlists[market.market_code]) > 0:
             report_on_shortlist(
                 shortlists[market.market_code],
