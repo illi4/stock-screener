@@ -594,7 +594,7 @@ def bullish_anx_based(
         trigger_note = "[Price crossed above MA12]"
 
     # Other existing conditions
-    price_above_ma_condition = price_above_ma(ohlc_with_indicators_daily, ma200, 200)
+    # price_above_ma_condition = price_above_ma(ohlc_with_indicators_daily, ma200, 200) # Removing this rule and tracking instead
     not_overextended = weekly_not_overextended(ohlc_with_indicators_weekly)
 
     # Add MA50 rising condition with spread comparison
@@ -618,7 +618,7 @@ def bullish_anx_based(
         print(
             f"- {stock_name} | "
             f"Strategy type: {trigger_type} | "
-            f"Price above MA200: [{format_bool(price_above_ma_condition)}] | "
+            #f"Price above MA200: [{format_bool(price_above_ma_condition)}] | "
             f"Price trigger: [{format_bool(trigger_condition)}] {trigger_note} | "
             f"Bullish weekly SAR: [{format_bool(bullish_sar_condition)}] | "
             f"MA50 rising: [{format_bool(ma50_rising)}] ({ma50_change:+.2f}%) | "
@@ -629,7 +629,7 @@ def bullish_anx_based(
         )
 
     confirmation = [
-        price_above_ma_condition,
+        #price_above_ma_condition,
         trigger_condition,
         bullish_sar_condition,
         ma50_rising,
@@ -659,7 +659,7 @@ def bearish_anx_based(
     sar_values = lucid_sar(ohlc_with_indicators_weekly)   # the lucid sar itself works well
 
     # Check for the uptrend Lucid SAR conditions
-    # TODO: add check of bearish cross happening on the wave change, not just inside the wave
+    # TODO (?): add check of bearish cross happening on the wave change, not just inside the wave (maybe)
     bearish_sar_condition = is_bearish_sar(sar_values)
 
     # MA calculations
