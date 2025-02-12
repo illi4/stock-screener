@@ -38,9 +38,10 @@ strategy:
       - bull
 
 logging:
-  gsheet_name: "Trading journal R&D 2024"
-  gsheet_tab_name: "US_anx"
-  gsheet_columns: # columns in the spreadsheet
+  gsheet_name: "Trading journal FY24/25"
+  watchlist_green_star_tab_name: "Watchlist_green_star"  # used for monitor
+  gsheet_tab_name: "US_anx"  # not used anymore, update
+  gsheet_columns: # columns in the spreadsheet; outdated
     - stock
     - market
     - trade_type
@@ -108,6 +109,7 @@ logging:
 #    🧪 SIMULATOR PARAMETERS 🧪   #
 #                                 #
 #=================================#
+# If interested in using, have to rework for the current sheet #
 
 simulator:
   capital: 10000
