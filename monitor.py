@@ -7,7 +7,7 @@ warnings.filterwarnings("ignore")
 
 import libs.gsheetobj as gsheetsobj
 from libs.stocktools import get_stock_data, Market
-from libs.techanalysis import MA, SAR
+from libs.techanalysis import MA, SAR, td_indicators
 import arrow
 from datetime import timedelta
 from libs.helpers import get_data_start_date, define_args_method_only
@@ -195,6 +195,119 @@ def check_positions(method_name):
     return alerted_positions
 
 
+def check_green_star():
+    """
+    Check for green star pattern with specific TD setup rules:
+    - Must be in a sequence of green TD setup (1-9)
+    - Current close must be higher than:
+        a) close of candle with TD setup = 1
+        b) close of previous candle
+    - All three candles must be part of the same green sequence
+    - Pattern can only trigger once per green sequence (1-9)
+    """
+    alerted_positions = set()
+
+    sheet_name = config["logging"]["gsheet_name"]
+    tab_name = config["logging"]["watchlist_green_star_tab_name"]
+
+    try:
+        ws = gsheetsobj.sheet_to_df(sheet_name, tab_name)
+    except Exception as e:
+        print(f"Error reading sheet: {e}")
+        return alerted_positions
+
+    print(f"Processing {len(ws)} stocks from {tab_name}...")
+
+    for index, row in tqdm(ws.iterrows(), total=len(ws), desc='Processing', unit='stock(s)'):
+        stock_code = row["Stock"]
+        market = Market(row["Market"])
+
+        try:
+            ohlc_daily, volume_daily = get_stock_data(
+                f"{stock_code}{market.stock_suffix}", reporting_date_start
+            )
+
+            if ohlc_daily is None or len(ohlc_daily) < 10:  # Need enough data for TD setup
+                print(f"Insufficient data for {stock_code}")
+                continue
+
+            # Calculate TD indicators
+            td_values = td_indicators(ohlc_daily)
+
+            # Get latest values
+            current_td_direction = td_values['td_direction'].iloc[-1]
+            current_td_setup = td_values['td_setup'].iloc[-1]
+            current_close = ohlc_daily['close'].iloc[-1]
+
+            # Only proceed if we're in a green TD sequence
+            if current_td_direction != 'green' or current_td_setup == 0:
+                continue
+
+            # Find the TD1 candle of the current sequence by looking backwards
+            td1_index = None
+            sequence_start_found = False
+            pattern_already_triggered = False
+
+            for i in range(len(td_values) - 2, -1, -1):
+                # Break if we hit a non-green candle (end of current sequence)
+                if td_values['td_direction'].iloc[i] != 'green':
+                    break
+
+                # If we find TD1, mark its position
+                if td_values['td_setup'].iloc[i] == 1:
+                    td1_index = i
+                    sequence_start_found = True
+                    break
+
+            if not sequence_start_found:
+                continue
+
+            # Now check if pattern already triggered in this sequence
+            # Look from TD1 to current position
+            td1_close = ohlc_daily['close'].iloc[td1_index]
+
+            for i in range(td1_index + 2, len(td_values) - 1):  # Start 2 candles after TD1
+                if td_values['td_direction'].iloc[i] != 'green':
+                    break
+
+                check_close = ohlc_daily['close'].iloc[i]
+                check_prev_close = ohlc_daily['close'].iloc[i - 1]
+
+                # If we find a previous trigger in this sequence, mark it
+                if check_close > td1_close and check_close > check_prev_close:
+                    pattern_already_triggered = True
+                    break
+
+            # Skip if pattern already triggered in this sequence
+            if pattern_already_triggered:
+                continue
+
+            # Check current candle for pattern
+            previous_close = ohlc_daily['close'].iloc[-2]
+
+            if (current_close > td1_close and
+                    current_close > previous_close and
+                    td_values['td_direction'].iloc[-2] == 'green'):  # Verify previous candle was also green
+
+                alert_msg = (f"{stock_code} ({market.market_code}) | "
+                             f"Current close: ${current_close:.2f} | "
+                             f"Previous close: ${previous_close:.2f} | "
+                             f"TD1 close: ${td1_close:.2f} | "
+                             f"Current TD setup: {current_td_setup}")
+
+                alerted_positions.add(alert_msg)
+                print(f"-> Pattern found: {stock_code} ({market.market_code})")
+                print(f"   Current TD setup: {current_td_setup}")
+                print(f"   Current close: ${current_close:.2f}")
+                print(f"   Previous close: ${previous_close:.2f}")
+                print(f"   TD1 close: ${td1_close:.2f}")
+
+        except Exception as e:
+            print(f"Error processing {stock_code}: {e}")
+            continue
+
+    return alerted_positions
+
 if __name__ == "__main__":
 
     arguments = define_args_method_only()
@@ -209,12 +322,16 @@ if __name__ == "__main__":
         check_market(market)
 
     print("Checking positions...")
-    alerted_positions = check_positions(method_name=arguments["method"])
+    if arguments["method"] == "green_star":
+        alerted_positions = check_green_star()
+    else:
+        alerted_positions = check_positions(method_name=arguments["method"])
+
 
     print()
     if len(alerted_positions) == 0:
         print("No alerts")
     else:
-        print(f"Exit rules triggered for {len(alerted_positions)} stock(s):")
+        print(f"Rules triggered for {len(alerted_positions)} stock(s):")
         for position in sorted(alerted_positions):
             print(f"- {position}")

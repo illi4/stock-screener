@@ -75,8 +75,8 @@ def define_args_method_only():
         "-method",
         type=str,
         required=True,
-        choices=["mri", "anx"],
-        help="Method (mri or anx)"
+        choices=["mri", "anx", "green_star"],
+        help="Method (mri, anx, or green_star)"
     )
 
     args = parser.parse_args()
