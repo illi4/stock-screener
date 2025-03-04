@@ -316,10 +316,10 @@ if __name__ == "__main__":
     active_markets = []
     for market_code in config["markets"]:
         active_markets.append(Market(market_code))
-
-    print("Checking the markets...")
-    for market in active_markets:
-        check_market(market)
+        
+    # print("Checking the markets...")
+    # for market in active_markets:
+    #     check_market(market)
 
     print("Checking positions...")
     if arguments["method"] == "green_star":
