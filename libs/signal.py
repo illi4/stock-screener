@@ -309,7 +309,7 @@ def earnings_gap_down(
     Returns:
     tuple: (bool, int) - Signal confirmation and numerical score
     """
-    from libs.read_settings import read_config
+    # Read config
     config = read_config()
 
     # Get gap threshold from config
