@@ -375,54 +375,6 @@ def get_stocks_to_scan(market, method):
         )
 
 
-def scan_exchange_stocks(market, method, direction):
-    """
-    Function to scan the market for relevant stocks
-    """
-
-    """
-    # Check the market conditions: not using it
-    market_ohlc_daily, market_volume_daily = get_stock_data(market.related_market_ticker, reporting_date_start)
-    market_ohlc_daily, market_volume_daily = process_market_data_at_date(market_ohlc_daily, market_volume_daily)
-    is_market_bearish, _ = market_bearish(market_ohlc_daily, market_volume_daily, output=True)
-
-    if is_market_bearish:
-        print("Overall market sentiment is bearish, not scanning individual stocks")
-        exit(0)
-    """
-
-    # Get the stocks for scanning
-    if arguments["stocks"] is None:
-        stocks = get_stocks_to_scan(market, method)
-    else:
-        # Pass the parameter
-        stocks = get_stocks(
-            codes=arguments["stocks"]
-        )
-
-    # Limit per arguments as required
-    if arguments["num"] is not None:
-        print(f"Limiting to the first {arguments['num']} stocks")
-        stocks = stocks[: arguments["num"]]
-
-    total_number = len(stocks)
-    print(
-        f'Scanning {total_number} stocks priced {config["pricing"]["min"]} from to {config["pricing"]["max"]} '
-        f'and with volume of at least {format_number(config["filters"]["minimum_volume_level"])}\n'
-    )
-
-    # Fetch and store stock data for all stocks
-    start_date = get_data_start_date(arguments["date"])
-    fetch_and_store_stock_data(stocks, start_date)
-
-    shortlist = scan_stock(stocks, market, method, direction, start_date)
-
-    # Sort the list by volume in decreasing order
-    sorted_stocks = sorted(shortlist, key=lambda stock: stock.volume, reverse=True)
-
-    return sorted_stocks
-
-
 def check_green_star_for_stock(stock_code, market, ohlc_daily):
     """
     Check if a stock meets the green star pattern criteria

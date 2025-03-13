@@ -739,7 +739,6 @@ def bearish_anx_based(
     sar_values = lucid_sar(ohlc_with_indicators_weekly)   # the lucid sar itself works well
 
     # Check for the uptrend Lucid SAR conditions
-    # TODO (?): add check of bearish cross happening on the wave change, not just inside the wave (maybe)
     bearish_sar_condition = is_bearish_sar(sar_values)
 
     # MA calculations
