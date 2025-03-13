@@ -36,6 +36,9 @@ strategy:
   earnings:
     directions:
       - bull
+    lookback_period_days: 60  # Days to look back for earnings conditions
+    green_star_check: true    # Always check for green star pattern after finding earnings conditions
+    require_green_star: true  # Only include in shortlist if green star pattern is present
 
 logging:
   gsheet_name: "Trading journal FY24/25"

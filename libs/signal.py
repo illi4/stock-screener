@@ -5,6 +5,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 
+
 from libs.read_settings import read_config
 config = read_config()
 
@@ -331,6 +332,85 @@ def earnings_gap_down(
 
     return result, numerical_score
 
+
+# Add to libs/signal.py
+def earnings_gap_down_in_range(
+        ohlc_daily,
+        volume_daily,
+        ohlc_weekly,
+        lookback_days=14,
+        output=True,
+        stock_name="",
+):
+    """
+    Check for earnings gap down signal within a specified lookback period
+    Using a simple sliding window over recent data
+    """
+    # Simply use the most recent data points
+    # No date filtering, just take the last N rows
+    if len(ohlc_daily) < 2:
+        if output:
+            print(f"Insufficient data for {stock_name}")
+        return False, None
+
+    # Get the number of rows to check (minimum of lookback_days or available data)
+    row_count = min(lookback_days, len(ohlc_daily))
+    recent_data = ohlc_daily.tail(row_count)
+
+    if output:
+        print(f"Checking {stock_name} for earnings gap in the last {row_count} data points")
+
+    # Check consecutive days for gap down
+    for idx in range(len(recent_data) - 1):
+        try:
+            # Get two consecutive days
+            two_day_slice = recent_data.iloc[idx:idx + 2].reset_index(drop=True)
+
+            # Get volume data for those days using the same indices
+            vol_slice = volume_daily.tail(row_count).iloc[idx:idx + 2].reset_index(drop=True)
+
+            # Check for gap down
+            gap_confirmation, gap_score = earnings_gap_down(
+                two_day_slice,
+                vol_slice,
+                ohlc_weekly,
+                output=False
+            )
+
+            if gap_confirmation:
+                # Format the date properly
+                gap_timestamp = two_day_slice['timestamp'].iloc[1]
+                # Convert to string in a nice format if it's a timestamp
+                if hasattr(gap_timestamp, 'strftime'):
+                    gap_date = gap_timestamp.strftime('%Y-%m-%d')
+                else:
+                    # If it's already a string or some other format, use as is
+                    gap_date = str(gap_timestamp)
+
+                gap_down_info = {
+                    'date': gap_date,
+                    'previous_low': two_day_slice['low'].iloc[0],
+                    'gap_low': two_day_slice['low'].iloc[1],
+                    'gap_percent': (two_day_slice['low'].iloc[0] - two_day_slice['low'].iloc[1]) /
+                                   two_day_slice['low'].iloc[0]
+                }
+
+                if output:
+                    print(f"✓ Gap down detected for {stock_name}")
+                    print(f"  Previous day low: ${gap_down_info['previous_low']:.2f}")
+                    print(f"  Gap day low: ${gap_down_info['gap_low']:.2f}")
+                    print(f"  Gap percent: {gap_down_info['gap_percent']:.2%}")
+
+                return True, gap_down_info
+
+        except Exception as e:
+            print(f"Error checking gap for days {idx} to {idx + 1}: {e}")
+            continue
+
+    if output:
+        print(f"✗ No gap down detected for {stock_name} in recent data")
+
+    return False, None
 
 def bullish_mri_based(
     ohlc_with_indicators_daily,
