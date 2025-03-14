@@ -30,17 +30,29 @@ def get_data_start_date(input_date=None):
 
     return data_start_date
 
+
 def get_current_and_lookback_date(input_date=None):
+    # Load config to get lookback period
+    from libs.read_settings import read_config
+    config = read_config()
+
+    # Get lookback period from config (default to 14 days if not found)
+    lookback_days = config.get("strategy", {}).get("earnings", {}).get("lookback_period_days", 14)
+
     if input_date is None:
         current_date = arrow.now()
     else:
         current_date = arrow.get(input_date.strftime("%Y-%m-%d"), "YYYY-MM-DD")
 
-    lookback_date = current_date.shift(days=-6)  # to cover for scenarios of weekends, holidays, etc
+    # Use the configured lookback period instead of hardcoded -6
+    lookback_date = current_date.shift(days=-lookback_days)
 
-    current_date, lookback_date = current_date.format("YYYY-MM-DD"), lookback_date.format("YYYY-MM-DD")
+    current_date_str = current_date.format("YYYY-MM-DD")
+    lookback_date_str = lookback_date.format("YYYY-MM-DD")
 
-    return current_date, lookback_date
+    print(f"Looking for earnings between {lookback_date_str} and {current_date_str} ({lookback_days} day window)")
+
+    return current_date_str, lookback_date_str
 
 
 def get_previous_workday():

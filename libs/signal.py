@@ -5,6 +5,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 
+
 from libs.read_settings import read_config
 config = read_config()
 
@@ -308,7 +309,7 @@ def earnings_gap_down(
     Returns:
     tuple: (bool, int) - Signal confirmation and numerical score
     """
-    from libs.read_settings import read_config
+    # Read config
     config = read_config()
 
     # Get gap threshold from config
@@ -330,6 +331,88 @@ def earnings_gap_down(
     numerical_score = 5 if result else 0
 
     return result, numerical_score
+
+
+# Add to libs/signal.py
+def earnings_gap_down_in_range(
+        ohlc_daily,
+        volume_daily,
+        ohlc_weekly,
+        lookback_days=14,
+        output=True,
+        stock_name="",
+):
+    """
+    Optimized version that checks for earnings gap down signal within a specified lookback period
+    using vectorized operations instead of loop-based checks.
+    """
+    # Simply use the most recent data points
+    if len(ohlc_daily) < 2:
+        if output:
+            print(f"Insufficient data for {stock_name}")
+        return False, None
+
+    # Get the number of rows to check (minimum of lookback_days or available data)
+    row_count = min(lookback_days, len(ohlc_daily))
+    if output:
+        print(f"Checking {stock_name} for earnings gap in the last {row_count} data points")
+
+    # Get the threshold from config
+    config = read_config()
+    gap_threshold = config["filters"].get("earnings_gap_threshold", 0.08)  # Default to 8% if not specified
+
+    # Get recent data without copy
+    recent_data = ohlc_daily.iloc[-row_count:]
+
+    # Calculate previous day's lowest price (min of open/close) for all days
+    previous_lowest = recent_data[['open', 'close']].min(axis=1).shift(1)
+
+    # Calculate current day's lowest price
+    current_lowest = recent_data[['open', 'close']].min(axis=1)
+
+    # Calculate gap percentage for all pairs in one operation
+    # Note: This handles NaN values that occur in the first row
+    gap_percent = (previous_lowest - current_lowest) / previous_lowest
+
+    # Find where gaps exceed threshold
+    gap_indices = gap_percent[gap_percent > gap_threshold].index.tolist()
+
+    # Check if any gaps found
+    if gap_indices:
+        # Get the first gap found (most recent if we want to prioritize recent gaps)
+        gap_idx = gap_indices[0]
+        idx_position = recent_data.index.get_loc(gap_idx)
+
+        # Get the actual dates of the gap (previous day and gap day)
+        prev_idx = recent_data.index[idx_position - 1]
+
+        # Format the date
+        gap_timestamp = recent_data.loc[gap_idx, 'timestamp']
+        if hasattr(gap_timestamp, 'strftime'):
+            gap_date = gap_timestamp.strftime('%Y-%m-%d')
+        else:
+            gap_date = str(gap_timestamp)
+
+        # Create gap info
+        gap_down_info = {
+            'date': gap_date,
+            'previous_low': recent_data.loc[prev_idx, 'low'],
+            'gap_low': recent_data.loc[gap_idx, 'low'],
+            'gap_percent': gap_percent[gap_idx]
+        }
+
+        if output:
+            print(f"✓ Gap down detected for {stock_name}")
+            print(f"  Previous day low: ${gap_down_info['previous_low']:.2f}")
+            print(f"  Gap day low: ${gap_down_info['gap_low']:.2f}")
+            print(f"  Gap percent: {gap_down_info['gap_percent']:.2%}")
+
+        return True, gap_down_info
+
+    if output:
+        print(f"✗ No gap down detected for {stock_name} in recent data")
+
+    return False, None
 
 
 def bullish_mri_based(
@@ -659,7 +742,6 @@ def bearish_anx_based(
     sar_values = lucid_sar(ohlc_with_indicators_weekly)   # the lucid sar itself works well
 
     # Check for the uptrend Lucid SAR conditions
-    # TODO (?): add check of bearish cross happening on the wave change, not just inside the wave (maybe)
     bearish_sar_condition = is_bearish_sar(sar_values)
 
     # MA calculations

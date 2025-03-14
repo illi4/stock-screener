@@ -22,7 +22,14 @@ from libs.helpers import (
     get_data_start_date,
     create_header
 )
-from libs.signal import bullish_mri_based, market_bearish, bullish_anx_based, earnings_gap_down, bearish_anx_based
+from libs.signal import (
+    bullish_mri_based,
+    market_bearish,
+    bullish_anx_based,
+    earnings_gap_down,
+    bearish_anx_based,
+    earnings_gap_down_in_range
+)
 from libs.stocktools import (
     get_stock_data,
     ohlc_daily_to_weekly,
@@ -152,6 +159,16 @@ def report_on_shortlist(market_code, direction, shortlist, exchange):
             print(f"\nShortlist {note}")
             for stock in stocks:
                 print(f"{stock.code} ({stock.name}) | Volume {stock.volume}")
+
+                # Unnecessary
+                '''
+                if hasattr(stock, 'green_star_info') and stock.green_star_info:
+                    gs = stock.green_star_info
+                    print(f"  └─ Green Star: TD{gs['current_td_setup']} | "
+                          f"Close: ${gs['current_close']:.2f} | "
+                          f"Prev: ${gs['previous_close']:.2f} | "
+                          f"TD1: ${gs['td1_close']:.2f}")
+                '''
     else:
         print(create_header(f"No shortlisted stocks for {market_code} ({direction_description})"))
 
@@ -214,7 +231,7 @@ def scan_stock(stocks, market, method, direction, start_date):
     shortlisted_stocks = []
     # Placeholder for shortlisted stocks and their attributes
     # Each stock will be a named tuple with the following definition:
-    Stock = namedtuple('Stock', ['code', 'name', 'volume', 'note'])
+    Stock = namedtuple('Stock', ['code', 'name', 'volume', 'note', 'green_star_info'])
 
     # Iterate through the list of stocks
     for i, stock in enumerate(stocks):
@@ -271,14 +288,10 @@ def scan_stock(stocks, market, method, direction, start_date):
                     stock_name=stock.name,
                 )
         elif method == 'earnings':
-            confirmation, _ = earnings_gap_down(
-                ohlc_with_indicators_daily,
-                volume_daily,
-                ohlc_with_indicators_weekly,
-                output=True,
-                stock_name=stock.name,
+            confirmation, trigger_note, gap_info, green_star_info = check_earnings_green_star(
+                stock, market, ohlc_with_indicators_daily, volume_daily,
+                ohlc_with_indicators_weekly, start_date
             )
-            trigger_note = ''
 
 
         if confirmation:
@@ -298,7 +311,8 @@ def scan_stock(stocks, market, method, direction, start_date):
                     Stock(code=stock.code,
                           name=stock.name,
                           volume=volume_MA_5D,
-                          note=trigger_note
+                          note=trigger_note,
+                          green_star_info=green_star_info
                           )
                 )
 
@@ -361,52 +375,150 @@ def get_stocks_to_scan(market, method):
         )
 
 
-def scan_exchange_stocks(market, method, direction):
+def check_green_star_for_stock(stock_code, market, ohlc_daily):
     """
-    Function to scan the market for relevant stocks
+    Check if a stock meets the green star pattern criteria
     """
+    try:
+        if len(ohlc_daily) < 10:  # Need enough data for TD setup
+            print(f"Insufficient data for {stock_code}")
+            return False, None
 
+        # Calculate TD indicators
+        td_values = td_indicators(ohlc_daily)
+
+        # Get latest values
+        current_td_direction = td_values['td_direction'].iloc[-1]
+        current_td_setup = td_values['td_setup'].iloc[-1]
+        current_close = ohlc_daily['close'].iloc[-1]
+
+        # Only proceed if we're in a green TD sequence
+        if current_td_direction != 'green' or current_td_setup == 0:
+            return False, None
+
+        # Find the TD1 candle of the current sequence by looking backwards
+        td1_index = None
+        sequence_start_found = False
+        pattern_already_triggered = False
+
+        for i in range(len(td_values) - 2, -1, -1):
+            # Break if we hit a non-green candle (end of current sequence)
+            if td_values['td_direction'].iloc[i] != 'green':
+                break
+
+            # If we find TD1, mark its position
+            if td_values['td_setup'].iloc[i] == 1:
+                td1_index = i
+                sequence_start_found = True
+                break
+
+        if not sequence_start_found:
+            return False, None
+
+        # Now check if pattern already triggered in this sequence
+        # Look from TD1 to current position
+        td1_close = ohlc_daily['close'].iloc[td1_index]
+
+        for i in range(td1_index + 2, len(td_values) - 1):  # Start 2 candles after TD1
+            if td_values['td_direction'].iloc[i] != 'green':
+                break
+
+            check_close = ohlc_daily['close'].iloc[i]
+            check_prev_close = ohlc_daily['close'].iloc[i - 1]
+
+            # If we find a previous trigger in this sequence, mark it
+            if check_close > td1_close and check_close > check_prev_close:
+                pattern_already_triggered = True
+                break
+
+        # Skip if pattern already triggered in this sequence
+        if pattern_already_triggered:
+            return False, None
+
+        # Check current candle for pattern
+        previous_close = ohlc_daily['close'].iloc[-2]
+
+        if (current_close > td1_close and
+                current_close > previous_close and
+                td_values['td_direction'].iloc[-2] == 'green'):  # Verify previous candle was also green
+
+            # Return relevant information about the green star pattern
+            pattern_info = {
+                'current_close': current_close,
+                'previous_close': previous_close,
+                'td1_close': td1_close,
+                'current_td_setup': current_td_setup
+            }
+
+            return True, pattern_info
+
+        return False, None
+    except Exception as e:
+        print(f"Error processing green star check for {stock_code}: {e}")
+        return False, None
+
+
+def check_earnings_green_star(stock, market, ohlc_daily, volume_daily, ohlc_weekly, start_date):
     """
-    # Check the market conditions: not using it
-    market_ohlc_daily, market_volume_daily = get_stock_data(market.related_market_ticker, reporting_date_start)
-    market_ohlc_daily, market_volume_daily = process_market_data_at_date(market_ohlc_daily, market_volume_daily)
-    is_market_bearish, _ = market_bearish(market_ohlc_daily, market_volume_daily, output=True)
-
-    if is_market_bearish:
-        print("Overall market sentiment is bearish, not scanning individual stocks")
-        exit(0)
+    Check if a stock has both earnings gap down and green star pattern
     """
+    # Get configuration settings
+    lookback_period = config["strategy"].get("earnings", {}).get("lookback_period_days", 14)
+    check_green_star = config["strategy"].get("earnings", {}).get("green_star_check", True)
+    require_green_star = config["strategy"].get("earnings", {}).get("require_green_star", False)
 
-    # Get the stocks for scanning
-    if arguments["stocks"] is None:
-        stocks = get_stocks_to_scan(market, method)
-    else:
-        # Pass the parameter
-        stocks = get_stocks(
-            codes=arguments["stocks"]
-        )
-
-    # Limit per arguments as required
-    if arguments["num"] is not None:
-        print(f"Limiting to the first {arguments['num']} stocks")
-        stocks = stocks[: arguments["num"]]
-
-    total_number = len(stocks)
-    print(
-        f'Scanning {total_number} stocks priced {config["pricing"]["min"]} from to {config["pricing"]["max"]} '
-        f'and with volume of at least {format_number(config["filters"]["minimum_volume_level"])}\n'
+    # Check for earnings gap down
+    # TEST
+    #gap_confirmation, gap_info = False, None
+    gap_confirmation, gap_info = earnings_gap_down_in_range(
+        ohlc_daily,
+        volume_daily,
+        ohlc_weekly,
+        lookback_days=lookback_period,
+        output=True,
+        stock_name=stock.name,
     )
 
-    # Fetch and store stock data for all stocks
-    start_date = get_data_start_date(arguments["date"])
-    fetch_and_store_stock_data(stocks, start_date)
+    if not gap_confirmation:
+        return False, "", None, None
 
-    shortlist = scan_stock(stocks, market, method, direction, start_date)
+    # Form initial trigger note
+    trigger_note = ''
+    '''
+    if hasattr(gap_info, 'get') and gap_info.get('date') is not None:
+        trigger_note = f"Gap down on {gap_info['date']} ({gap_info['gap_percent']:.1%})"
+    else:
+        trigger_note = f"Gap down detected ({gap_info.get('gap_percent', 0):.1%})"
+    '''
 
-    # Sort the list by volume in decreasing order
-    sorted_stocks = sorted(shortlist, key=lambda stock: stock.volume, reverse=True)
+    # If green star check is not enabled, return now
+    if not check_green_star:
+        return True, trigger_note, gap_info, None
 
-    return sorted_stocks
+    # Check for green star pattern (pass the ohlc_daily directly)
+    green_star_found, green_star_info = check_green_star_for_stock(
+        stock.code, market, ohlc_daily
+    )
+
+    if green_star_found:
+        trigger_note += " | Green Star Pattern"
+        print(f"-> Green Star Pattern detected for {stock.name}")
+        print(f"   TD setup: {green_star_info['current_td_setup']}")
+        print(f"   Current: ${green_star_info['current_close']:.2f}")
+        print(f"   Previous: ${green_star_info['previous_close']:.2f}")
+        print(f"   TD1: ${green_star_info['td1_close']:.2f}")
+
+        return True, trigger_note, gap_info, green_star_info
+
+    # If green star is required but not found, return failure
+    if require_green_star:
+        print(f"-> No Green Star Pattern found for {stock.name} - excluding from shortlist")
+        return False, "", None, None
+
+    # Otherwise return success but with no green star info
+    return True, trigger_note, gap_info, None
+
+
 
 
 def scan_stocks(active_markets):
