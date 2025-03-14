@@ -21,7 +21,7 @@ filters:
   range_over_weeks: 12  # over what time to apply (used for MRI approach)
   higher_than_n_last_candles: 4  # the green candle close must be higher than N last candles (used for MRI approach)
   minimum_market_cap: 1000000000  # 1 billion market cap min; applied when updating the stock list
-  earnings_gap_threshold: 0.08  # 8% for the earnings drop
+  earnings_gap_threshold: 0.1  # 10% for the earnings drop
 
 locality:
   tzinfo: Australia/Sydney

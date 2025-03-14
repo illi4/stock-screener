@@ -468,6 +468,8 @@ def check_earnings_green_star(stock, market, ohlc_daily, volume_daily, ohlc_week
     require_green_star = config["strategy"].get("earnings", {}).get("require_green_star", False)
 
     # Check for earnings gap down
+    # TEST
+    #gap_confirmation, gap_info = False, None
     gap_confirmation, gap_info = earnings_gap_down_in_range(
         ohlc_daily,
         volume_daily,
