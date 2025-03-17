@@ -28,7 +28,8 @@ from libs.signal import (
     bullish_anx_based,
     earnings_gap_down,
     bearish_anx_based,
-    earnings_gap_down_in_range
+    earnings_gap_down_in_range,
+    sar_ma_bounce
 )
 from libs.stocktools import (
     get_stock_data,
@@ -293,7 +294,15 @@ def scan_stock(stocks, market, method, direction, start_date):
                 stock, market, ohlc_with_indicators_daily, volume_daily,
                 ohlc_with_indicators_weekly, start_date
             )
-
+        elif method == 'sar_ma_bounce':
+            confirmation, numerical_score, trigger_note = sar_ma_bounce(
+                ohlc_with_indicators_daily,
+                volume_daily,
+                ohlc_with_indicators_weekly,
+                output=True,
+                stock_name=stock.name,
+            )
+            green_star_info = None
 
         if confirmation:
             print(f"{stock.name} [v] meeting shortlisting conditions")
