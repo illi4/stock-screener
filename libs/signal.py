@@ -268,7 +268,7 @@ def sar_ma_bounce(
 ):
     """
     AI-generated, good enough for now.
-    
+
     Check if a stock meets the SAR MA Bounce criteria with stricter rules:
     1. Stock is in a green wave (bullish SAR)
     2. Stock pulls back to MA50 or slightly above (within configured tolerance)
