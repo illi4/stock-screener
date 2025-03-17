@@ -324,7 +324,7 @@ if __name__ == "__main__":
     print("Checking positions...")
     alerted_positions = check_positions(method_name=arguments["method"])
 
-    # Not used anymore - Earnings drop followed by green star check is implemented in scanner itself 
+    # Not used anymore - Earnings drop followed by green star check is implemented in scanner itself
     '''
     if arguments["method"] == "green_star":
         alerted_positions = check_green_star()

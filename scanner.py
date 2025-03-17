@@ -271,6 +271,7 @@ def scan_stock(stocks, market, method, direction, start_date):
             )
             """
         elif method == 'anx':
+            green_star_info = None
             if direction == 'bull':
                 confirmation, numerical_score, trigger_note = bullish_anx_based(
                     ohlc_with_indicators_daily,
