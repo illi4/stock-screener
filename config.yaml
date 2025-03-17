@@ -39,6 +39,11 @@ strategy:
     lookback_period_days: 60  # Days to look back for earnings conditions
     green_star_check: true    # Always check for green star pattern after finding earnings conditions
     require_green_star: true  # Only include in shortlist if green star pattern is present
+  sar_ma_bounce:
+      directions:
+        - bull
+      ma_pullback_tolerance: 0.02  # 2% above MA50
+      max_days_pullback_to_green_star: 14  # Maximum days between pullback and green star
 
 logging:
   gsheet_name: "Trading journal FY24/25"

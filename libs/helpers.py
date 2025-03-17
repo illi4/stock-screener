@@ -126,9 +126,9 @@ def define_simulator_args():
     parser.add_argument(
         "-method",
         type=str,
-        required=True,
-        choices=["mri", "anx"],
-        help="Method of shortlisting (mri or anx)"
+        required=False,
+        choices=["mri", "anx", "earnings", "sar_ma_bounce"],
+        help="Method of shortlisting (mri, anx, earnings, or sar_ma_bounce)"
     )
 
     # To run on one stock
@@ -214,8 +214,8 @@ def define_scanner_args():
         "-method",
         type=str,
         required=False,
-        choices=["mri", "anx", "earnings"],
-        help="Method of shortlisting (mri, anx, or earnings)"
+        choices=["mri", "anx", "earnings", "sar_ma_bounce"],
+        help="Method of shortlisting (mri, anx, earnings, or sar_ma_bounce)"
     )
     parser.add_argument(
         "-stocks", type=str, required=False, help="Force checking specific stocks only"

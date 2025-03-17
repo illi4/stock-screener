@@ -259,6 +259,182 @@ def price_crossed_ma(ohlc_daily, ma_values_faster, ma_length_faster, ma_values_s
     )
 
 
+def sar_ma_bounce(
+        ohlc_with_indicators_daily,
+        volume_daily,
+        ohlc_with_indicators_weekly,
+        output=True,
+        stock_name="",
+):
+    """
+    AI-generated, good enough for now.
+
+    Check if a stock meets the SAR MA Bounce criteria with stricter rules:
+    1. Stock is in a green wave (bullish SAR)
+    2. Stock pulls back to MA50 or slightly above (within configured tolerance)
+    3. Only the most recent candle forms a green star pattern
+    4. There cannot be more than 1 candle closing below MA50 during this pattern
+    """
+    # Read config
+    config = read_config()
+    ma_pullback_tolerance = config["strategy"].get("sar_ma_bounce", {}).get("ma_pullback_tolerance", 0.02)
+
+    # Calculate lucid SAR
+    sar_values = lucid_sar(ohlc_with_indicators_weekly)
+
+    # Check for bullish SAR
+    bullish_sar_condition = is_bullish_sar(sar_values)
+
+    if not bullish_sar_condition:
+        if output:
+            print(f"- {stock_name} | SAR is not bullish, skipping")
+        return False, 0, ""
+
+    # Calculate MA50
+    ma50 = MA(ohlc_with_indicators_daily, 50)
+
+    # Make sure we have all required columns
+    required_columns = ['open', 'high', 'low', 'close', 'td_direction', 'td_setup']
+    for col in required_columns:
+        if col not in ohlc_with_indicators_daily.columns:
+            if output:
+                print(f"- {stock_name} | Missing required column: {col}")
+            return False, 0, ""
+
+    # Create a working dataframe
+    working_df = ohlc_with_indicators_daily.reset_index(drop=True).copy()
+
+    # Add MA50 column
+    if 'ma50' in working_df.columns:
+        working_df = working_df.drop('ma50', axis=1)
+
+    ma50_values = ma50['ma50'].values
+    padding_needed = len(working_df) - len(ma50_values)
+
+    if padding_needed > 0:
+        padded_ma50 = np.concatenate([np.array([np.nan] * padding_needed), ma50_values])
+        working_df['ma50'] = padded_ma50
+    else:
+        working_df['ma50'] = ma50_values[-len(working_df):]
+
+    # Remove rows with NaN values
+    working_df.dropna(subset=['ma50', 'td_direction', 'td_setup'], inplace=True)
+
+    if len(working_df) < 5:  # Need at least a few candles to analyze
+        if output:
+            print(f"- {stock_name} | Not enough data after cleaning")
+        return False, 0, ""
+
+    # RULE 2: Check if the most recent candle forms a green star pattern
+    latest_idx = len(working_df) - 1
+
+    # Check if the most recent candle has a green TD direction and positive TD setup
+    latest_td_direction = working_df['td_direction'].iloc[latest_idx]
+    latest_td_setup = working_df['td_setup'].iloc[latest_idx]
+
+    if latest_td_direction != 'green' or latest_td_setup <= 0:
+        if output:
+            print(f"- {stock_name} | Latest candle is not part of a green TD sequence")
+        return False, 0, ""
+
+    # Find TD1 of current sequence
+    td1_idx = None
+    for j in range(latest_idx - 1, -1, -1):
+        if j >= len(working_df) or working_df['td_direction'].iloc[j] != 'green':
+            break
+        if working_df['td_setup'].iloc[j] == 1:
+            td1_idx = j
+            break
+
+    if td1_idx is None:
+        if output:
+            print(f"- {stock_name} | Could not find TD1 for current sequence")
+        return False, 0, ""
+
+    latest_close = working_df['close'].iloc[latest_idx]
+    previous_close = working_df['close'].iloc[latest_idx - 1]
+    td1_close = working_df['close'].iloc[td1_idx]
+
+    # Check for green star pattern on latest candle
+    green_star_condition = (
+            latest_close > td1_close and
+            latest_close > previous_close and
+            working_df['td_direction'].iloc[latest_idx - 1] == 'green'
+    )
+
+    if not green_star_condition:
+        if output:
+            print(f"- {stock_name} | Latest candle does not form a green star pattern")
+        return False, 0, ""
+
+    # RULE 1: Check for recent MA50 pullback and ensure not more than 1 candle below MA50
+    # Look back up to 10 candles for a pullback
+    lookback_period = 10
+    start_idx = max(0, latest_idx - lookback_period)
+
+    # Look for a pullback to MA50
+    pullback_found = False
+    candles_below_ma50 = 0
+    pullback_idx = None
+
+    for i in range(start_idx, latest_idx + 1):
+        current_low = working_df['low'].iloc[i]
+        current_high = working_df['high'].iloc[i]
+        ma50_value = working_df['ma50'].iloc[i]
+
+        # Count candles that close below MA50
+        if working_df['close'].iloc[i] < ma50_value:
+            candles_below_ma50 += 1
+
+        # Check if any candle touched MA50 (pullback)
+        if (current_low <= ma50_value * (1 + ma_pullback_tolerance) and
+                current_high >= ma50_value):
+            pullback_found = True
+            if pullback_idx is None:
+                pullback_idx = i  # Store the first pullback
+
+    if not pullback_found:
+        if output:
+            print(f"- {stock_name} | No recent pullbacks to MA50 detected")
+        return False, 0, ""
+
+    if candles_below_ma50 > 1:
+        if output:
+            print(f"- {stock_name} | Too many candles ({candles_below_ma50}) closed below MA50")
+        return False, 0, ""
+
+    # If we get here, all conditions are met!
+    pullback_date_str = 'n/a'
+    current_date_str = 'n/a'
+
+    if 'timestamp' in ohlc_with_indicators_daily.columns:
+        try:
+            if pullback_idx is not None:
+                try:
+                    pullback_date = working_df.iloc[pullback_idx]['timestamp']
+                    pullback_date_str = str(pullback_date)
+                except:
+                    pullback_date_str = f"index {pullback_idx}"
+
+            try:
+                current_date = working_df.iloc[latest_idx]['timestamp']
+                current_date_str = str(current_date)
+            except:
+                current_date_str = f"index {latest_idx}"
+        except Exception as e:
+            # If any error occurs, just use indices
+            pullback_date_str = f"index {pullback_idx}"
+            current_date_str = f"index {latest_idx}"
+
+    if output:
+        print(f"- {stock_name} | ✅ SAR Bullish | "
+              f"✅ MA50 Pullback | "
+              f"✅ Green Star on Latest Candle | "
+              f"✅ TD Setup: {latest_td_setup} | "
+              f"✅ Only {candles_below_ma50} candle(s) below MA50")
+
+    return True, 5, "MA50 bounce (latest green star)"
+
 def price_gapped_down(ohlc_with_indicators_daily, gap_threshold):
     """
     Check if the latest day's open price gapped down from previous day's lowest of open/close by more than threshold percentage.
