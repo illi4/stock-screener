@@ -1,4 +1,4 @@
-from libs.techanalysis import MA, StochRSI, coppock_curve, lucid_sar
+from libs.techanalysis import MA, StochRSI, coppock_curve, lucid_sar, td_indicators
 from libs.helpers import format_bool
 import numpy as np
 import pandas as pd
@@ -267,12 +267,10 @@ def sar_ma_bounce(
         stock_name="",
 ):
     """
-    AI-generated, good enough for now.
-
     Check if a stock meets the SAR MA Bounce criteria with stricter rules:
     1. Stock is in a green wave (bullish SAR)
     2. Stock pulls back to MA50 or slightly above (within configured tolerance)
-    3. Only the most recent candle forms a green star pattern
+    3. ONLY the most recent candle forms a green star pattern - enforced with same logic as check_green_star()
     4. There cannot be more than 1 candle closing below MA50 during this pattern
     """
     # Read config
@@ -325,41 +323,71 @@ def sar_ma_bounce(
             print(f"- {stock_name} | Not enough data after cleaning")
         return False, 0, ""
 
-    # RULE 2: Check if the most recent candle forms a green star pattern
-    latest_idx = len(working_df) - 1
+    # Get TD indicators
+    td_values = td_indicators(ohlc_with_indicators_daily)
 
-    # Check if the most recent candle has a green TD direction and positive TD setup
-    latest_td_direction = working_df['td_direction'].iloc[latest_idx]
-    latest_td_setup = working_df['td_setup'].iloc[latest_idx]
+    # STRICT GREEN STAR DETECTION USING REFERENCE CODE LOGIC
+    # Get latest values
+    current_td_direction = td_values['td_direction'].iloc[-1]
+    current_td_setup = td_values['td_setup'].iloc[-1]
+    current_close = ohlc_with_indicators_daily['close'].iloc[-1]
 
-    if latest_td_direction != 'green' or latest_td_setup <= 0:
+    # Only proceed if the most recent candle is in a green TD sequence
+    if current_td_direction != 'green' or current_td_setup == 0:
         if output:
             print(f"- {stock_name} | Latest candle is not part of a green TD sequence")
         return False, 0, ""
 
-    # Find TD1 of current sequence
-    td1_idx = None
-    for j in range(latest_idx - 1, -1, -1):
-        if j >= len(working_df) or working_df['td_direction'].iloc[j] != 'green':
-            break
-        if working_df['td_setup'].iloc[j] == 1:
-            td1_idx = j
+    # Find the TD1 candle of the current sequence by looking backwards
+    td1_index = None
+    sequence_start_found = False
+    pattern_already_triggered = False
+
+    for i in range(len(td_values) - 2, -1, -1):
+        # Break if we hit a non-green candle (end of current sequence)
+        if td_values['td_direction'].iloc[i] != 'green':
             break
 
-    if td1_idx is None:
+        # If we find TD1, mark its position
+        if td_values['td_setup'].iloc[i] == 1:
+            td1_index = i
+            sequence_start_found = True
+            break
+
+    if not sequence_start_found:
         if output:
             print(f"- {stock_name} | Could not find TD1 for current sequence")
         return False, 0, ""
 
-    latest_close = working_df['close'].iloc[latest_idx]
-    previous_close = working_df['close'].iloc[latest_idx - 1]
-    td1_close = working_df['close'].iloc[td1_idx]
+    # Now check if pattern already triggered in this sequence
+    # Look from TD1 to the candle before the most recent one
+    td1_close = ohlc_with_indicators_daily['close'].iloc[td1_index]
 
-    # Check for green star pattern on latest candle
+    for i in range(td1_index + 2, len(td_values) - 1):  # Start 2 candles after TD1, stop before latest
+        if td_values['td_direction'].iloc[i] != 'green':
+            break
+
+        check_close = ohlc_with_indicators_daily['close'].iloc[i]
+        check_prev_close = ohlc_with_indicators_daily['close'].iloc[i - 1]
+
+        # If we find a previous trigger in this sequence, mark it
+        if check_close > td1_close and check_close > check_prev_close:
+            pattern_already_triggered = True
+            break
+
+    # Skip if pattern already triggered in this sequence
+    if pattern_already_triggered:
+        if output:
+            print(f"- {stock_name} | Green star pattern already triggered earlier in this sequence")
+        return False, 0, ""
+
+    # Check current (most recent) candle for green star pattern
+    previous_close = ohlc_with_indicators_daily['close'].iloc[-2]
+
     green_star_condition = (
-            latest_close > td1_close and
-            latest_close > previous_close and
-            working_df['td_direction'].iloc[latest_idx - 1] == 'green'
+            current_close > td1_close and
+            current_close > previous_close and
+            td_values['td_direction'].iloc[-2] == 'green'  # Verify previous candle was also green
     )
 
     if not green_star_condition:
@@ -370,14 +398,14 @@ def sar_ma_bounce(
     # RULE 1: Check for recent MA50 pullback and ensure not more than 1 candle below MA50
     # Look back up to 10 candles for a pullback
     lookback_period = 10
-    start_idx = max(0, latest_idx - lookback_period)
+    start_idx = max(0, len(working_df) - lookback_period)
 
     # Look for a pullback to MA50
     pullback_found = False
     candles_below_ma50 = 0
     pullback_idx = None
 
-    for i in range(start_idx, latest_idx + 1):
+    for i in range(start_idx, len(working_df)):
         current_low = working_df['low'].iloc[i]
         current_high = working_df['high'].iloc[i]
         ma50_value = working_df['ma50'].iloc[i]
@@ -417,21 +445,23 @@ def sar_ma_bounce(
                     pullback_date_str = f"index {pullback_idx}"
 
             try:
-                current_date = working_df.iloc[latest_idx]['timestamp']
+                current_date = ohlc_with_indicators_daily['timestamp'].iloc[-1]
                 current_date_str = str(current_date)
             except:
-                current_date_str = f"index {latest_idx}"
+                current_date_str = f"index {len(working_df) - 1}"
         except Exception as e:
             # If any error occurs, just use indices
             pullback_date_str = f"index {pullback_idx}"
-            current_date_str = f"index {latest_idx}"
+            current_date_str = f"index {len(working_df) - 1}"
 
     if output:
         print(f"- {stock_name} | ✅ SAR Bullish | "
               f"✅ MA50 Pullback | "
-              f"✅ Green Star on Latest Candle | "
-              f"✅ TD Setup: {latest_td_setup} | "
+              f"✅ Green Star on Latest Candle ({current_date_str}) | "
+              f"✅ TD Setup: {current_td_setup} | "
               f"✅ Only {candles_below_ma50} candle(s) below MA50")
+        print(
+            f"  Current close: ${current_close:.2f} | Previous close: ${previous_close:.2f} | TD1 close: ${td1_close:.2f}")
 
     return True, 5, "MA50 bounce (latest green star)"
 
