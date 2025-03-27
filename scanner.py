@@ -133,6 +133,9 @@ def generate_indicators_daily_weekly(ohlc_daily):
 
 
 def report_on_shortlist(market_code, direction, shortlist, exchange):
+    # Get max shortlist size from config
+    max_shortlist_size = config["filters"].get("max_shortlist_size", 20)  # Default to 20 if not specified
+
     if direction.upper() == 'BULL':
         direction_description = 'BULL 💹'
     elif direction.upper() == 'BEAR':
@@ -142,7 +145,15 @@ def report_on_shortlist(market_code, direction, shortlist, exchange):
     if len(shortlist) > 0:
         print(create_header(f"Results for {market_code} ({direction_description})"))
         checked_workday = get_current_date()
-        print(f"{len(shortlist)} shortlisted stocks on {checked_workday}:")
+
+        # Determine if we need to limit the output
+        limited_output = len(shortlist) > max_shortlist_size
+
+        if limited_output:
+            message = f"{max_shortlist_size} top volume shortlisted stocks on {checked_workday}:"
+        else:
+            message = f"{len(shortlist)} shortlisted stocks on {checked_workday}:"
+        print(message)
 
         # Group stocks by note type
         groups = {}
@@ -152,24 +163,27 @@ def report_on_shortlist(market_code, direction, shortlist, exchange):
                 groups[note] = []
             groups[note].append(stock)
 
+        # Track total stocks displayed
+        stocks_displayed = 0
+
         # Sort each group by volume
         for note, stocks in groups.items():
             stocks.sort(key=lambda x: x.volume, reverse=True)
 
             # Print header for each group
             print(f"\nShortlist {note}")
-            for stock in stocks:
-                print(f"{stock.code} ({stock.name}) | Volume {stock.volume}")
 
-                # Unnecessary
-                '''
-                if hasattr(stock, 'green_star_info') and stock.green_star_info:
-                    gs = stock.green_star_info
-                    print(f"  └─ Green Star: TD{gs['current_td_setup']} | "
-                          f"Close: ${gs['current_close']:.2f} | "
-                          f"Prev: ${gs['previous_close']:.2f} | "
-                          f"TD1: ${gs['td1_close']:.2f}")
-                '''
+            # Display stocks up to the limit
+            for stock in stocks:
+                if stocks_displayed < max_shortlist_size:
+                    print(f"{stock.code} ({stock.name}) | Volume {stock.volume}")
+                    stocks_displayed += 1
+                else:
+                    break
+
+            # Stop if we've reached the limit
+            if stocks_displayed >= max_shortlist_size:
+                break
     else:
         print(create_header(f"No shortlisted stocks for {market_code} ({direction_description})"))
 

@@ -22,6 +22,7 @@ filters:
   higher_than_n_last_candles: 4  # the green candle close must be higher than N last candles (used for MRI approach)
   minimum_market_cap: 1000000000  # 1 billion market cap min; applied when updating the stock list
   earnings_gap_threshold: 0.1  # 10% for the earnings drop
+  max_shortlist_size: 20  # maximum number of stocks to display in shortlist (sorted by volume)
 
 locality:
   tzinfo: Australia/Sydney
