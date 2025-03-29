@@ -8,3 +8,4 @@ pyyaml
 matplotlib
 tqdm
 openpyxl
+oauth2client
