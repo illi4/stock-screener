@@ -259,6 +259,89 @@ def price_crossed_ma(ohlc_daily, ma_values_faster, ma_length_faster, ma_values_s
     )
 
 
+def check_green_star_for_stock(stock_code, market, ohlc_daily):
+    """
+    Check if a stock meets the green star pattern criteria
+    """
+    try:
+        if len(ohlc_daily) < 10:  # Need enough data for TD setup
+            print(f"Insufficient data for {stock_code}")
+            return False, None
+
+        # Calculate TD indicators
+        td_values = td_indicators(ohlc_daily)
+
+        # Get latest values
+        current_td_direction = td_values['td_direction'].iloc[-1]
+        current_td_setup = td_values['td_setup'].iloc[-1]
+        current_close = ohlc_daily['close'].iloc[-1]
+
+        # Only proceed if we're in a green TD sequence
+        if current_td_direction != 'green' or current_td_setup == 0:
+            return False, None
+
+        # Find the TD1 candle of the current sequence by looking backwards
+        td1_index = None
+        sequence_start_found = False
+        pattern_already_triggered = False
+
+        for i in range(len(td_values) - 2, -1, -1):
+            # Break if we hit a non-green candle (end of current sequence)
+            if td_values['td_direction'].iloc[i] != 'green':
+                break
+
+            # If we find TD1, mark its position
+            if td_values['td_setup'].iloc[i] == 1:
+                td1_index = i
+                sequence_start_found = True
+                break
+
+        if not sequence_start_found:
+            return False, None
+
+        # Now check if pattern already triggered in this sequence
+        # Look from TD1 to current position
+        td1_close = ohlc_daily['close'].iloc[td1_index]
+
+        for i in range(td1_index + 2, len(td_values) - 1):  # Start 2 candles after TD1
+            if td_values['td_direction'].iloc[i] != 'green':
+                break
+
+            check_close = ohlc_daily['close'].iloc[i]
+            check_prev_close = ohlc_daily['close'].iloc[i - 1]
+
+            # If we find a previous trigger in this sequence, mark it
+            if check_close > td1_close and check_close > check_prev_close:
+                pattern_already_triggered = True
+                break
+
+        # Skip if pattern already triggered in this sequence
+        if pattern_already_triggered:
+            return False, None
+
+        # Check current candle for pattern
+        previous_close = ohlc_daily['close'].iloc[-2]
+
+        if (current_close > td1_close and
+                current_close > previous_close and
+                td_values['td_direction'].iloc[-2] == 'green'):  # Verify previous candle was also green
+
+            # Return relevant information about the green star pattern
+            pattern_info = {
+                'current_close': current_close,
+                'previous_close': previous_close,
+                'td1_close': td1_close,
+                'current_td_setup': current_td_setup
+            }
+
+            return True, pattern_info
+
+        return False, None
+    except Exception as e:
+        print(f"Error processing green star check for {stock_code}: {e}")
+        return False, None
+
+
 def sar_ma_bounce(
         ohlc_with_indicators_daily,
         volume_daily,
@@ -364,13 +447,19 @@ def sar_ma_bounce(
     previous_close = ohlc_with_indicators_daily['close'].iloc[-2]
     td1_close = ohlc_with_indicators_daily['close'].iloc[td1_index]
 
+    ''' 
     green_star_condition = (
             current_close > td1_close and
             current_close > previous_close and
             td_values['td_direction'].iloc[-2] == 'green'  # Verify previous candle was also green
     )
+    '''
+    # Check for green star pattern (pass the ohlc_daily directly)
+    green_star_found, green_star_info = check_green_star_for_stock(
+        stock_name, None, ohlc_with_indicators_daily
+    )
 
-    if not green_star_condition:
+    if not green_star_found:
         if output:
             print(f"- {stock_name} | Latest candle does not form a green star pattern")
         return False, 0, ""

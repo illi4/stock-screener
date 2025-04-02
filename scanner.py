@@ -29,7 +29,8 @@ from libs.signal import (
     earnings_gap_down,
     bearish_anx_based,
     earnings_gap_down_in_range,
-    sar_ma_bounce
+    sar_ma_bounce,
+    check_green_star_for_stock
 )
 from libs.stocktools import (
     get_stock_data,
@@ -399,89 +400,6 @@ def get_stocks_to_scan(market, method):
         )
 
 
-def check_green_star_for_stock(stock_code, market, ohlc_daily):
-    """
-    Check if a stock meets the green star pattern criteria
-    """
-    try:
-        if len(ohlc_daily) < 10:  # Need enough data for TD setup
-            print(f"Insufficient data for {stock_code}")
-            return False, None
-
-        # Calculate TD indicators
-        td_values = td_indicators(ohlc_daily)
-
-        # Get latest values
-        current_td_direction = td_values['td_direction'].iloc[-1]
-        current_td_setup = td_values['td_setup'].iloc[-1]
-        current_close = ohlc_daily['close'].iloc[-1]
-
-        # Only proceed if we're in a green TD sequence
-        if current_td_direction != 'green' or current_td_setup == 0:
-            return False, None
-
-        # Find the TD1 candle of the current sequence by looking backwards
-        td1_index = None
-        sequence_start_found = False
-        pattern_already_triggered = False
-
-        for i in range(len(td_values) - 2, -1, -1):
-            # Break if we hit a non-green candle (end of current sequence)
-            if td_values['td_direction'].iloc[i] != 'green':
-                break
-
-            # If we find TD1, mark its position
-            if td_values['td_setup'].iloc[i] == 1:
-                td1_index = i
-                sequence_start_found = True
-                break
-
-        if not sequence_start_found:
-            return False, None
-
-        # Now check if pattern already triggered in this sequence
-        # Look from TD1 to current position
-        td1_close = ohlc_daily['close'].iloc[td1_index]
-
-        for i in range(td1_index + 2, len(td_values) - 1):  # Start 2 candles after TD1
-            if td_values['td_direction'].iloc[i] != 'green':
-                break
-
-            check_close = ohlc_daily['close'].iloc[i]
-            check_prev_close = ohlc_daily['close'].iloc[i - 1]
-
-            # If we find a previous trigger in this sequence, mark it
-            if check_close > td1_close and check_close > check_prev_close:
-                pattern_already_triggered = True
-                break
-
-        # Skip if pattern already triggered in this sequence
-        if pattern_already_triggered:
-            return False, None
-
-        # Check current candle for pattern
-        previous_close = ohlc_daily['close'].iloc[-2]
-
-        if (current_close > td1_close and
-                current_close > previous_close and
-                td_values['td_direction'].iloc[-2] == 'green'):  # Verify previous candle was also green
-
-            # Return relevant information about the green star pattern
-            pattern_info = {
-                'current_close': current_close,
-                'previous_close': previous_close,
-                'td1_close': td1_close,
-                'current_td_setup': current_td_setup
-            }
-
-            return True, pattern_info
-
-        return False, None
-    except Exception as e:
-        print(f"Error processing green star check for {stock_code}: {e}")
-        return False, None
-
-
 def check_earnings_green_star(stock, market, ohlc_daily, volume_daily, ohlc_weekly, start_date):
     """
     Check if a stock has both earnings gap down and green star pattern
@@ -491,9 +409,7 @@ def check_earnings_green_star(stock, market, ohlc_daily, volume_daily, ohlc_week
     check_green_star = config["strategy"].get("earnings", {}).get("green_star_check", True)
     require_green_star = config["strategy"].get("earnings", {}).get("require_green_star", False)
 
-    # Check for earnings gap down
-    # TEST
-    #gap_confirmation, gap_info = False, None
+
     gap_confirmation, gap_info = earnings_gap_down_in_range(
         ohlc_daily,
         volume_daily,
