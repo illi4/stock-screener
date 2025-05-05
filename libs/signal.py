@@ -674,10 +674,9 @@ def earnings_gap_down_in_range(
         stock_name="",
 ):
     """
-    Optimized version that checks for earnings gap down signal within a specified lookback period
-    using vectorized operations instead of loop-based checks.
+    Enhanced function that checks for earnings gap down signal within a specified lookback period
+    with additional information about current price relative to gap.
     """
-    # Simply use the most recent data points
     if len(ohlc_daily) < 2:
         if output:
             print(f"Insufficient data for {stock_name}")
@@ -692,8 +691,11 @@ def earnings_gap_down_in_range(
     config = read_config()
     gap_threshold = config["filters"].get("earnings_gap_threshold", 0.08)  # Default to 8% if not specified
 
-    # Get recent data without copy
-    recent_data = ohlc_daily.iloc[-row_count:]
+    # Get recent data
+    recent_data = ohlc_daily.iloc[-row_count:].copy()
+
+    # Get current price (most recent close)
+    current_price = ohlc_daily['close'].iloc[-1]
 
     # Calculate previous day's lowest price (min of open/close) for all days
     previous_lowest = recent_data[['open', 'close']].min(axis=1).shift(1)
@@ -702,10 +704,9 @@ def earnings_gap_down_in_range(
     current_lowest = recent_data[['open', 'close']].min(axis=1)
 
     # Calculate gap percentage for all pairs in one operation
-    # Note: This handles NaN values that occur in the first row
     gap_percent = (previous_lowest - current_lowest) / previous_lowest
 
-    # Find where gaps exceed threshold
+    # Find where gaps exceed threshold (only looking at downward gaps)
     gap_indices = gap_percent[gap_percent > gap_threshold].index.tolist()
 
     # Check if any gaps found
@@ -724,19 +725,41 @@ def earnings_gap_down_in_range(
         else:
             gap_date = str(gap_timestamp)
 
-        # Create gap info
+        # Get the lowest price during the gap day (this is where the stock bottomed)
+        gap_day_low = recent_data.loc[gap_idx, 'low']
+
+        # Calculate recovery from gap low to current price
+        recovery_percent = (current_price - gap_day_low) / gap_day_low if gap_day_low > 0 else 0
+
+        # Calculate days since gap
+        if hasattr(gap_timestamp, 'date'):
+            latest_date = ohlc_daily['timestamp'].iloc[-1]
+            if hasattr(latest_date, 'date'):
+                days_since_gap = (latest_date.date() - gap_timestamp.date()).days
+            else:
+                days_since_gap = 0
+        else:
+            days_since_gap = len(ohlc_daily) - idx_position
+
+        # Create enhanced gap info
         gap_down_info = {
             'date': gap_date,
             'previous_low': recent_data.loc[prev_idx, 'low'],
-            'gap_low': recent_data.loc[gap_idx, 'low'],
-            'gap_percent': gap_percent[gap_idx]
+            'gap_low': gap_day_low,
+            'gap_percent': gap_percent[gap_idx],
+            'current_price': current_price,
+            'recovery_percent': recovery_percent,
+            'days_since_gap': days_since_gap
         }
 
         if output:
             print(f"✓ Gap down detected for {stock_name}")
             print(f"  Previous day low: ${gap_down_info['previous_low']:.2f}")
-            print(f"  Gap day low: ${gap_down_info['gap_low']:.2f}")
+            print(f"  Gap day low: ${gap_day_low:.2f}")
             print(f"  Gap percent: {gap_down_info['gap_percent']:.2%}")
+            print(f"  Current price: ${current_price:.2f}")
+            print(f"  Recovery since gap: {recovery_percent:.2%}")
+            print(f"  Days since gap: {days_since_gap}")
 
         return True, gap_down_info
 

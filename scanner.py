@@ -402,14 +402,19 @@ def get_stocks_to_scan(market, method):
 
 def check_earnings_green_star(stock, market, ohlc_daily, volume_daily, ohlc_weekly, start_date):
     """
-    Check if a stock has both earnings gap down and green star pattern
+    Enhanced check for earnings gap down with improved filtering
     """
     # Get configuration settings
+    config = read_config()
     lookback_period = config["strategy"].get("earnings", {}).get("lookback_period_days", 14)
     check_green_star = config["strategy"].get("earnings", {}).get("green_star_check", True)
     require_green_star = config["strategy"].get("earnings", {}).get("require_green_star", False)
 
+    # Get new filtering parameters
+    max_recovery_percent = config["strategy"].get("earnings", {}).get("max_recovery_percent", 0.10)
+    max_days_after_gap = config["strategy"].get("earnings", {}).get("max_days_after_gap", 7)
 
+    # Check for earnings gap down
     gap_confirmation, gap_info = earnings_gap_down_in_range(
         ohlc_daily,
         volume_daily,
@@ -422,20 +427,26 @@ def check_earnings_green_star(stock, market, ohlc_daily, volume_daily, ohlc_week
     if not gap_confirmation:
         return False, "", None, None
 
-    # Form initial trigger note
-    trigger_note = ''
-    '''
-    if hasattr(gap_info, 'get') and gap_info.get('date') is not None:
-        trigger_note = f"Gap down on {gap_info['date']} ({gap_info['gap_percent']:.1%})"
-    else:
-        trigger_note = f"Gap down detected ({gap_info.get('gap_percent', 0):.1%})"
-    '''
+    # Apply our new filters to reject stocks that have recovered too much
+    if gap_info['recovery_percent'] > max_recovery_percent:
+        print(
+            f"✗ {stock.name} rejected: Recovered {gap_info['recovery_percent']:.2%} from gap low (max allowed: {max_recovery_percent:.2%})")
+        return False, "", None, None
+
+    # Reject stocks if the gap is too old
+    if gap_info['days_since_gap'] > max_days_after_gap:
+        print(
+            f"✗ {stock.name} rejected: Gap occurred {gap_info['days_since_gap']} days ago (max allowed: {max_days_after_gap})")
+        return False, "", None, None
+
+    # Form trigger note with more details
+    trigger_note = f"Gap down on {gap_info['date']} ({gap_info['gap_percent']:.1%}), recovery: {gap_info['recovery_percent']:.1%}"
 
     # If green star check is not enabled, return now
     if not check_green_star:
         return True, trigger_note, gap_info, None
 
-    # Check for green star pattern (pass the ohlc_daily directly)
+    # Check for green star pattern
     green_star_found, green_star_info = check_green_star_for_stock(
         stock.code, market, ohlc_daily
     )
@@ -457,7 +468,6 @@ def check_earnings_green_star(stock, market, ohlc_daily, volume_daily, ohlc_week
 
     # Otherwise return success but with no green star info
     return True, trigger_note, gap_info, None
-
 
 
 
