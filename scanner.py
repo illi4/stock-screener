@@ -417,13 +417,43 @@ def get_stocks_to_scan(market, method):
             return []
 
     else:
-        # Default behavior for other methods
-        return get_stocks(
+        # Get all stocks matching the basic criteria for other methods (like anx)
+        all_stocks = get_stocks(
             exchange=market.market_code,
             price_min=config["pricing"]["min"],
             price_max=config["pricing"]["max"],
             min_volume=config["filters"]["minimum_volume_level"],
         )
+
+        # For ANX method, check if we need to exclude upcoming earnings
+        if method == 'anx' and config["strategy"].get("anx", {}).get("exclude_upcoming_earnings", False):
+            upcoming_days = config["strategy"].get("anx", {}).get("upcoming_earnings_days", 5)
+
+            # Calculate future date
+            future_date = arrow.get(current_date, "YYYY-MM-DD").shift(days=upcoming_days).format("YYYY-MM-DD")
+
+            # Get stocks with upcoming earnings
+            upcoming_earnings_stocks = get_earnings_calendar(current_date, future_date)
+
+            if upcoming_earnings_stocks:
+                # Count stocks before filtering
+                stocks_before = len(all_stocks)
+
+                # Exclude stocks with upcoming earnings
+                filtered_stocks = [
+                    stock for stock in all_stocks
+                    if stock.code not in upcoming_earnings_stocks
+                ]
+
+                # Count excluded stocks
+                excluded_count = stocks_before - len(filtered_stocks)
+
+                print(f"ANX: Excluded {excluded_count} stocks with upcoming earnings in the next {upcoming_days} days")
+
+                return filtered_stocks
+
+        # Return all stocks for other methods or if no exclusion for ANX
+        return all_stocks
 
 
 def check_earnings_green_star(stock, market, ohlc_daily, volume_daily, ohlc_weekly, start_date):

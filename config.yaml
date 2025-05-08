@@ -34,6 +34,8 @@ strategy:
     directions:  # enumerate directions e.g. bull/bear
       - bull
       - bear
+    exclude_upcoming_earnings: true  # Exclude stocks with upcoming earnings
+    upcoming_earnings_days: 5  # Number of days to look ahead for earnings exclusion
   earnings:
     directions:
       - bull
