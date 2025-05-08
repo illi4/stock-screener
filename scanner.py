@@ -5,6 +5,7 @@ from collections import namedtuple
 from collections import defaultdict
 import peewee
 from tqdm import tqdm
+import arrow
 
 # For concurrent fetching of stock prices
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -367,28 +368,53 @@ def get_stocks_to_scan(market, method):
     global current_date, lookback_date
 
     if method == 'earnings':
-        # Get earnings stocks from StockTwits API
-        earnings_stocks = get_earnings_calendar(lookback_date, current_date)
+        # Get all stocks matching basic criteria
+        all_stocks = get_stocks(
+            exchange=market.market_code,
+            price_min=config["pricing"]["min"],
+            price_max=config["pricing"]["max"],
+            min_volume=config["filters"]["minimum_volume_level"],
+        )
 
-        if earnings_stocks:
-            # Get stocks from database with our standard filters
-            db_stocks = get_stocks(
-                exchange=market.market_code,
-                price_min=config["pricing"]["min"],
-                price_max=config["pricing"]["max"],
-                min_volume=config["filters"]["minimum_volume_level"],
-            )
+        # Get stocks with past earnings to find earnings gaps
+        past_earnings_stocks = get_earnings_calendar(lookback_date, current_date)
 
-            # Filter to only stocks that have earnings
+        if past_earnings_stocks:
+            # Filter to only stocks that have earnings in the lookback period
             filtered_stocks = [
-                stock for stock in db_stocks
-                if stock.code in earnings_stocks
+                stock for stock in all_stocks
+                if stock.code in past_earnings_stocks
             ]
 
-            print(f"Found {len(filtered_stocks)} stocks in database with earnings that meet earning date criteria")
-            return filtered_stocks
+            # Check if we need to exclude upcoming earnings
+            if config["strategy"]["earnings"].get("exclude_upcoming_earnings", True):
+                upcoming_days = config["strategy"]["earnings"].get("upcoming_earnings_days", 5)
 
-        return []
+                # Calculate future date from current_date using Arrow for consistency
+                future_date = arrow.get(current_date, "YYYY-MM-DD").shift(days=upcoming_days).format("YYYY-MM-DD")
+
+                # Get stocks with upcoming earnings
+                upcoming_earnings_stocks = get_earnings_calendar(current_date, future_date)
+
+                if upcoming_earnings_stocks:
+                    # Count stocks before filtering
+                    stocks_before = len(filtered_stocks)
+
+                    # Exclude stocks with upcoming earnings
+                    filtered_stocks = [
+                        stock for stock in filtered_stocks
+                        if stock.code not in upcoming_earnings_stocks
+                    ]
+
+                    # Count excluded stocks
+                    excluded_count = stocks_before - len(filtered_stocks)
+
+                    print(f"Excluded {excluded_count} stocks with upcoming earnings in the next {upcoming_days} days")
+
+            print(f"Found {len(filtered_stocks)} stocks with past earnings that meet criteria")
+            return filtered_stocks
+        else:
+            return []
 
     else:
         # Default behavior for other methods

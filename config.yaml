@@ -40,6 +40,8 @@ strategy:
     lookback_period_days: 60  # Days to look back for earnings conditions
     green_star_check: true    # Always check for green star pattern after finding earnings conditions
     require_green_star: true  # Only include in shortlist if green star pattern is present
+    exclude_upcoming_earnings: true  # Exclude stocks with upcoming earnings
+    upcoming_earnings_days: 5  # Number of days to look ahead for earnings exclusion
   sar_ma_bounce:
       directions:
         - bull
