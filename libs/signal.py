@@ -882,8 +882,8 @@ def is_ma_rising(ma_values, ma_length, lookback_period=5, spread=2):
 
     # Calculate what percentage of checks were true
     rising_percentage = sum(rising_checks) / len(rising_checks)
-    # Return True if at least 80% of checks showed rising values
-    return rising_percentage >= 0.8
+    # Return True if at least X% of checks showed rising values
+    return rising_percentage >= config["strategy"]["anx"]["ma50_rising_threshold"]
 
 
 def is_bullish_sar(sar_values):
