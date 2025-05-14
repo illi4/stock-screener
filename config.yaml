@@ -36,6 +36,7 @@ strategy:
       - bear
     exclude_upcoming_earnings: true  # Exclude stocks with upcoming earnings
     upcoming_earnings_days: 5  # Number of days to look ahead for earnings exclusion
+    ma50_rising_threshold: 0.6  # Percentage of MA checks that must be rising (0.6 = 60%)
   earnings:
     directions:
       - bull
