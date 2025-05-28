@@ -465,7 +465,6 @@ def check_earnings_green_star(stock, market, ohlc_daily, volume_daily, ohlc_week
     check_green_star = config["strategy"].get("earnings", {}).get("green_star_check", True)
     require_green_star = config["strategy"].get("earnings", {}).get("require_green_star", False)
 
-
     gap_confirmation, gap_info = earnings_gap_down_in_range(
         ohlc_daily,
         volume_daily,
@@ -480,12 +479,26 @@ def check_earnings_green_star(stock, market, ohlc_daily, volume_daily, ohlc_week
 
     # Form initial trigger note
     trigger_note = ''
-    '''
-    if hasattr(gap_info, 'get') and gap_info.get('date') is not None:
-        trigger_note = f"Gap down on {gap_info['date']} ({gap_info['gap_percent']:.1%})"
-    else:
-        trigger_note = f"Gap down detected ({gap_info.get('gap_percent', 0):.1%})"
-    '''
+
+    # Check MA20 > MA7 condition
+    ma7 = MA(ohlc_daily, 7)
+    ma20 = MA(ohlc_daily, 20)
+
+    # Check if we have enough data for both MAs
+    if len(ma7) == 0 or len(ma20) == 0:
+        print(f"-> Insufficient data for MA calculation for {stock.name}")
+        return False, "", None, None
+
+    # Check if MA20 > MA7 for the most recent value
+    ma20_above_ma7 = ma20["ma20"].iloc[-1] > ma7["ma7"].iloc[-1]
+
+    if not ma20_above_ma7:
+        print(
+            f"-> MA condition not met for {stock.name}: MA20 (${ma20['ma20'].iloc[-1]:.2f}) not above MA7 (${ma7['ma7'].iloc[-1]:.2f})")
+        return False, "", None, None
+
+    print(
+        f"-> MA condition met for {stock.name}: MA20 (${ma20['ma20'].iloc[-1]:.2f}) > MA7 (${ma7['ma7'].iloc[-1]:.2f})")
 
     # If green star check is not enabled, return now
     if not check_green_star:
@@ -513,8 +526,6 @@ def check_earnings_green_star(stock, market, ohlc_daily, volume_daily, ohlc_week
 
     # Otherwise return success but with no green star info
     return True, trigger_note, gap_info, None
-
-
 
 
 def scan_stocks(active_markets):
