@@ -6,6 +6,12 @@ import os
 import time
 from requests.exceptions import RequestException
 
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
 session = None  # to use in requests
 eod_key = os.environ.get("API_KEY")
 
@@ -102,7 +108,7 @@ def get_exchange_symbols(market_object, checked_workday, min_market_cap):
 
 
 # Add to stocktools.py
-def get_earnings_calendar(date_from, date_to):
+def get_earnings_calendar_non_selenium(date_from, date_to):
     """
     Fetch earnings calendar from StockTwits API for given date range
 
@@ -116,7 +122,11 @@ def get_earnings_calendar(date_from, date_to):
     global session
 
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': '"Windows"',
     }
 
     if session is None:
@@ -200,6 +210,97 @@ def get_stock_data(code, reporting_date_start, max_retries=5, retry_delay=5):
                 return None, None
 
     return None, None
+
+def get_earnings_calendar(date_from, date_to):
+    '''
+    Non selenium option stopped working
+    '''
+    chrome_options = Options()
+    #chrome_options.add_argument('--headless')  # blocks me if I am using headless
+    chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    chrome_options.add_experimental_option('useAutomationExtension', False)
+    chrome_options.add_argument('--no-sandbox')
+    chrome_options.add_argument('--disable-dev-shm-usage')
+
+    driver = webdriver.Chrome(options=chrome_options)
+
+    # Execute script to hide webdriver property
+    driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+
+    try:
+        url = f"https://api.stocktwits.com/api/2/discover/earnings_calendar?date_from={date_from}&date_to={date_to}"
+        print(f"Requesting: {url}")
+
+        driver.get(url)
+
+        # Wait for page to load and content to appear
+        wait = WebDriverWait(driver, 10)
+
+        # The API returns JSON directly, so we need to get the page source
+        time.sleep(3)  # Give it time to load
+
+        page_source = driver.page_source
+        print("Page loaded successfully")
+
+        # Try to find the JSON content
+        try:
+            # Method 1: Look for <pre> tag (common for JSON APIs)
+            pre_element = driver.find_element(By.TAG_NAME, "pre")
+            json_text = pre_element.text
+        except:
+            # Method 2: Get entire body text
+            try:
+                body_element = driver.find_element(By.TAG_NAME, "body")
+                json_text = body_element.text
+            except:
+                # Method 3: Parse from page source
+                # Look for JSON in page source
+                start_idx = page_source.find('{"date_from"')
+                if start_idx != -1:
+                    # Find the end of JSON (look for closing brace)
+                    brace_count = 0
+                    end_idx = start_idx
+                    for i, char in enumerate(page_source[start_idx:]):
+                        if char == '{':
+                            brace_count += 1
+                        elif char == '}':
+                            brace_count -= 1
+                            if brace_count == 0:
+                                end_idx = start_idx + i + 1
+                                break
+                    json_text = page_source[start_idx:end_idx]
+                else:
+                    print("Could not find JSON in page source")
+                    return set()
+
+        # Parse the JSON
+        try:
+            earnings_data = json.loads(json_text)
+            print("JSON parsed successfully")
+
+            # Extract stock symbols (same logic as your original function)
+            earnings_stocks = set()
+            if 'earnings' in earnings_data:
+                for date, date_data in earnings_data['earnings'].items():
+                    if 'stocks' in date_data:
+                        for stock in date_data['stocks']:
+                            earnings_stocks.add(stock['symbol'])
+
+            print(f"Found {len(earnings_stocks)} stocks with earnings between {date_from} and {date_to}")
+            return earnings_stocks
+
+        except json.JSONDecodeError as e:
+            print(f"Failed to parse JSON: {e}")
+            print(f"Raw content: {json_text[:500]}...")  # Print first 500 chars for debugging
+            return set()
+
+    except Exception as e:
+        print(f"Error with Selenium: {e}")
+        return set()
+
+    finally:
+        driver.quit()
 
 def ohlc_daily_to_weekly(df):
     df["start_of_week"] = df["timestamp"] - pd.to_timedelta(df["timestamp"].dt.dayofweek, unit='D')
