@@ -354,13 +354,14 @@ def scan_stock(stocks, market, method, direction, start_date):
     return shortlisted_stocks
 
 
-def get_stocks_to_scan(market, method):
+def get_stocks_to_scan(market, method, earnings_stocks=None):
     """
     Get stocks for scanning based on method
 
     Args:
         market: Market object with market parameters
         method: Scanning method (mri, anx, earnings)
+        earnings_stocks: Pre-fetched earnings stocks (for earnings method)
 
     Returns:
         List of stocks to scan
@@ -368,92 +369,35 @@ def get_stocks_to_scan(market, method):
     global current_date, lookback_date
 
     if method == 'earnings':
-        # Get all stocks matching basic criteria
-        all_stocks = get_stocks(
-            exchange=market.market_code,
-            price_min=config["pricing"]["min"],
-            price_max=config["pricing"]["max"],
-            min_volume=config["filters"]["minimum_volume_level"],
-        )
+        # Use pre-fetched earnings stocks instead of fetching again
+        if earnings_stocks and len(earnings_stocks) > 0:
+            # Get stocks from database with our standard filters
+            db_stocks = get_stocks(
+                exchange=market.market_code,
+                price_min=config["pricing"]["min"],
+                price_max=config["pricing"]["max"],
+                min_volume=config["filters"]["minimum_volume_level"],
+            )
 
-        # Get stocks with past earnings to find earnings gaps
-        past_earnings_stocks = get_earnings_calendar(lookback_date, current_date)
-
-        if past_earnings_stocks:
-            # Filter to only stocks that have earnings in the lookback period
+            # Filter to only stocks that have earnings
             filtered_stocks = [
-                stock for stock in all_stocks
-                if stock.code in past_earnings_stocks
+                stock for stock in db_stocks
+                if stock.code in earnings_stocks
             ]
 
-            # Check if we need to exclude upcoming earnings
-            if config["strategy"]["earnings"].get("exclude_upcoming_earnings", True):
-                upcoming_days = config["strategy"]["earnings"].get("upcoming_earnings_days", 5)
-
-                # Calculate future date from current_date using Arrow for consistency
-                future_date = arrow.get(current_date, "YYYY-MM-DD").shift(days=upcoming_days).format("YYYY-MM-DD")
-
-                # Get stocks with upcoming earnings
-                upcoming_earnings_stocks = get_earnings_calendar(current_date, future_date)
-
-                if upcoming_earnings_stocks:
-                    # Count stocks before filtering
-                    stocks_before = len(filtered_stocks)
-
-                    # Exclude stocks with upcoming earnings
-                    filtered_stocks = [
-                        stock for stock in filtered_stocks
-                        if stock.code not in upcoming_earnings_stocks
-                    ]
-
-                    # Count excluded stocks
-                    excluded_count = stocks_before - len(filtered_stocks)
-
-                    print(f"Excluded {excluded_count} stocks with upcoming earnings in the next {upcoming_days} days")
-
-            print(f"Found {len(filtered_stocks)} stocks with past earnings that meet criteria")
+            print(f"Found {len(filtered_stocks)} stocks in database with earnings that meet earning date criteria")
             return filtered_stocks
-        else:
-            return []
+
+        return []
 
     else:
-        # Get all stocks matching the basic criteria for other methods (like anx)
-        all_stocks = get_stocks(
+        # Default behavior for other methods
+        return get_stocks(
             exchange=market.market_code,
             price_min=config["pricing"]["min"],
             price_max=config["pricing"]["max"],
             min_volume=config["filters"]["minimum_volume_level"],
         )
-
-        # For ANX method, check if we need to exclude upcoming earnings
-        if method == 'anx' and config["strategy"].get("anx", {}).get("exclude_upcoming_earnings", False):
-            upcoming_days = config["strategy"].get("anx", {}).get("upcoming_earnings_days", 5)
-
-            # Calculate future date
-            future_date = arrow.get(current_date, "YYYY-MM-DD").shift(days=upcoming_days).format("YYYY-MM-DD")
-
-            # Get stocks with upcoming earnings
-            upcoming_earnings_stocks = get_earnings_calendar(current_date, future_date)
-
-            if upcoming_earnings_stocks:
-                # Count stocks before filtering
-                stocks_before = len(all_stocks)
-
-                # Exclude stocks with upcoming earnings
-                filtered_stocks = [
-                    stock for stock in all_stocks
-                    if stock.code not in upcoming_earnings_stocks
-                ]
-
-                # Count excluded stocks
-                excluded_count = stocks_before - len(filtered_stocks)
-
-                print(f"ANX: Excluded {excluded_count} stocks with upcoming earnings in the next {upcoming_days} days")
-
-                return filtered_stocks
-
-        # Return all stocks for other methods or if no exclusion for ANX
-        return all_stocks
 
 
 def check_earnings_green_star(stock, market, ohlc_daily, volume_daily, ohlc_weekly, start_date):
@@ -540,6 +484,13 @@ def scan_stocks(active_markets):
     if not arguments["use_existing_price_data"]:
         initialize_price_database()
 
+    # FETCH EARNINGS DATA ONCE FOR ALL MARKETS (if using earnings method)
+    earnings_stocks = None
+    if arguments["method"] == 'earnings':
+        print("Fetching earnings calendar data...")
+        earnings_stocks = get_earnings_calendar(lookback_date, current_date)
+        print(f"Fetched earnings data for {len(earnings_stocks) if earnings_stocks else 0} stocks")
+
     # First pass: get all stocks and fetch data
     start_date = get_data_start_date(arguments["date"])
     all_market_stocks = {}
@@ -548,7 +499,8 @@ def scan_stocks(active_markets):
     for market in active_markets:
         print(f"\nProcessing {market.market_code}...")
         if arguments["stocks"] is None:
-            stocks = get_stocks_to_scan(market, arguments["method"])
+            # Pass earnings_stocks to avoid refetching
+            stocks = get_stocks_to_scan(market, arguments["method"], earnings_stocks)
         else:
             stocks = get_stocks(codes=arguments["stocks"])
 
@@ -598,7 +550,6 @@ def scan_stocks(active_markets):
                 shortlists[market.market_code][direction],
                 market.market_code,
             )
-
 
 def fetch_prices_for_stock(stock, market, start_date):
     """
