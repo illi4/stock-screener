@@ -361,7 +361,7 @@ def get_stocks_to_scan(market, method, earnings_stocks=None):
     Args:
         market: Market object with market parameters
         method: Scanning method (mri, anx, earnings)
-        earnings_stocks: Pre-fetched earnings stocks (for earnings method)
+        earnings_stocks: Pre-fetched earnings stocks (used only for earnings method)
 
     Returns:
         List of stocks to scan
@@ -369,7 +369,7 @@ def get_stocks_to_scan(market, method, earnings_stocks=None):
     global current_date, lookback_date
 
     if method == 'earnings':
-        # Use pre-fetched earnings stocks instead of fetching again
+        # Use pre-fetched earnings stocks for filtering
         if earnings_stocks and len(earnings_stocks) > 0:
             # Get stocks from database with our standard filters
             db_stocks = get_stocks(
@@ -391,7 +391,7 @@ def get_stocks_to_scan(market, method, earnings_stocks=None):
         return []
 
     else:
-        # Default behavior for other methods
+        # Default behavior for other methods (anx, mri, etc.) - ignore earnings_stocks parameter
         return get_stocks(
             exchange=market.market_code,
             price_min=config["pricing"]["min"],
@@ -484,12 +484,10 @@ def scan_stocks(active_markets):
     if not arguments["use_existing_price_data"]:
         initialize_price_database()
 
-    # FETCH EARNINGS DATA ONCE FOR ALL MARKETS (if using earnings method)
-    earnings_stocks = None
-    if arguments["method"] == 'earnings':
-        print("Fetching earnings calendar data...")
-        earnings_stocks = get_earnings_calendar(lookback_date, current_date)
-        print(f"Fetched earnings data for {len(earnings_stocks) if earnings_stocks else 0} stocks")
+    # FETCH EARNINGS DATA ONCE FOR ALL MARKETS (used by earnings method and potentially others)
+    print("Fetching earnings calendar data...")
+    earnings_stocks = get_earnings_calendar(lookback_date, current_date)
+    print(f"Fetched earnings data for {len(earnings_stocks) if earnings_stocks else 0} stocks")
 
     # First pass: get all stocks and fetch data
     start_date = get_data_start_date(arguments["date"])
@@ -499,7 +497,7 @@ def scan_stocks(active_markets):
     for market in active_markets:
         print(f"\nProcessing {market.market_code}...")
         if arguments["stocks"] is None:
-            # Pass earnings_stocks to avoid refetching
+            # Pass earnings_stocks parameter (used for filtering only in earnings method)
             stocks = get_stocks_to_scan(market, arguments["method"], earnings_stocks)
         else:
             stocks = get_stocks(codes=arguments["stocks"])
