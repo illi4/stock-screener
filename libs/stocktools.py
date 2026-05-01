@@ -14,6 +14,7 @@ from selenium.webdriver.support import expected_conditions as EC
 
 session = None  # to use in requests
 eod_key = os.environ.get("API_KEY")
+finnhub_key = os.environ.get("FINNHUB_API_KEY")
 
 # Class for the market with its parameters
 class Market:
@@ -158,6 +159,26 @@ def get_earnings_calendar_non_selenium(date_from, date_to):
         print(f"Error fetching earnings data: {e}")
         return set()
 
+def get_upcoming_earnings_symbols(days_ahead=7, reference_date=None):
+    """
+    Return the set of symbols with earnings scheduled in the next N days.
+    Used to filter out stocks from scan results before they report.
+
+    Args:
+        days_ahead (int): How many calendar days ahead to check (default: 7)
+        reference_date (datetime.date, optional): Anchor date (default: today)
+
+    Returns:
+        set: Symbols with upcoming earnings within the window
+    """
+    from datetime import date, timedelta
+    today = reference_date or date.today()
+    date_from = today.strftime("%Y-%m-%d")
+    date_to = (today + timedelta(days=days_ahead)).strftime("%Y-%m-%d")
+    calendar = get_earnings_calendar(date_from, date_to)
+    return set(calendar.keys())
+
+
 def get_stock_data(code, reporting_date_start, max_retries=5, retry_delay=5):
     global session
     if session is None:
@@ -211,10 +232,8 @@ def get_stock_data(code, reporting_date_start, max_retries=5, retry_delay=5):
 
     return None, None
 
+'''
 def get_earnings_calendar(date_from, date_to):
-    '''
-    Non selenium option stopped working
-    '''
     chrome_options = Options()
     #chrome_options.add_argument('--headless')  # blocks me if I am using headless
     chrome_options.add_argument('--disable-blink-features=AutomationControlled')
@@ -301,6 +320,56 @@ def get_earnings_calendar(date_from, date_to):
 
     finally:
         driver.quit()
+'''
+
+# Updated code for other platform
+def get_earnings_calendar(date_from, date_to):
+    """
+    Fetch earnings calendar from Finnhub API for a given date range.
+
+    Args:
+        date_from (str): Start date in YYYY-MM-DD format
+        date_to (str): End date in YYYY-MM-DD format
+
+    Returns:
+        dict: {symbol: earnings_date_str} for all symbols in the range
+    """
+    global session
+
+    if session is None:
+        session = requests.Session()
+
+    if not finnhub_key:
+        print("Error: FINNHUB_API_KEY environment variable is not set")
+        return {}
+
+    url = "https://finnhub.io/api/v1/calendar/earnings"
+    params = {"from": date_from, "to": date_to, "token": finnhub_key}
+
+    try:
+        response = session.get(url, params=params)
+        if response.status_code == 200:
+            data = response.json()
+            result = {}
+            for entry in data.get("earningsCalendar", []):
+                symbol = entry.get("symbol")
+                date = entry.get("date")
+                if symbol and date:
+                    result[symbol] = date
+            print(f"Found {len(result)} stocks with earnings between {date_from} and {date_to}")
+            return result
+        elif response.status_code == 401:
+            print("Finnhub API error: invalid or missing API key (401)")
+        elif response.status_code == 429:
+            print("Finnhub API error: rate limit exceeded (429)")
+        else:
+            print(f"Failed to fetch earnings data: {response.status_code}")
+    except Exception as e:
+        print(f"Error fetching earnings data: {e}")
+
+    return {}
+
+
 
 def ohlc_daily_to_weekly(df):
     df["start_of_week"] = df["timestamp"] - pd.to_timedelta(df["timestamp"].dt.dayofweek, unit='D')
