@@ -536,29 +536,33 @@ def scan_stocks(active_markets):
             shortlists[market.market_code][direction] = scan_stock(stocks, market, arguments["method"], direction,
                                                                    start_date)
 
-    # Filter out stocks with earnings in the next 7 days across all shortlists
-    print("\nFetching upcoming earnings to filter shortlist...")
-    upcoming_earnings = get_upcoming_earnings_symbols(days_ahead=7)
-    if upcoming_earnings:
-        print(f"Symbols with earnings in next 7 days: {len(upcoming_earnings)}")
-        for market_code in shortlists:
-            for direction in shortlists[market_code]:
-                before_count = len(shortlists[market_code][direction])
-                removed = [
-                    s for s in shortlists[market_code][direction]
-                    if s.code in upcoming_earnings
-                ]
-                shortlists[market_code][direction] = [
-                    s for s in shortlists[market_code][direction]
-                    if s.code not in upcoming_earnings
-                ]
-                if removed:
-                    print(
-                        f"Removed from {market_code}/{direction} due to earnings in next 7 days: "
-                        + ", ".join(s.code for s in removed)
-                    )
+    # Filter out stocks with upcoming earnings across all shortlists
+    method_config = config["strategy"].get(arguments["method"], {})
+    if not method_config.get("exclude_upcoming_earnings", True):
+        print(f"\nUpcoming earnings exclusion disabled for {arguments['method']} — shortlist unchanged")
     else:
-        print("No upcoming earnings found (or fetch failed) — shortlist unchanged")
+        earnings_days = method_config.get("upcoming_earnings_days", 14)
+        print("\nFetching upcoming earnings to filter shortlist...")
+        upcoming_earnings = get_upcoming_earnings_symbols(days_ahead=earnings_days)
+        if upcoming_earnings:
+            print(f"Symbols with earnings in next {earnings_days} days: {len(upcoming_earnings)}")
+            for market_code in shortlists:
+                for direction in shortlists[market_code]:
+                    removed = [
+                        s for s in shortlists[market_code][direction]
+                        if s.code in upcoming_earnings
+                    ]
+                    shortlists[market_code][direction] = [
+                        s for s in shortlists[market_code][direction]
+                        if s.code not in upcoming_earnings
+                    ]
+                    if removed:
+                        print(
+                            f"Removed from {market_code}/{direction} due to earnings in next {earnings_days} days: "
+                            + ", ".join(s.code for s in removed)
+                        )
+        else:
+            print("No upcoming earnings found (or fetch failed) — shortlist unchanged")
 
 
     # Report results

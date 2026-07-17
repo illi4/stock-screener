@@ -35,7 +35,7 @@ strategy:
       - bull
       - bear
     exclude_upcoming_earnings: true  # Exclude stocks with upcoming earnings
-    upcoming_earnings_days: 5  # Number of days to look ahead for earnings exclusion
+    upcoming_earnings_days: 14  # Number of days to look ahead for earnings exclusion
     ma50_rising_threshold: 0.6  # Percentage of MA checks that must be rising (0.6 = 60%)
   earnings:
     directions:
@@ -44,12 +44,14 @@ strategy:
     green_star_check: true    # Always check for green star pattern after finding earnings conditions
     require_green_star: true  # Only include in shortlist if green star pattern is present
     exclude_upcoming_earnings: true  # Exclude stocks with upcoming earnings
-    upcoming_earnings_days: 5  # Number of days to look ahead for earnings exclusion
+    upcoming_earnings_days: 14  # Number of days to look ahead for earnings exclusion
   sar_ma_bounce:
       directions:
         - bull
       ma_pullback_tolerance: 0.02  # 2% above MA50
       max_days_pullback_to_green_star: 14  # Maximum days between pullback and green star
+      exclude_upcoming_earnings: true  # Exclude stocks with upcoming earnings
+      upcoming_earnings_days: 14  # Number of days to look ahead for earnings exclusion
 
 logging:
   gsheet_name: "Trading journal FY24/25"
